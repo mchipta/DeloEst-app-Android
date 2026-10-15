@@ -2,12 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'api.dart';
 import 'auth.dart';
 import 'models.dart';
 import 'state.dart';
 import 'theme.dart';
+import 'util.dart';
 import 'widgets.dart';
 
 class PostScreen extends StatefulWidget {
@@ -21,11 +23,13 @@ class PostScreen extends StatefulWidget {
 class _PostScreenState extends State<PostScreen> {
   int type = 0;
   final title = TextEditingController();
-  final pay = TextEditingController();
+  final payA = TextEditingController();
   final city = TextEditingController();
   final desc = TextEditingController();
   final phone = TextEditingController();
   String cat = kCats.first.name;
+  String unit = 'h';
+  String payRaw = '';
   List<String> ids = [];
   List<XFile> picked = [];
   bool busy = false;
@@ -39,10 +43,13 @@ class _PostScreenState extends State<PostScreen> {
     if (e != null) {
       type = e.type == kTypes[1] ? 1 : 0;
       title.text = e.title;
-      pay.text = e.pay;
+      final pp = payParse(e.pay);
+      unit = pp.p;
+      payRaw = pp.raw;
+      payA.text = grp(pp.a);
       city.text = e.city;
       desc.text = e.desc;
-      phone.text = e.phone;
+      phone.text = fmtPhone(e.phone);
       cat = kCats.any((c) => c.name == e.category) ? e.category : kCats.last.name;
       ids = List<String>.of(e.imgs);
     }
@@ -51,7 +58,7 @@ class _PostScreenState extends State<PostScreen> {
   }
 
   void _sync() {
-    if (phone.text.isEmpty && S.i.phone.isNotEmpty) phone.text = S.i.phone;
+    if (phone.text.isEmpty && S.i.phone.isNotEmpty) phone.text = fmtPhone(S.i.phone);
   }
 
   @override
@@ -62,9 +69,11 @@ class _PostScreenState extends State<PostScreen> {
 
   void _reset() {
     title.clear();
-    pay.clear();
+    payA.clear();
     desc.clear();
     type = 0;
+    unit = 'h';
+    payRaw = '';
     cat = kCats.first.name;
     ids = [];
     picked = [];
@@ -73,6 +82,28 @@ class _PostScreenState extends State<PostScreen> {
   }
 
   int get _count => ids.length + picked.length;
+
+  Future<void> _useTpl(Tpl t) async {
+    if (title.text.trim().isNotEmpty || desc.text.trim().isNotEmpty) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('Заменить введённый заголовок и описание шаблоном?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Отмена')),
+            TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Заменить')),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
+    setState(() {
+      type = t.type;
+      title.text = t.title;
+      cat = t.cat;
+      desc.text = t.desc;
+    });
+  }
 
   Future<void> _pick() async {
     if (_count >= 5) {
@@ -117,8 +148,28 @@ class _PostScreenState extends State<PostScreen> {
     return j['id'].toString();
   }
 
+  Future<bool> _riskOk(String text) async {
+    final m = riskRe.firstMatch(text);
+    if (m == null) return true;
+    final r = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Проверьте текст объявления'),
+        content: Text(
+            'В тексте есть «${m.group(0)}». Мошенники часто просят деньги вперёд, поэтому такие объявления вызывают недоверие и на них жалуются. Лучше написать, что оплата после работы.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Изменить текст')),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Всё равно опубликовать')),
+        ],
+      ),
+    );
+    return r == true;
+  }
+
   Future<void> _submit() async {
     final t = title.text.trim(), d = desc.text.trim();
+    final ph = normPhone(phone.text);
+    final pay = payStr(payA.text, unit, payRaw);
     if (t.length < 3) {
       setState(() => err = 'Укажите заголовок (не короче 3 символов)');
       return;
@@ -127,6 +178,15 @@ class _PostScreenState extends State<PostScreen> {
       setState(() => err = 'Опишите подробнее (не короче 10 символов)');
       return;
     }
+    if (ph.isNotEmpty && ph.length < 11) {
+      setState(() => err = 'Проверьте номер телефона');
+      return;
+    }
+    if (pay.isEmpty) {
+      setState(() => err = 'Укажите сумму или выберите «Договорная»');
+      return;
+    }
+    if (!await _riskOk('$t $pay $d')) return;
     setState(() {
       busy = true;
       err = null;
@@ -142,10 +202,10 @@ class _PostScreenState extends State<PostScreen> {
         'type': kTypes[type],
         'title': t,
         'category': cat,
-        'pay': pay.text.trim(),
+        'pay': pay,
         'city': city.text.trim(),
         'desc': d,
-        'phone': phone.text.trim(),
+        'phone': ph.isEmpty ? '' : '+$ph',
         'imgs': all,
       };
       final editing = widget.edit != null;
@@ -159,7 +219,7 @@ class _PostScreenState extends State<PostScreen> {
       S.i.bumpCab();
       if (!mounted) return;
       if (editing) {
-        toast(context, 'Изменения сохранены');
+        toast(context, 'Сохранено');
         Navigator.pop(context, true);
       } else {
         setState(_reset);
@@ -193,73 +253,126 @@ class _PostScreenState extends State<PostScreen> {
     );
   }
 
-  Widget _label(Pal p, String t) => Padding(
-        padding: const EdgeInsets.only(bottom: 6, top: 4),
-        child: Text(t, style: TextStyle(fontWeight: FontWeight.w700, color: p.tx)),
+  Widget _label(Pal p, String t, {String? hint}) => Padding(
+        padding: const EdgeInsets.only(bottom: 6, top: 6),
+        child: Row(children: [
+          Text(t, style: TextStyle(fontWeight: FontWeight.w700, color: p.tx, fontSize: 15)),
+          if (hint != null) Text('  $hint', style: TextStyle(color: p.mu, fontSize: 13)),
+        ]),
       );
 
-  Widget _f(TextEditingController c, String label,
-          {String? hint, int lines = 1, int? max, TextInputType? type}) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: TextField(
-          controller: c,
-          minLines: lines,
-          maxLines: lines == 1 ? 1 : 8,
-          maxLength: max,
-          keyboardType: type,
-          textCapitalization: TextCapitalization.sentences,
-          style: TextStyle(color: pal(context).tx),
-          decoration: deco(context, label, hint: hint),
-        ),
-      );
+  InputDecoration _d(BuildContext c, {String? hint}) => deco(c, null, hint: hint);
 
   Widget _form(BuildContext context, Pal p) {
-    return ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: [
-      Row(children: [
-        for (var i = 0; i < 2; i++)
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(right: i == 0 ? 8 : 0),
-              child: GestureDetector(
-                onTap: () => setState(() => type = i),
-                child: Container(
-                  height: 46,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    gradient: type == i ? LinearGradient(colors: [p.ac, p.ac2]) : null,
-                    color: type == i ? null : p.card,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: type == i ? Colors.transparent : p.bd),
+    final hideAmount = unit == 'n' || unit == 'x';
+    final units = [for (final u in kPayUnits) DropdownMenuItem(value: u[0], child: Text(u[1]))];
+    return ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 28), children: [
+      if (widget.edit == null) ...[
+        Text('Начните с шаблона: подставим заголовок и описание', style: TextStyle(color: p.mu, fontSize: 13.5)),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(children: [
+            for (final t in kTpls)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: GestureDetector(
+                  onTap: () => _useTpl(t),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                    decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(99), border: Border.all(color: p.bd)),
+                    child: Text(t.name, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: p.tx)),
                   ),
-                  child: Text(kTypes[i],
-                      style: TextStyle(fontWeight: FontWeight.w700, color: type == i ? Colors.white : p.tx)),
                 ),
+              ),
+          ]),
+        ),
+        const SizedBox(height: 6),
+      ],
+      _label(p, 'Тип'),
+      DropdownButtonFormField<int>(
+        value: type,
+        isExpanded: true,
+        dropdownColor: p.card,
+        style: TextStyle(color: p.tx, fontSize: 16),
+        decoration: _d(context),
+        items: [for (var i = 0; i < kTypes.length; i++) DropdownMenuItem(value: i, child: Text(kTypes[i]))],
+        onChanged: (v) {
+          if (v != null) setState(() => type = v);
+        },
+      ),
+      _label(p, 'Заголовок'),
+      TextField(
+        controller: title,
+        maxLength: 90,
+        textCapitalization: TextCapitalization.sentences,
+        style: TextStyle(color: p.tx),
+        decoration: _d(context, hint: 'Например: Нужны грузчики на 3 часа').copyWith(counterText: ''),
+      ),
+      _label(p, 'Категория'),
+      DropdownButtonFormField<String>(
+        value: cat,
+        isExpanded: true,
+        dropdownColor: p.card,
+        style: TextStyle(color: p.tx, fontSize: 16),
+        decoration: _d(context),
+        items: [for (final c in kCats) DropdownMenuItem(value: c.name, child: Text(c.name))],
+        onChanged: (v) {
+          if (v != null) setState(() => cat = v);
+        },
+      ),
+      _label(p, 'Оплата'),
+      Row(children: [
+        if (!hideAmount)
+          Expanded(
+            flex: 5,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: TextField(
+                controller: payA,
+                keyboardType: TextInputType.number,
+                inputFormatters: [GroupFormatter()],
+                style: TextStyle(color: p.tx),
+                decoration: _d(context, hint: 'Сумма, ₽'),
               ),
             ),
           ),
-      ]),
-      const SizedBox(height: 14),
-      _f(title, 'Заголовок', hint: 'Например: Нужен грузчик на субботу', max: 100),
-      Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: DropdownButtonFormField<String>(
-          value: cat,
-          isExpanded: true,
-          dropdownColor: p.card,
-          style: TextStyle(color: p.tx, fontSize: 16),
-          decoration: deco(context, 'Категория'),
-          items: [for (final c in kCats) DropdownMenuItem(value: c.name, child: Text(c.name))],
-          onChanged: (v) {
-            if (v != null) setState(() => cat = v);
-          },
+        Expanded(
+          flex: 6,
+          child: DropdownButtonFormField<String>(
+            value: unit,
+            isExpanded: true,
+            dropdownColor: p.card,
+            style: TextStyle(color: p.tx, fontSize: 16),
+            decoration: _d(context),
+            items: [
+              ...units,
+              if (unit == 'x') DropdownMenuItem(value: 'x', child: Text('Как было: $payRaw', overflow: TextOverflow.ellipsis)),
+            ],
+            onChanged: (v) {
+              if (v != null) setState(() => unit = v);
+            },
+          ),
         ),
+      ]),
+      _label(p, 'Город'),
+      TextField(
+        controller: city,
+        textCapitalization: TextCapitalization.words,
+        style: TextStyle(color: p.tx),
+        decoration: _d(context),
       ),
-      _f(pay, 'Оплата', hint: 'Например: 2000 или «Договорная»'),
-      _f(city, 'Город или район'),
-      _f(desc, 'Описание', hint: 'Что нужно сделать, когда, какие условия', lines: 5, max: 2000),
-      _f(phone, 'Телефон для связи', type: TextInputType.phone),
-      _label(p, 'Фото (до 5)'),
+      _label(p, 'Описание'),
+      TextField(
+        controller: desc,
+        minLines: 5,
+        maxLines: 10,
+        maxLength: 2000,
+        textCapitalization: TextCapitalization.sentences,
+        style: TextStyle(color: p.tx),
+        decoration: _d(context),
+      ),
+      _label(p, 'Фото', hint: 'до 5 штук, любой размер'),
       Wrap(spacing: 10, runSpacing: 10, children: [
         for (var i = 0; i < ids.length; i++)
           _tile(p, CachedNetworkImage(imageUrl: imgUrl(ids[i], 200), fit: BoxFit.cover), () => setState(() => ids.removeAt(i))),
@@ -271,15 +384,19 @@ class _PostScreenState extends State<PostScreen> {
             child: Container(
               width: 86,
               height: 86,
-              decoration: BoxDecoration(
-                color: p.card,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: p.bd),
-              ),
+              decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
               child: Icon(Icons.add_a_photo_outlined, color: p.mu),
             ),
           ),
       ]),
+      _label(p, 'Телефон для связи'),
+      TextField(
+        controller: phone,
+        keyboardType: TextInputType.phone,
+        inputFormatters: [PhoneFormatter()],
+        style: TextStyle(color: p.tx),
+        decoration: _d(context, hint: '+7 (999) 123-45-67'),
+      ),
       const SizedBox(height: 18),
       if (err != null) Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(err!, style: TextStyle(color: p.dng, fontWeight: FontWeight.w600))),
       if (busy && status.isNotEmpty) Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(status, style: TextStyle(color: p.mu))),

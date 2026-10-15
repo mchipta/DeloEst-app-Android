@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'api.dart';
 import 'state.dart';
 import 'theme.dart';
+import 'util.dart';
 import 'widgets.dart';
 
 enum AMode { login, reg, regCode, reset, resetCode }
@@ -55,10 +56,18 @@ class _AuthPageState extends State<AuthPage> {
   Future<void> _submit() async {
     switch (m) {
       case AMode.login:
-        if (!_check(_emailRe.hasMatch(_em), 'Введите почту, с которой регистрировались')) return;
+        final id = email.text.trim();
+        final byMail = id.contains('@');
+        if (!_check(byMail ? _emailRe.hasMatch(_em) : normPhone(id).length == 11, 'Введите почту или номер телефона')) return;
         if (!_check(pass.text.isNotEmpty, 'Введите пароль')) return;
         await _run(() async {
-          final j = await Api.call('login', {'login': _em, 'hash': sha256Hex('$_em:${pass.text}')});
+          final Map<String, dynamic> j;
+          if (byMail) {
+            j = await Api.call('login', {'login': _em, 'hash': sha256Hex('$_em:${pass.text}')});
+          } else {
+            // вход по номеру: сервер сам находит аккаунт и считает хеш
+            j = await Api.call('login', {'login': normPhone(id), 'pw': pass.text, 'hash': ''});
+          }
           await _finish(j);
         });
         break;
@@ -84,7 +93,7 @@ class _AuthPageState extends State<AuthPage> {
             'login': _em,
             'hash': sha256Hex('$_em:${pass.text}'),
             'name': name.text.trim(),
-            'phone': phone.text.trim(),
+            'phone': normPhone(phone.text).length == 11 ? '+${normPhone(phone.text)}' : phone.text.trim(),
             'code': code.text.trim(),
           });
           await _finish(j);
@@ -170,7 +179,8 @@ class _AuthPageState extends State<AuthPage> {
             _field(name, 'Имя', icon: Icons.person_outline, cap: TextCapitalization.words),
             _field(phone, 'Телефон', icon: Icons.call_outlined, type: TextInputType.phone, hint: '+7 900 000-00-00'),
           ],
-          if (!isCode) _field(email, 'Почта', icon: Icons.mail_outline, type: TextInputType.emailAddress),
+          if (!isCode)
+            _field(email, m == AMode.login ? 'Почта или телефон' : 'Почта', icon: Icons.mail_outline, type: m == AMode.login ? TextInputType.emailAddress : TextInputType.emailAddress),
           if (isCode) _field(code, 'Код из письма', icon: Icons.pin_outlined, type: TextInputType.number),
           if (m == AMode.login || m == AMode.reg || m == AMode.resetCode)
             _field(pass, m == AMode.resetCode ? 'Новый пароль' : 'Пароль', icon: Icons.lock_outline, secret: true),

@@ -21,6 +21,7 @@ class S extends ChangeNotifier {
   int msgTick = 0;
   int unread = 0;
   Set<String> fav = {};
+  List<Map<String, String>> ss = [];
   String cid = '';
   Timer? _timer;
   bool _unreadInit = false;
@@ -54,6 +55,12 @@ class S extends ChangeNotifier {
     i.cid = c;
     final fl = p.getStringList('fav');
     if (fl != null) i.fav = fl.toSet();
+    final sj = p.getString('ss');
+    if (sj != null) {
+      try {
+        i.ss = (jsonDecode(sj) as List).map((e) => Map<String, String>.from(e as Map)).toList();
+      } catch (_) {}
+    }
     final cached = p.getString('ads');
     if (cached != null) {
       try {
@@ -97,6 +104,11 @@ class S extends ChangeNotifier {
   }
 
   bool isFav(String id) => fav.contains(id);
+
+  Future<void> saveSS() async {
+    await prefs.setString('ss', jsonEncode(ss));
+    notifyListeners();
+  }
 
   Future<void> toggleFav(String id) async {
     if (!fav.remove(id)) fav.add(id);

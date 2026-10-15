@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'home.dart';
+import 'splash.dart';
 import 'state.dart';
 import 'theme.dart';
 
@@ -23,7 +23,7 @@ class DeloApp extends StatelessWidget {
         themeMode: S.i.themeMode,
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),
-        home: const HomeShell(),
+        home: const SplashGate(),
       ),
     );
   }

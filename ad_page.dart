@@ -7,8 +7,10 @@ import 'messages.dart';
 import 'models.dart';
 import 'profile.dart';
 import 'settings.dart';
+import 'share.dart';
 import 'state.dart';
 import 'theme.dart';
+import 'util.dart';
 import 'widgets.dart';
 
 class AdPage extends StatefulWidget {
@@ -100,13 +102,16 @@ class _AdPageState extends State<AdPage> {
                 icon: Icon(S.i.isFav(ad.id) ? Icons.favorite : Icons.favorite_border, color: S.i.isFav(ad.id) ? p.ac : null),
                 onPressed: () => S.i.toggleFav(ad.id),
               ),
-            if (S.i.logged && !mine)
-              PopupMenuButton<String>(
-                onSelected: (v) {
-                  if (v == 'report') _report();
-                },
-                itemBuilder: (c) => [const PopupMenuItem(value: 'report', child: Text('Пожаловаться'))],
-              ),
+            PopupMenuButton<String>(
+              onSelected: (v) {
+                if (v == 'report') _report();
+                if (v == 'share') showShare(context, ad);
+              },
+              itemBuilder: (c) => [
+                const PopupMenuItem(value: 'share', child: Text('Поделиться')),
+                if (S.i.logged && !mine) const PopupMenuItem(value: 'report', child: Text('Пожаловаться')),
+              ],
+            ),
           ]),
           body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
             _gallery(p),
@@ -161,7 +166,7 @@ class _AdPageState extends State<AdPage> {
               OutBtn('Написать автору', icon: Icons.chat_bubble_outline, onTap: _write),
               if (ph.isNotEmpty) ...[
                 const SizedBox(height: 10),
-                OutBtn('Позвонить  $ph', icon: Icons.call_outlined, onTap: () => _call(ph)),
+                OutBtn('Позвонить  ${fmtPhone(ph)}', icon: Icons.call_outlined, onTap: () => _call(ph)),
               ] else if (!S.i.logged) ...[
                 const SizedBox(height: 8),
                 Text('Телефон автора виден после входа', textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 13)),

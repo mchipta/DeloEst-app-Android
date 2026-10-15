@@ -6,6 +6,7 @@ import 'api.dart';
 import 'info.dart';
 import 'state.dart';
 import 'theme.dart';
+import 'util.dart';
 import 'widgets.dart';
 
 class FieldSpec {
@@ -81,13 +82,13 @@ class _FieldsDialogState extends State<_FieldsDialog> {
   }
 }
 
-class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+class SettingsBody extends StatefulWidget {
+  const SettingsBody({super.key});
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
+  State<SettingsBody> createState() => _SettingsBodyState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class _SettingsBodyState extends State<SettingsBody> {
   bool busy = false;
   static final _emailRe = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$');
 
@@ -149,10 +150,11 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _phone() async {
-    final r = await askFields(context, 'Телефон', [FieldSpec('Номер телефона', initial: S.i.phone, type: TextInputType.phone)]);
+    final r = await askFields(context, 'Телефон', [FieldSpec('Номер телефона', initial: fmtPhone(S.i.phone), type: TextInputType.phone)]);
     if (r == null) return;
     await _run(() async {
-      final j = await Api.call('chPhone', {'phone': r[0]});
+      if (normPhone(r[0]).length != 11) throw ApiError('Введите номер телефона полностью');
+      final j = await Api.call('chPhone', {'phone': '+${normPhone(r[0])}'});
       await S.i.patchUser({'phone': j['phone']});
       if (mounted) toast(context, 'Телефон изменён');
     });
@@ -267,82 +269,144 @@ class _SettingsPageState extends State<SettingsPage> {
         final p = pal(context);
         final av = (S.i.user?['avatar'] ?? '').toString();
         final tm = S.i.themeMode;
-        return Scaffold(
-          appBar: AppBar(title: const Text('Настройки')),
-          body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: [
-            if (busy) LinearProgressIndicator(color: p.ac, backgroundColor: p.bd, minHeight: 3),
-            GestureDetector(
-              onTap: busy ? null : _avatar,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: cardDeco(p),
-                child: Row(children: [
-                  Stack(children: [
-                    Avatar(S.i.name, data: av, size: 64),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(color: p.card, shape: BoxShape.circle, border: Border.all(color: p.bd)),
-                        child: Icon(Icons.photo_camera_outlined, size: 15, color: p.ac),
-                      ),
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (busy) LinearProgressIndicator(color: p.ac, backgroundColor: p.bd, minHeight: 3),
+          GestureDetector(
+            onTap: busy ? null : _avatar,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: cardDeco(p),
+              child: Row(children: [
+                Stack(children: [
+                  Avatar(S.i.name, data: av, size: 64),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(color: p.card, shape: BoxShape.circle, border: Border.all(color: p.bd)),
+                      child: Icon(Icons.photo_camera_outlined, size: 15, color: p.ac),
                     ),
-                  ]),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(S.i.name, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: p.tx)),
-                      Text(S.i.login, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13.5)),
-                      const SizedBox(height: 2),
-                      Text('Нажмите, чтобы сменить фото', style: TextStyle(color: p.ac, fontSize: 12.5, fontWeight: FontWeight.w600)),
-                    ]),
                   ),
                 ]),
-              ),
-            ),
-            _label(p, 'ПРОФИЛЬ'),
-            _tile(p, Icons.person_outline, 'Имя', S.i.name, _name),
-            _tile(p, Icons.call_outlined, 'Телефон', S.i.phone, _phone),
-            _tile(p, Icons.mail_outline, 'Почта (логин)', S.i.login, _email),
-            _label(p, 'ОФОРМЛЕНИЕ'),
-            Row(children: [
-              for (final t in [
-                [ThemeMode.system, 'Как в телефоне'],
-                [ThemeMode.light, 'Светлая'],
-                [ThemeMode.dark, 'Тёмная'],
-              ])
+                const SizedBox(width: 14),
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: GestureDetector(
-                      onTap: () => S.i.setTheme(t[0] as ThemeMode),
-                      child: Container(
-                        height: 44,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          gradient: tm == t[0] ? LinearGradient(colors: [p.ac, p.ac2]) : null,
-                          color: tm == t[0] ? null : p.card,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: tm == t[0] ? Colors.transparent : p.bd),
-                        ),
-                        child: Text(t[1] as String,
-                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: tm == t[0] ? Colors.white : p.tx)),
+                  child: Text('Нажмите, чтобы сменить фото профиля', style: TextStyle(color: p.ac, fontSize: 14, fontWeight: FontWeight.w700)),
+                ),
+              ]),
+            ),
+          ),
+          _label(p, 'ПРОФИЛЬ'),
+          _tile(p, Icons.person_outline, 'Имя', S.i.name, _name),
+          _tile(p, Icons.mail_outline, 'Почта', S.i.login.contains('@') ? S.i.login : '—', _email),
+          _tile(p, Icons.call_outlined, 'Телефон', S.i.phone.isEmpty ? '—' : fmtPhone(S.i.phone), _phone),
+          _label(p, 'ОФОРМЛЕНИЕ'),
+          Row(children: [
+            for (final t in [
+              [ThemeMode.system, 'Как в телефоне'],
+              [ThemeMode.light, 'Светлая'],
+              [ThemeMode.dark, 'Тёмная'],
+            ])
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: GestureDetector(
+                    onTap: () => S.i.setTheme(t[0] as ThemeMode),
+                    child: Container(
+                      height: 44,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        gradient: tm == t[0] ? LinearGradient(colors: [p.ac, p.ac2]) : null,
+                        color: tm == t[0] ? null : p.card,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: tm == t[0] ? Colors.transparent : p.bd),
                       ),
+                      child: Text(t[1] as String,
+                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: tm == t[0] ? Colors.white : p.tx)),
                     ),
                   ),
                 ),
-            ]),
-            _label(p, 'ПРОЧЕЕ'),
-            _tile(p, Icons.info_outline, 'О сервисе', 'О нас, частые вопросы, контакты',
-                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage()))),
-            _tile(p, Icons.business_center_outlined, 'Для бизнеса', 'Оставить заявку', _lead),
-            if (S.i.user?['admin'] == true)
-              _tile(p, Icons.admin_panel_settings_outlined, 'Админ-панель', 'Модерация, жалобы, заявки',
-                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPage()))),
-            _tile(p, Icons.logout, 'Выйти из аккаунта', '', _logout, color: p.dng),
+              ),
           ]),
-        );
+          _label(p, 'ПРОЧЕЕ'),
+          _tile(p, Icons.business_center_outlined, 'Для бизнеса', 'Оставить заявку', _lead),
+        ]);
+      },
+    );
+  }
+}
+
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Настройки')),
+      body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: const [SettingsBody(), BottomLinks()]),
+    );
+  }
+}
+
+Future<void> confirmLogout(BuildContext context) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: const Text('Выйти из аккаунта?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Отмена')),
+        TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Выйти')),
+      ],
+    ),
+  );
+  if (ok == true) {
+    await S.i.setUser(null);
+    S.i.loadAds();
+  }
+}
+
+// Нижний блок профиля: о сервисе, о приложении, админ-панель, выход
+class BottomLinks extends StatelessWidget {
+  const BottomLinks({super.key});
+
+  Widget _t(BuildContext context, Pal p, IconData icon, String title, String value, VoidCallback f, {Color? color}) {
+    return GestureDetector(
+      onTap: f,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: cardDeco(p, r: 16),
+        child: Row(children: [
+          Icon(icon, color: color ?? p.ac, size: 24),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, color: color ?? p.tx)),
+              if (value.isNotEmpty) Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13.5)),
+            ]),
+          ),
+          Icon(Icons.chevron_right, color: p.mu),
+        ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: S.i,
+      builder: (context, _) {
+        final p = pal(context);
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          const SizedBox(height: 18),
+          _t(context, p, Icons.info_outline, 'О сервисе', 'О нас, частые вопросы, контакты',
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage()))),
+          _t(context, p, Icons.phone_android, 'О приложении', 'Версия $kAppVersion, разработчик @mchipta',
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutAppPage()))),
+          if (S.i.logged && S.i.user?['admin'] == true)
+            _t(context, p, Icons.admin_panel_settings_outlined, 'Админ-панель', 'Модерация, жалобы, заявки',
+                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPage()))),
+          if (S.i.logged) _t(context, p, Icons.logout, 'Выйти из аккаунта', '', () => confirmLogout(context), color: p.dng),
+        ]);
       },
     );
   }
