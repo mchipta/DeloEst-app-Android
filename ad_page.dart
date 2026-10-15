@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
 import 'auth.dart';
+import 'messages.dart';
 import 'models.dart';
+import 'profile.dart';
+import 'settings.dart';
 import 'state.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -44,6 +47,29 @@ class _AdPageState extends State<AdPage> {
     }
   }
 
+  Future<void> _write() async {
+    if (!S.i.logged) {
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
+      if (!mounted || !S.i.logged) return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ChatPage(pid: ad.pid, name: ad.author, ver: ad.ver, adId: ad.id)),
+    );
+  }
+
+  Future<void> _report() async {
+    final r = await askFields(context, 'Пожаловаться', [const FieldSpec('Что не так с объявлением?', multi: true)],
+        ok: 'Отправить');
+    if (r == null || r[0].isEmpty) return;
+    try {
+      await Api.call('report', {'id': ad.id, 'reason': r[0]});
+      if (mounted) toast(context, 'Спасибо, мы проверим объявление');
+    } catch (e) {
+      if (mounted) toast(context, S.i.fail(e));
+    }
+  }
+
   Future<void> _reply() async {
     if (!S.i.logged) {
       await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
@@ -68,7 +94,20 @@ class _AdPageState extends State<AdPage> {
         final mine = S.i.logged && S.i.pid.isNotEmpty && S.i.pid == ad.pid;
         final ph = _phone();
         return Scaffold(
-          appBar: AppBar(title: const Text('Объявление')),
+          appBar: AppBar(title: const Text('Объявление'), actions: [
+            if (S.i.logged)
+              IconButton(
+                icon: Icon(S.i.isFav(ad.id) ? Icons.favorite : Icons.favorite_border, color: S.i.isFav(ad.id) ? p.ac : null),
+                onPressed: () => S.i.toggleFav(ad.id),
+              ),
+            if (S.i.logged && !mine)
+              PopupMenuButton<String>(
+                onSelected: (v) {
+                  if (v == 'report') _report();
+                },
+                itemBuilder: (c) => [const PopupMenuItem(value: 'report', child: Text('Пожаловаться'))],
+              ),
+          ]),
           body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
             _gallery(p),
             const SizedBox(height: 14),
@@ -97,7 +136,11 @@ class _AdPageState extends State<AdPage> {
             const SizedBox(height: 6),
             Text(ad.desc, style: TextStyle(fontSize: 15, height: 1.45, color: p.tx)),
             const SizedBox(height: 18),
-            _author(p),
+            GestureDetector(
+              onTap: () => Navigator.push(
+                  context, MaterialPageRoute(builder: (_) => ProfilePage(pid: ad.pid, name: ad.author))),
+              child: _author(p),
+            ),
             const SizedBox(height: 18),
             if (mine)
               Container(
@@ -114,6 +157,8 @@ class _AdPageState extends State<AdPage> {
               )
             else ...[
               GradBtn(S.i.logged ? 'Откликнуться' : 'Войти и откликнуться', icon: Icons.send_rounded, onTap: _reply),
+              const SizedBox(height: 10),
+              OutBtn('Написать автору', icon: Icons.chat_bubble_outline, onTap: _write),
               if (ph.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 OutBtn('Позвонить  $ph', icon: Icons.call_outlined, onTap: () => _call(ph)),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'cabinet.dart';
 import 'feed.dart';
+import 'messages.dart';
 import 'post.dart';
 import 'state.dart';
 import 'theme.dart';
@@ -30,7 +31,7 @@ class HomeShell extends StatelessWidget {
             child: Scaffold(
               body: IndexedStack(
                 index: S.i.tab,
-                children: const [FeedPage(), PostScreen(), CabinetPage()],
+                children: const [FeedPage(), PostScreen(), MessagesPage(), CabinetPage()],
               ),
               bottomNavigationBar: _Tabs(p: p),
             ),
@@ -50,6 +51,7 @@ class _Tabs extends StatelessWidget {
     final items = <List<Object>>[
       [Icons.search, 'Объявления'],
       [Icons.add_circle_outline, 'Разместить'],
+      [Icons.chat_bubble_outline, 'Сообщения'],
       [Icons.person_outline, S.i.logged ? 'Кабинет' : 'Войти'],
     ];
     return Container(
@@ -64,7 +66,26 @@ class _Tabs extends StatelessWidget {
                 child: InkWell(
                   onTap: () => S.i.goTab(i),
                   child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(items[i][0] as IconData, size: 25, color: S.i.tab == i ? p.ac : p.mu),
+                    Stack(clipBehavior: Clip.none, children: [
+                      Icon(items[i][0] as IconData, size: 25, color: S.i.tab == i ? p.ac : p.mu),
+                      if (i == 2 && S.i.unread > 0)
+                        Positioned(
+                          right: -9,
+                          top: -5,
+                          child: Container(
+                            constraints: const BoxConstraints(minWidth: 17),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(colors: [p.ac, p.ac2]),
+                              borderRadius: BorderRadius.circular(99),
+                              border: Border.all(color: p.card, width: 1.5),
+                            ),
+                            child: Text(S.i.unread > 99 ? '99+' : '${S.i.unread}',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+                          ),
+                        ),
+                    ]),
                     const SizedBox(height: 3),
                     Text(items[i][1] as String,
                         style: TextStyle(

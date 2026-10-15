@@ -3,8 +3,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'ad_page.dart';
 import 'api.dart';
 import 'auth.dart';
+import 'messages.dart';
 import 'models.dart';
 import 'post.dart';
+import 'settings.dart';
 import 'state.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -98,7 +100,15 @@ class _CabinetPageState extends State<CabinetPage> with SingleTickerProviderStat
       builder: (context, _) {
         final p = pal(context);
         return Scaffold(
-          appBar: AppBar(title: Text(S.i.logged ? 'Кабинет' : 'Войти'), actions: [_themeBtn(p)]),
+          appBar: AppBar(title: Text(S.i.logged ? 'Кабинет' : 'Войти'), actions: [
+            if (S.i.logged)
+              IconButton(
+                tooltip: 'Настройки',
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage())),
+              ),
+            _themeBtn(p),
+          ]),
           body: S.i.logged
               ? Column(children: [
                   _header(p),
@@ -215,6 +225,7 @@ class _CabinetPageState extends State<CabinetPage> with SingleTickerProviderStat
       final hidden = ad.status == 'hidden';
       items.add(AdCard(
         ad: ad,
+        showFav: false,
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: ad))),
         footer: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(
@@ -238,6 +249,10 @@ class _CabinetPageState extends State<CabinetPage> with SingleTickerProviderStat
   }
 
   Widget _chip(Pal p, String text, Color c) => Tag(text, c);
+
+  void _chat(String pid, String name) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(pid: pid, name: name)));
+  }
 
   Widget _inbox(Pal p) {
     final items = <Widget>[];
@@ -280,6 +295,8 @@ class _CabinetPageState extends State<CabinetPage> with SingleTickerProviderStat
           ],
           const SizedBox(height: 10),
           Wrap(spacing: 8, runSpacing: 8, children: [
+            if ((r['pid'] ?? '').toString().isNotEmpty)
+              _small(p, 'Написать', () => _chat((r['pid']).toString(), (r['name'] ?? '').toString())),
             if (st == '' || st == 'seen') _small(p, 'Выбрать исполнителем', () => _act('pick', {'rid': rid}, 'Исполнитель выбран'), fill: true),
             if (st == 'chosen') _small(p, 'Работа выполнена', () => _act('fin', {'rid': rid}, 'Отмечено как выполнено'), fill: true),
             if (st != 'done' && st != 'rejected') _small(p, 'Отклонить', () => _act('rej', {'rid': rid}, 'Отклик отклонён'), color: p.dng),
@@ -328,6 +345,13 @@ class _CabinetPageState extends State<CabinetPage> with SingleTickerProviderStat
             ],
             const SizedBox(height: 4),
             Text(ago(int.tryParse((r['ts'] ?? '0').toString()) ?? 0), style: TextStyle(color: p.mu, fontSize: 12.5)),
+            if ((r['pid'] ?? '').toString().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: _small(p, 'Написать автору', () => _chat((r['pid']).toString(), '')),
+              ),
+            ],
           ]),
         ),
       ));

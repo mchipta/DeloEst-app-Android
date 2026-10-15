@@ -15,6 +15,7 @@ class _FeedPageState extends State<FeedPage> {
   final _q = TextEditingController();
   String _cat = '';
   int _type = 0; // 0 все, 1 нужен исполнитель, 2 предлагаю услуги
+  bool _favOnly = false;
 
   @override
   void initState() {
@@ -33,6 +34,7 @@ class _FeedPageState extends State<FeedPage> {
     final r = S.i.ads.where((a) {
       if (_type == 1 && a.type != kTypes[0]) return false;
       if (_type == 2 && a.type != kTypes[1]) return false;
+      if (_favOnly && !S.i.isFav(a.id)) return false;
       if (_cat.isNotEmpty && a.category != _cat) return false;
       if (q.isNotEmpty && !('${a.title} ${a.desc} ${a.category} ${a.city}'.toLowerCase().contains(q))) {
         return false;
@@ -136,6 +138,7 @@ class _FeedPageState extends State<FeedPage> {
             _pill(p, 'Все', _type == 0, () => setState(() => _type = 0)),
             _pill(p, 'Нужен исполнитель', _type == 1, () => setState(() => _type = 1)),
             _pill(p, 'Предлагаю услуги', _type == 2, () => setState(() => _type = 2)),
+            if (S.i.logged) _pill(p, 'Избранное', _favOnly, () => setState(() => _favOnly = !_favOnly), icon: Icons.favorite_border),
           ]),
         ),
         const SizedBox(height: 8),

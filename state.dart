@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -17,7 +18,11 @@ class S extends ChangeNotifier {
   ThemeMode themeMode = ThemeMode.system;
   int tab = 0;
   int cabTick = 0;
+  int msgTick = 0;
+  int unread = 0;
+  Set<String> fav = {};
   String cid = '';
+  Timer? _timer;
 
   static Future<void> init() async {
     final p = await SharedPreferences.getInstance();
@@ -44,6 +49,8 @@ class S extends ChangeNotifier {
       await p.setString('cid', c);
     }
     i.cid = c;
+    final fl = p.getStringList('fav');
+    if (fl != null) i.fav = fl.toSet();
     final cached = p.getString('ads');
     if (cached != null) {
       try {
@@ -52,6 +59,8 @@ class S extends ChangeNotifier {
             .toList();
       } catch (_) {}
     }
+    i._timer = Timer.periodic(const Duration(seconds: 20), (_) => i.refreshUnread());
+    i.refreshUnread();
   }
 
   bool get logged => user != null;
@@ -69,7 +78,44 @@ class S extends ChangeNotifier {
       await prefs.setString('user', jsonEncode(j));
     }
     cabTick++;
+    if (j == null) unread = 0;
     notifyListeners();
+    if (j != null) refreshUnread();
+  }
+
+  Future<void> patchUser(Map<String, dynamic> m) async {
+    if (user == null) return;
+    user = <String, dynamic>{...user!, ...m};
+    await prefs.setString('user', jsonEncode(user));
+    notifyListeners();
+  }
+
+  bool isFav(String id) => fav.contains(id);
+
+  Future<void> toggleFav(String id) async {
+    if (!fav.remove(id)) fav.add(id);
+    await prefs.setStringList('fav', fav.toList());
+    notifyListeners();
+  }
+
+  Future<void> refreshUnread() async {
+    if (!logged) {
+      if (unread != 0) {
+        unread = 0;
+        notifyListeners();
+      }
+      return;
+    }
+    try {
+      final j = await Api.call('unread');
+      final n = (j['n'] as num?)?.toInt() ?? 0;
+      if (n != unread) {
+        unread = n;
+        notifyListeners();
+      }
+    } catch (e) {
+      if (e is ApiError && e.message == 'auth') fail(e);
+    }
   }
 
   Future<void> loadAds() async {
@@ -106,7 +152,8 @@ class S extends ChangeNotifier {
 
   void goTab(int t) {
     tab = t;
-    if (t == 2) cabTick++;
+    if (t == 2) msgTick++;
+    if (t == 3) cabTick++;
     notifyListeners();
   }
 

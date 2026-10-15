@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'models.dart';
+import 'state.dart';
 import 'theme.dart';
 
 String imgUrl(String id, int w) => 'https://lh3.googleusercontent.com/d/$id=w$w';
@@ -203,7 +204,8 @@ class AdCard extends StatelessWidget {
   final Ad ad;
   final VoidCallback onTap;
   final Widget? footer;
-  const AdCard({super.key, required this.ad, required this.onTap, this.footer});
+  final bool showFav;
+  const AdCard({super.key, required this.ad, required this.onTap, this.footer, this.showFav = true});
 
   @override
   Widget build(BuildContext context) {
@@ -220,9 +222,23 @@ class AdCard extends StatelessWidget {
             const SizedBox(width: 14),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                  typeTag(context, ad.type),
-                  CatChip(ad.category),
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Expanded(
+                    child: Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                      typeTag(context, ad.type),
+                      CatChip(ad.category),
+                    ]),
+                  ),
+                  if (showFav && S.i.logged)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => S.i.toggleFav(ad.id),
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 6, bottom: 4),
+                        child: Icon(S.i.isFav(ad.id) ? Icons.favorite : Icons.favorite_border,
+                            size: 22, color: S.i.isFav(ad.id) ? p.ac : p.mu),
+                      ),
+                    ),
                 ]),
                 const SizedBox(height: 6),
                 Text(ad.title,
