@@ -19,6 +19,7 @@ class DeloApp extends StatelessWidget {
       builder: (context, _) => MaterialApp(
         title: 'ДелоЕсть',
         debugShowCheckedModeBanner: false,
+        scaffoldMessengerKey: S.msgKey,
         themeMode: S.i.themeMode,
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),

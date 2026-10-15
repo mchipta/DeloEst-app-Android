@@ -12,6 +12,15 @@ import 'state.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
+const kQuick = [
+  'Здравствуйте! Ещё актуально?',
+  'Когда нужно приступить?',
+  'Какая оплата?',
+  'Где это находится?',
+  'Могу сегодня',
+  'Договорились, спасибо!',
+];
+
 int _n(dynamic v) => v is num ? v.toInt() : int.tryParse((v ?? '').toString()) ?? 0;
 
 String stamp(int ts) {
@@ -223,6 +232,7 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
+    S.i.chatOpen++;
     name = widget.name;
     avatar = widget.avatar;
     ver = widget.ver;
@@ -232,6 +242,7 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
+    S.i.chatOpen--;
     _timer?.cancel();
     _ctl.dispose();
     super.dispose();
@@ -403,6 +414,7 @@ class _ChatPageState extends State<ChatPage> {
                       itemBuilder: (c, i) => _bubble(p, rev[i]),
                     ),
         ),
+        _quick(p),
         _input(p),
       ]),
     );
@@ -481,6 +493,35 @@ class _ChatPageState extends State<ChatPage> {
             if (mine) ...[const SizedBox(width: 4), _tick(p, (m['st'] ?? '').toString())],
           ]),
         ]),
+      ),
+    );
+  }
+
+  Widget _quick(Pal p) {
+    return Container(
+      color: p.bg,
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        children: [
+          for (final q in kQuick)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: () {
+                  _ctl.text = q;
+                  _send();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(99), border: Border.all(color: p.bd)),
+                  child: Text(q, style: TextStyle(fontSize: 13, color: p.tx, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'ad_page.dart';
+import 'info.dart';
 import 'models.dart';
 import 'state.dart';
 import 'theme.dart';
@@ -113,6 +114,12 @@ class _FeedPageState extends State<FeedPage> {
           const SizedBox(width: 10),
           Text('Дело', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: p.tx)),
           const GradText('Есть', size: 22),
+          const Spacer(),
+          IconButton(
+            tooltip: 'О сервисе',
+            icon: Icon(Icons.info_outline, color: p.mu),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage())),
+          ),
         ]),
         const SizedBox(height: 12),
         TextField(

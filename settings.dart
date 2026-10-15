@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'admin.dart';
 import 'api.dart';
+import 'info.dart';
 import 'state.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -332,7 +334,12 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
             ]),
             _label(p, 'ПРОЧЕЕ'),
+            _tile(p, Icons.info_outline, 'О сервисе', 'О нас, частые вопросы, контакты',
+                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage()))),
             _tile(p, Icons.business_center_outlined, 'Для бизнеса', 'Оставить заявку', _lead),
+            if (S.i.user?['admin'] == true)
+              _tile(p, Icons.admin_panel_settings_outlined, 'Админ-панель', 'Модерация, жалобы, заявки',
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPage()))),
             _tile(p, Icons.logout, 'Выйти из аккаунта', '', _logout, color: p.dng),
           ]),
         );

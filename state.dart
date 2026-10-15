@@ -23,6 +23,9 @@ class S extends ChangeNotifier {
   Set<String> fav = {};
   String cid = '';
   Timer? _timer;
+  bool _unreadInit = false;
+  int chatOpen = 0;
+  static final msgKey = GlobalKey<ScaffoldMessengerState>();
 
   static Future<void> init() async {
     final p = await SharedPreferences.getInstance();
@@ -78,7 +81,10 @@ class S extends ChangeNotifier {
       await prefs.setString('user', jsonEncode(j));
     }
     cabTick++;
-    if (j == null) unread = 0;
+    if (j == null) {
+      unread = 0;
+      _unreadInit = false;
+    }
     notifyListeners();
     if (j != null) refreshUnread();
   }
@@ -109,6 +115,17 @@ class S extends ChangeNotifier {
     try {
       final j = await Api.call('unread');
       final n = (j['n'] as num?)?.toInt() ?? 0;
+      if (_unreadInit && n > unread && tab != 2 && chatOpen == 0) {
+        final sm = msgKey.currentState;
+        if (sm != null) {
+          sm.hideCurrentSnackBar();
+          sm.showSnackBar(SnackBar(
+            content: const Text('Новое сообщение'),
+            action: SnackBarAction(label: 'Открыть', onPressed: () => goTab(2)),
+          ));
+        }
+      }
+      _unreadInit = true;
       if (n != unread) {
         unread = n;
         notifyListeners();
