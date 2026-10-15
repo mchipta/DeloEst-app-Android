@@ -1,0 +1,30 @@
+name: delo_est
+description: ДелоЕсть — подработка рядом с домом
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.2
+  crypto: ^3.0.5
+  shared_preferences: ^2.3.2
+  cached_network_image: ^3.4.1
+  image_picker: ^1.1.2
+  url_launcher: ^6.3.1
+
+dev_dependencies:
+  flutter_launcher_icons: ^0.14.1
+
+flutter:
+  uses-material-design: true
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon.png"
+  adaptive_icon_background: "#ff5a36"
+  adaptive_icon_foreground: "assets/icon_fg.png"

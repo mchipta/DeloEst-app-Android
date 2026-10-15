@@ -1,0 +1,296 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'api.dart';
+import 'auth.dart';
+import 'models.dart';
+import 'state.dart';
+import 'theme.dart';
+import 'widgets.dart';
+
+class AdPage extends StatefulWidget {
+  final Ad ad;
+  const AdPage({super.key, required this.ad});
+  @override
+  State<AdPage> createState() => _AdPageState();
+}
+
+class _AdPageState extends State<AdPage> {
+  int page = 0;
+  late Ad ad;
+
+  @override
+  void initState() {
+    super.initState();
+    ad = widget.ad;
+    Api.call('seen', {'id': ad.id, 'cid': S.i.cid}).then((_) {}, onError: (_) {});
+  }
+
+  String _phone() {
+    if (ad.phone.isNotEmpty) return ad.phone;
+    for (final a in S.i.ads) {
+      if (a.id == ad.id) return a.phone;
+    }
+    return '';
+  }
+
+  Future<void> _call(String ph) async {
+    Api.call('view', {'id': ad.id}).then((_) {}, onError: (_) {});
+    final digits = ph.replaceAll(RegExp(r'[^\d+]'), '');
+    try {
+      await launchUrl(Uri(scheme: 'tel', path: digits));
+    } catch (_) {
+      if (mounted) toast(context, 'Не удалось открыть набор номера');
+    }
+  }
+
+  Future<void> _reply() async {
+    if (!S.i.logged) {
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
+      if (!mounted || !S.i.logged) return;
+    }
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: pal(context).card,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      builder: (c) => _ReplySheet(adId: ad.id),
+    );
+    if (ok == true && mounted) toast(context, 'Отклик отправлен — автор увидит ваш номер телефона');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: S.i,
+      builder: (context, _) {
+        final p = pal(context);
+        final mine = S.i.logged && S.i.pid.isNotEmpty && S.i.pid == ad.pid;
+        final ph = _phone();
+        return Scaffold(
+          appBar: AppBar(title: const Text('Объявление')),
+          body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+            _gallery(p),
+            const SizedBox(height: 14),
+            Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+              typeTag(context, ad.type),
+              CatChip(ad.category),
+              if (ad.status == 'closed') Tag('Закрыто', p.mu),
+            ]),
+            const SizedBox(height: 10),
+            Text(ad.title, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: p.tx, height: 1.2)),
+            const SizedBox(height: 6),
+            Text(payF(ad.pay), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: p.ok)),
+            const SizedBox(height: 8),
+            Row(children: [
+              Icon(Icons.place_outlined, size: 16, color: p.mu),
+              const SizedBox(width: 4),
+              Expanded(
+                  child: Text(ad.city.isEmpty ? 'Город не указан' : ad.city,
+                      style: TextStyle(color: p.mu, fontSize: 14))),
+            ]),
+            const SizedBox(height: 2),
+            Text('${ago(ad.ts)}${ad.opens > 0 ? ' · ${ad.opens} ${plural(ad.opens, 'просмотр', 'просмотра', 'просмотров')}' : ''}',
+                style: TextStyle(color: p.mu, fontSize: 13)),
+            const SizedBox(height: 16),
+            Text('Описание', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: p.tx)),
+            const SizedBox(height: 6),
+            Text(ad.desc, style: TextStyle(fontSize: 15, height: 1.45, color: p.tx)),
+            const SizedBox(height: 18),
+            _author(p),
+            const SizedBox(height: 18),
+            if (mine)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: cardDeco(p),
+                child: Text('Это ваше объявление. Управлять им и откликами можно в кабинете.',
+                    style: TextStyle(color: p.mu)),
+              )
+            else if (ad.status == 'closed')
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: cardDeco(p),
+                child: Text('Объявление закрыто автором', style: TextStyle(color: p.mu)),
+              )
+            else ...[
+              GradBtn(S.i.logged ? 'Откликнуться' : 'Войти и откликнуться', icon: Icons.send_rounded, onTap: _reply),
+              if (ph.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                OutBtn('Позвонить  $ph', icon: Icons.call_outlined, onTap: () => _call(ph)),
+              ] else if (!S.i.logged) ...[
+                const SizedBox(height: 8),
+                Text('Телефон автора виден после входа', textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 13)),
+              ],
+            ],
+          ]),
+        );
+      },
+    );
+  }
+
+  Widget _author(Pal p) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: cardDeco(p),
+      child: Row(children: [
+        Avatar(ad.author),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Flexible(
+                child: Text(ad.author.isEmpty ? 'Пользователь' : ad.author,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: p.tx)),
+              ),
+              if (ad.ver) ...[const SizedBox(width: 6), Icon(Icons.verified, size: 18, color: p.ok)],
+            ]),
+            const SizedBox(height: 2),
+            if (ad.rc > 0)
+              Row(children: [
+                const Icon(Icons.star_rounded, size: 18, color: Color(0xFFFFB400)),
+                const SizedBox(width: 3),
+                Text('${ad.rt} · ${ad.rc} ${plural(ad.rc, 'отзыв', 'отзыва', 'отзывов')}',
+                    style: TextStyle(color: p.mu, fontSize: 13)),
+              ])
+            else
+              Text('Пока нет отзывов', style: TextStyle(color: p.mu, fontSize: 13)),
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  Widget _gallery(Pal p) {
+    if (ad.imgs.isEmpty) {
+      return Container(
+        height: 190,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(18)),
+        child: Icon(catIcon(ad.category), size: 64, color: p.mu),
+      );
+    }
+    return Column(children: [
+      ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: AspectRatio(
+          aspectRatio: 4 / 3,
+          child: PageView.builder(
+            itemCount: ad.imgs.length,
+            onPageChanged: (i) => setState(() => page = i),
+            itemBuilder: (c, i) => GestureDetector(
+              onTap: () => Navigator.push(
+                  c, MaterialPageRoute(builder: (_) => PhotoViewer(ids: ad.imgs, index: i))),
+              child: CachedNetworkImage(
+                imageUrl: imgUrl(ad.imgs[i], 1000),
+                fit: BoxFit.cover,
+                placeholder: (c, u) => Container(color: p.bg2),
+                errorWidget: (c, u, e) => Container(color: p.bg2, child: Icon(Icons.broken_image_outlined, color: p.mu)),
+              ),
+            ),
+          ),
+        ),
+      ),
+      if (ad.imgs.length > 1)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            for (var i = 0; i < ad.imgs.length; i++)
+              Container(
+                width: i == page ? 18 : 7,
+                height: 7,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  color: i == page ? p.ac : p.bd,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+          ]),
+        ),
+    ]);
+  }
+}
+
+class PhotoViewer extends StatelessWidget {
+  final List<String> ids;
+  final int index;
+  const PhotoViewer({super.key, required this.ids, required this.index});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
+      body: PageView.builder(
+        controller: PageController(initialPage: index),
+        itemCount: ids.length,
+        itemBuilder: (c, i) => InteractiveViewer(
+          child: Center(
+            child: CachedNetworkImage(
+              imageUrl: imgUrl(ids[i], 1600),
+              fit: BoxFit.contain,
+              placeholder: (c, u) => const Center(child: CircularProgressIndicator(color: Colors.white)),
+              errorWidget: (c, u, e) => const Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReplySheet extends StatefulWidget {
+  final String adId;
+  const _ReplySheet({required this.adId});
+  @override
+  State<_ReplySheet> createState() => _ReplySheetState();
+}
+
+class _ReplySheetState extends State<_ReplySheet> {
+  final _msg = TextEditingController();
+  bool busy = false;
+  String? err;
+
+  Future<void> _send() async {
+    setState(() {
+      busy = true;
+      err = null;
+    });
+    try {
+      await Api.call('reply', {'id': widget.adId, 'msg': _msg.text.trim()});
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      final m = S.i.fail(e);
+      if (m == 'Вы уже откликались') {
+        if (mounted) Navigator.pop(context, true);
+        return;
+      }
+      if (mounted) setState(() => err = m);
+    }
+    if (mounted) setState(() => busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 18, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Отклик на объявление', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: p.tx)),
+        const SizedBox(height: 4),
+        Text('Автор увидит ваше имя и номер телефона', style: TextStyle(color: p.mu, fontSize: 13.5)),
+        const SizedBox(height: 14),
+        TextField(
+          controller: _msg,
+          maxLines: 4,
+          minLines: 3,
+          maxLength: 500,
+          style: TextStyle(color: p.tx),
+          decoration: deco(context, 'Сообщение', hint: 'Например: могу сегодня после 18:00'),
+        ),
+        if (err != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(err!, style: TextStyle(color: p.dng))),
+        GradBtn('Отправить отклик', busy: busy, onTap: _send),
+      ]),
+    );
+  }
+}
