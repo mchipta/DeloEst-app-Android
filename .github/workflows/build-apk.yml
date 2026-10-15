@@ -30,7 +30,15 @@ jobs:
         run: |
           flutter create --org ru.deloest --project-name delo_est --platforms android --no-pub shell
           rm -rf shell/lib shell/test shell/pubspec.yaml
-          cp -r lib assets pubspec.yaml shell/
+          mkdir -p shell/lib shell/assets
+          cp pubspec.yaml shell/
+          for f in lib/*.dart *.dart; do
+            if [ -f "$f" ]; then cp "$f" shell/lib/; fi
+          done
+          for f in assets/icon.png assets/icon_fg.png icon.png icon_fg.png; do
+            if [ -f "$f" ]; then cp "$f" shell/assets/; fi
+          done
+          ls shell/lib shell/assets
 
       - name: Настройка Android (интернет, название)
         working-directory: shell
@@ -49,7 +57,8 @@ jobs:
       - name: Постоянная подпись (обновления ставятся поверх)
         run: |
           mkdir -p ~/.android
-          cp signing/debug.keystore ~/.android/debug.keystore
+          if [ -f signing/debug.keystore ]; then cp signing/debug.keystore ~/.android/debug.keystore; fi
+          if [ -f debug.keystore ]; then cp debug.keystore ~/.android/debug.keystore; fi
 
       - name: Сборка APK
         working-directory: shell
