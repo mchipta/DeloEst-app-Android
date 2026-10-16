@@ -6,6 +6,7 @@ import 'auth.dart';
 import 'messages.dart';
 import 'models.dart';
 import 'post.dart';
+import 'profile.dart';
 import 'settings.dart';
 import 'share.dart';
 import 'state.dart';
@@ -132,6 +133,12 @@ class _CabinetPageState extends State<CabinetPage> {
         final dark = Theme.of(context).brightness == Brightness.dark;
         return Scaffold(
           appBar: AppBar(title: Text(S.i.logged ? 'Кабинет' : 'Профиль'), actions: [
+            if (S.i.logged)
+              IconButton(
+                tooltip: 'Настройки',
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage())),
+              ),
             IconButton(
               tooltip: 'Тема',
               icon: Icon(dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
@@ -172,34 +179,50 @@ class _CabinetPageState extends State<CabinetPage> {
     final av = (S.i.user?['avatar'] ?? '').toString();
     final mail = S.i.login.contains('@') ? S.i.login : '';
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
       decoration: cardDeco(p),
-      child: Row(children: [
-        Avatar(S.i.name, data: av, size: 60),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(S.i.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: p.tx)),
-            if (mail.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 3),
-                child: Row(children: [
-                  Icon(Icons.mail_outline, size: 15, color: p.mu),
-                  const SizedBox(width: 5),
-                  Expanded(child: Text(mail, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13.5))),
-                ]),
-              ),
-            if (S.i.phone.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 3),
-                child: Row(children: [
-                  Icon(Icons.call_outlined, size: 15, color: p.mu),
-                  const SizedBox(width: 5),
-                  Text(fmtPhone(S.i.phone), style: TextStyle(color: p.mu, fontSize: 13.5)),
-                ]),
-              ),
-          ]),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          Avatar(S.i.name, data: av, size: 60),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(S.i.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: p.tx)),
+              if (mail.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(children: [
+                    Icon(Icons.mail_outline, size: 15, color: p.mu),
+                    const SizedBox(width: 6),
+                    Expanded(child: Text(mail, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13.5))),
+                  ]),
+                ),
+              if (S.i.phone.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Row(children: [
+                    Icon(Icons.call_outlined, size: 15, color: p.mu),
+                    const SizedBox(width: 6),
+                    Text(fmtPhone(S.i.phone), style: TextStyle(color: p.mu, fontSize: 13.5)),
+                  ]),
+                ),
+            ]),
+          ),
+        ]),
+        const SizedBox(height: 14),
+        GestureDetector(
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(pid: S.i.pid, name: S.i.name))),
+          child: Container(
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.person_outline, size: 19, color: p.ac),
+              const SizedBox(width: 8),
+              Text('Мой профиль', style: TextStyle(fontWeight: FontWeight.w700, color: p.tx)),
+            ]),
+          ),
         ),
       ]),
     );
@@ -252,48 +275,46 @@ class _CabinetPageState extends State<CabinetPage> {
 
   Widget _chips(Pal p) {
     final pend = _pend;
-    Widget chip(String key, String label, IconData ic, {int badge = 0}) {
-      final on = ct == key;
-      return Padding(
-        padding: const EdgeInsets.only(right: 8),
-        child: GestureDetector(
-          onTap: () {
-            setState(() => ct = key);
-            _markSeen();
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            decoration: BoxDecoration(
-              gradient: on ? LinearGradient(colors: [p.ac, p.ac2]) : null,
-              color: on ? null : p.card,
-              borderRadius: BorderRadius.circular(99),
-              border: Border.all(color: on ? Colors.transparent : p.bd),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(ic, size: 17, color: on ? Colors.white : p.mu),
-              const SizedBox(width: 6),
-              Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: on ? Colors.white : p.tx)),
-              if (badge > 0) ...[
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(color: on ? Colors.white : p.ac, borderRadius: BorderRadius.circular(99)),
-                  child: Text('$badge', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: on ? p.ac : Colors.white)),
-                ),
-              ],
-            ]),
-          ),
-        ),
-      );
-    }
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    final tabs = [
+      ['ads', 'Объявления'],
+      ['in', 'Отклики мне'],
+      ['out', 'Мои отклики'],
+    ];
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
       child: Row(children: [
-        chip('ads', 'Объявления', Icons.inventory_2_outlined),
-        chip('in', 'Отклики мне', Icons.bolt_outlined, badge: pend),
-        chip('out', 'Мои отклики', Icons.send_outlined),
-        chip('set', 'Настройки', Icons.settings_outlined),
+        for (final t in tabs)
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() => ct = t[0]);
+                _markSeen();
+              },
+              child: Container(
+                height: 42,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  gradient: ct == t[0] ? LinearGradient(colors: [p.ac, p.ac2]) : null,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text(t[1], style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: ct == t[0] ? Colors.white : p.tx)),
+                    if (t[0] == 'in' && pend > 0) ...[
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(color: ct == t[0] ? Colors.white : p.ac, borderRadius: BorderRadius.circular(99)),
+                        child: Text('$pend', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: ct == t[0] ? p.ac : Colors.white)),
+                      ),
+                    ],
+                  ]),
+                ),
+              ),
+            ),
+          ),
       ]),
     );
   }
@@ -304,8 +325,6 @@ class _CabinetPageState extends State<CabinetPage> {
         return _inbox(p);
       case 'out':
         return _sent(p);
-      case 'set':
-        return const [SettingsBody()];
       default:
         return _myAds(p);
     }
@@ -344,7 +363,8 @@ class _CabinetPageState extends State<CabinetPage> {
         child: GestureDetector(
           onTap: () => setState(() => caf = key),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
             decoration: BoxDecoration(
               color: on ? p.ac.withOpacity(.14) : p.card,
               borderRadius: BorderRadius.circular(99),
@@ -359,13 +379,14 @@ class _CabinetPageState extends State<CabinetPage> {
     final items = <Widget>[];
     if (all.isNotEmpty) {
       items.add(Row(children: [
-        Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(children: [f('all', 'Все', all.length), f('open', 'Активные', open), f('closed', 'Снятые', all.length - open)]),
-          ),
-        ),
+        Expanded(child: Text('Мои объявления', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx))),
         _small(p, '+ Новое', () => S.i.goTab(1), fill: true),
+      ]));
+      items.add(const SizedBox(height: 10));
+      items.add(Row(children: [
+        Expanded(child: f('all', 'Все', all.length)),
+        Expanded(child: f('open', 'Активные', open)),
+        Expanded(child: f('closed', 'Снятые', all.length - open)),
       ]));
       items.add(const SizedBox(height: 12));
     }

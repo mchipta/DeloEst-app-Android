@@ -126,8 +126,6 @@ class _ProfilePageState extends State<ProfilePage> {
     final rt = (d['rt'] as num?)?.toDouble() ?? 0;
     final created = (d['created'] as num?)?.toInt() ?? 0;
     final dn = (d['dn'] as num?)?.toInt() ?? 0;
-    final seen = (d['seen'] as num?)?.toInt() ?? 0;
-    final on = d['on'] == true;
     final ads = (d['ads'] is List ? d['ads'] as List : <dynamic>[]).map((e) => Ad.fromJson(Map<String, dynamic>.from(e as Map))).toList();
     final reviews = (d['reviews'] is List ? d['reviews'] as List : <dynamic>[]).map((e) => Map<String, dynamic>.from(e as Map)).toList();
     String since = '';
@@ -150,8 +148,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(children: [
                     Flexible(child: Text(name, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: p.tx))),
-                    if (d['ver'] == true) ...[const SizedBox(width: 6), Icon(Icons.verified, size: 20, color: p.ok)],
                   ]),
+                  if (d['ver'] == true) const Padding(padding: EdgeInsets.only(top: 3), child: VerifiedBadge(size: 18, label: true)),
                   const SizedBox(height: 4),
                   if (rc > 0)
                     Row(children: [
@@ -161,12 +159,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     ])
                   else
                     Text('Пока нет отзывов', style: TextStyle(color: p.mu, fontSize: 13)),
-                  if (!me && (on || seen > 0))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 3),
-                      child: Text(on ? 'в сети' : 'был(а) ${ago(seen)}',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: on ? p.ok : p.mu)),
-                    ),
                 ]),
               ),
             ]),

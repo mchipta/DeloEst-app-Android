@@ -308,3 +308,66 @@ class AdCard extends StatelessWidget {
     );
   }
 }
+
+
+void showVerifiedInfo(BuildContext context) {
+  showDialog<void>(
+    context: context,
+    builder: (c) {
+      final p = pal(c);
+      return AlertDialog(
+        backgroundColor: p.card,
+        icon: Icon(Icons.verified, color: p.ok, size: 44),
+        title: Text('Проверенный пользователь', textAlign: TextAlign.center, style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
+        content: Text(
+            'Администрация ДелоЕсть проверила документы этого человека и подтвердила его личность. Это снижает риск мошенничества, но деньги заранее всё равно лучше не переводить.',
+            style: TextStyle(color: p.mu, height: 1.4)),
+        actions: [TextButton(onPressed: () => Navigator.pop(c), child: Text('Понятно', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)))],
+      );
+    },
+  );
+}
+
+// Значок «проверенный»: по нажатию объясняет, что это значит (в профиле и в объявлении)
+class VerifiedBadge extends StatelessWidget {
+  final double size;
+  final bool label;
+  const VerifiedBadge({super.key, this.size = 18, this.label = false});
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => showVerifiedInfo(context),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.verified, size: size, color: p.ok),
+        if (label) ...[
+          const SizedBox(width: 5),
+          Text('Проверенный пользователь', style: TextStyle(color: p.ok, fontWeight: FontWeight.w700, fontSize: 13)),
+        ],
+      ]),
+    );
+  }
+}
+
+class BrandIcon extends StatelessWidget {
+  final String kind; // tg или vk
+  final double size;
+  const BrandIcon(this.kind, {super.key, this.size = 40});
+  @override
+  Widget build(BuildContext context) {
+    final tg = kind == 'tg';
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: tg ? const Color(0xFF229ED9) : const Color(0xFF0077FF),
+        borderRadius: BorderRadius.circular(size * .3),
+      ),
+      child: tg
+          ? Icon(Icons.send_rounded, color: Colors.white, size: size * .55)
+          : Text('VK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: size * .4)),
+    );
+  }
+}

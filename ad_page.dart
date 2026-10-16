@@ -134,8 +134,15 @@ class _AdPageState extends State<AdPage> {
                       style: TextStyle(color: p.mu, fontSize: 14))),
             ]),
             const SizedBox(height: 2),
-            Text('${ago(ad.ts)}${ad.opens > 0 ? ' · ${ad.opens} ${plural(ad.opens, 'просмотр', 'просмотра', 'просмотров')}' : ''}',
-                style: TextStyle(color: p.mu, fontSize: 13)),
+            Row(children: [
+              Text(ago(ad.ts), style: TextStyle(color: p.mu, fontSize: 13)),
+              if (ad.opens > 0) ...[
+                Text('  ·  ', style: TextStyle(color: p.mu, fontSize: 13)),
+                Icon(Icons.visibility_outlined, size: 16, color: p.mu),
+                const SizedBox(width: 4),
+                Text('${ad.opens}', style: TextStyle(color: p.mu, fontSize: 13)),
+              ],
+            ]),
             const SizedBox(height: 16),
             Text('Описание', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: p.tx)),
             const SizedBox(height: 6),
@@ -194,8 +201,8 @@ class _AdPageState extends State<AdPage> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: p.tx)),
               ),
-              if (ad.ver) ...[const SizedBox(width: 6), Icon(Icons.verified, size: 18, color: p.ok)],
             ]),
+            if (ad.ver) const Padding(padding: EdgeInsets.only(top: 3, bottom: 2), child: VerifiedBadge(size: 17, label: true)),
             const SizedBox(height: 2),
             if (ad.rc > 0)
               Row(children: [

@@ -59,6 +59,7 @@ class _InfoPageState extends State<InfoPage> {
   Map<String, String> c = Map<String, String>.of(kSiteDefaults);
   bool loading = true;
   String? err;
+  int sec = 0;
 
   @override
   void initState() {
@@ -138,114 +139,179 @@ class _InfoPageState extends State<InfoPage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final p = pal(context);
+  Widget _contactW(Pal p, Widget lead, String text, VoidCallback? f) {
+    return GestureDetector(
+      onTap: f,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
+        decoration: cardDeco(p, r: 14),
+        child: Row(children: [
+          lead,
+          const SizedBox(width: 12),
+          Expanded(child: Text(text, style: TextStyle(color: p.tx, fontWeight: FontWeight.w600, fontSize: 15))),
+          if (f != null) Icon(Icons.chevron_right, color: p.mu),
+        ]),
+      ),
+    );
+  }
+
+  Widget _icoBox(Pal p, IconData ic) => Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12)),
+        child: Icon(ic, color: p.ac, size: 22),
+      );
+
+  Widget _seg(Pal p) {
+    const names = ['О нас', 'Вопросы', 'Бизнесу', 'Контакты'];
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
+      child: Row(children: [
+        for (var i = 0; i < names.length; i++)
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => sec = i),
+              child: Container(
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  gradient: sec == i ? LinearGradient(colors: [p.ac, p.ac2]) : null,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(names[i], style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: sec == i ? Colors.white : p.tx)),
+              ),
+            ),
+          ),
+      ]),
+    );
+  }
+
+  List<Widget> _about(Pal p) {
     final stats = siteLines(c['stats']);
-    final faq = siteLines(c['faq']);
     final reviews = siteLines(c['reviews']);
-    final phone = (c['phone'] ?? '').trim();
-    final email = (c['email'] ?? '').trim();
-    final tg = (c['tg'] ?? '').trim();
-    final vk = (c['vk'] ?? '').trim();
     final pill = (c['pill'] ?? '').trim();
     final h1a = (c['h1a'] ?? '').trim();
     final h1b = (c['h1b'] ?? '').trim();
     final lead = (c['lead'] ?? '').trim();
+    return [
+      if (pill.isNotEmpty || h1a.isNotEmpty || h1b.isNotEmpty || lead.isNotEmpty)
+        Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(18),
+          decoration: cardDeco(p),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (pill.isNotEmpty) Tag(pill, p.ac),
+            if (h1a.isNotEmpty) ...[const SizedBox(height: 10), Text(h1a, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: p.tx, height: 1.15))],
+            if (h1b.isNotEmpty) GradText(h1b, size: 24),
+            if (lead.isNotEmpty) ...[const SizedBox(height: 10), Text(lead, style: TextStyle(color: p.mu, fontSize: 15, height: 1.4))],
+          ]),
+        ),
+      Wrap(spacing: 10, runSpacing: 10, children: [
+        if ((c['year'] ?? '').isNotEmpty) _box(p, c['year']!, 'год основания'),
+        for (final s in stats) _box(p, s.isNotEmpty ? s[0] : '', s.length > 1 ? s.sublist(1).join('|') : ''),
+      ]),
+      const SizedBox(height: 16),
+      for (final t in sitePars(c['about']))
+        Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(t, style: TextStyle(color: p.tx, fontSize: 15.5, height: 1.5))),
+      if (reviews.isNotEmpty) ...[
+        _h(p, 'Отзывы'),
+        for (final r in reviews)
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(14),
+            decoration: cardDeco(p, r: 16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [for (var i = 0; i < 5; i++) const Icon(Icons.star_rounded, size: 18, color: Color(0xFFFFB400))]),
+              const SizedBox(height: 6),
+              Text(r.length > 2 ? r.sublist(2).join('|') : '', style: TextStyle(color: p.tx, height: 1.4)),
+              const SizedBox(height: 6),
+              Text(r.isNotEmpty ? r[0] : '', style: TextStyle(fontWeight: FontWeight.w800, color: p.tx)),
+              if (r.length > 1) Text(r[1], style: TextStyle(color: p.mu, fontSize: 13)),
+            ]),
+          ),
+      ],
+    ];
+  }
+
+  List<Widget> _faq(Pal p) {
+    final faq = siteLines(c['faq']);
+    if (faq.isEmpty) return [Padding(padding: const EdgeInsets.all(24), child: Text('Вопросов пока нет', style: TextStyle(color: p.mu)))];
+    return [
+      Container(
+        decoration: cardDeco(p, r: 16),
+        child: Column(children: [
+          for (var i = 0; i < faq.length; i++)
+            Theme(
+              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                iconColor: p.ac,
+                collapsedIconColor: p.mu,
+                shape: const Border(),
+                collapsedShape: const Border(),
+                expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                title: Text(faq[i][0], style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, color: p.tx)),
+                children: [Text(faq[i].skip(1).join('|'), style: TextStyle(color: p.mu, fontSize: 15, height: 1.45))],
+              ),
+            ),
+        ]),
+      ),
+    ];
+  }
+
+  List<Widget> _biz(Pal p) => [
+        for (final t in sitePars(c['biz']))
+          Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(t, style: TextStyle(color: p.tx, fontSize: 15.5, height: 1.5))),
+        const SizedBox(height: 6),
+        GradBtn('Оставить заявку', icon: Icons.business_center_outlined, onTap: _lead),
+      ];
+
+  List<Widget> _contacts(Pal p) {
+    final phone = (c['phone'] ?? '').trim();
+    final email = (c['email'] ?? '').trim();
+    final tg = (c['tg'] ?? '').trim();
+    final vk = (c['vk'] ?? '').trim();
+    return [
+      if (phone.isNotEmpty)
+        _contactW(p, _icoBox(p, Icons.call_outlined), phone, () => openUrl(context, Uri(scheme: 'tel', path: phone.replaceAll(RegExp(r'[^\d+]'), '')))),
+      if (email.isNotEmpty) _contactW(p, _icoBox(p, Icons.mail_outline), email, () => openUrl(context, Uri(scheme: 'mailto', path: email))),
+      if ((c['addr'] ?? '').trim().isNotEmpty) _contactW(p, _icoBox(p, Icons.place_outlined), c['addr']!.trim(), null),
+      if ((c['hours'] ?? '').trim().isNotEmpty) _contactW(p, _icoBox(p, Icons.schedule), c['hours']!.trim(), null),
+      if (tg.isNotEmpty) _contactW(p, const BrandIcon('tg'), tg, () => openUrl(context, Uri.parse(socialUrl(tg, 'https://t.me/')))),
+      if (vk.isNotEmpty) _contactW(p, const BrandIcon('vk'), vk, () => openUrl(context, Uri.parse(socialUrl(vk, 'https://vk.com/')))),
+      if ((c['social'] ?? '').trim().isNotEmpty) _contactW(p, _icoBox(p, Icons.share_outlined), c['social']!.trim(), null),
+      const SizedBox(height: 10),
+      Text(
+          (c['copy'] ?? '').trim().isNotEmpty
+              ? c['copy']!.trim()
+              : '© 2026 ДелоЕсть. Сервис публикует объявления пользователей и не является стороной сделки.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: p.mu, fontSize: 12.5)),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
     return Scaffold(
       appBar: AppBar(title: const Text('О сервисе')),
       body: RefreshIndicator(
         color: p.ac,
         onRefresh: _load,
-        child: ListView(physics: const AlwaysScrollableScrollPhysics(), padding: const EdgeInsets.fromLTRB(16, 0, 16, 30), children: [
+        child: ListView(physics: const AlwaysScrollableScrollPhysics(), padding: const EdgeInsets.fromLTRB(16, 4, 16, 30), children: [
           if (loading) LinearProgressIndicator(color: p.ac, backgroundColor: p.bd, minHeight: 3),
           if (err != null)
             Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.only(bottom: 8),
               child: Text('Не удалось обновить тексты с сайта ($err). Показаны сохранённые. Потяните вниз, чтобы повторить.',
                   style: TextStyle(color: p.dng, fontSize: 13)),
             ),
-          if (pill.isNotEmpty || h1a.isNotEmpty || h1b.isNotEmpty || lead.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              padding: const EdgeInsets.all(18),
-              decoration: cardDeco(p),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                if (pill.isNotEmpty) Tag(pill, p.ac),
-                if (h1a.isNotEmpty) ...[const SizedBox(height: 10), Text(h1a, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: p.tx, height: 1.15))],
-                if (h1b.isNotEmpty) GradText(h1b, size: 26),
-                if (lead.isNotEmpty) ...[const SizedBox(height: 10), Text(lead, style: TextStyle(color: p.mu, fontSize: 15.5, height: 1.4))],
-              ]),
-            ),
-          _h(p, 'О нас'),
-          Wrap(spacing: 10, runSpacing: 10, children: [
-            if ((c['year'] ?? '').isNotEmpty) _box(p, c['year']!, 'год основания'),
-            for (final s in stats) _box(p, s.isNotEmpty ? s[0] : '', s.length > 1 ? s.sublist(1).join('|') : ''),
-          ]),
-          const SizedBox(height: 14),
-          for (final t in sitePars(c['about']))
-            Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(t, style: TextStyle(color: p.tx, fontSize: 15.5, height: 1.45))),
-          if (reviews.isNotEmpty) ...[
-            _h(p, 'Отзывы'),
-            for (final r in reviews)
-              Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(14),
-                decoration: cardDeco(p, r: 16),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [for (var i = 0; i < 5; i++) const Icon(Icons.star_rounded, size: 18, color: Color(0xFFFFB400))]),
-                  const SizedBox(height: 6),
-                  Text(r.length > 2 ? r.sublist(2).join('|') : '', style: TextStyle(color: p.tx, height: 1.4)),
-                  const SizedBox(height: 6),
-                  Text(r.isNotEmpty ? r[0] : '', style: TextStyle(fontWeight: FontWeight.w800, color: p.tx)),
-                  if (r.length > 1) Text(r[1], style: TextStyle(color: p.mu, fontSize: 13)),
-                ]),
-              ),
-          ],
-          if (faq.isNotEmpty) ...[
-            _h(p, 'Частые вопросы'),
-            Container(
-              decoration: cardDeco(p, r: 16),
-              child: Column(children: [
-                for (var i = 0; i < faq.length; i++)
-                  Theme(
-                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                    child: ExpansionTile(
-                      tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-                      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                      iconColor: p.ac,
-                      collapsedIconColor: p.mu,
-                      shape: const Border(),
-                      collapsedShape: const Border(),
-                      expandedCrossAxisAlignment: CrossAxisAlignment.start,
-                      title: Text(faq[i][0], style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, color: p.tx)),
-                      children: [Text(faq[i].skip(1).join('|'), style: TextStyle(color: p.mu, fontSize: 15, height: 1.4))],
-                    ),
-                  ),
-              ]),
-            ),
-          ],
-          _h(p, 'Для бизнеса'),
-          for (final t in sitePars(c['biz']))
-            Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(t, style: TextStyle(color: p.tx, fontSize: 15.5, height: 1.45))),
-          const SizedBox(height: 4),
-          GradBtn('Оставить заявку', icon: Icons.business_center_outlined, onTap: _lead),
-          _h(p, 'Контакты'),
-          if (phone.isNotEmpty)
-            _contact(p, Icons.call_outlined, phone, () => openUrl(context, Uri(scheme: 'tel', path: phone.replaceAll(RegExp(r'[^\d+]'), '')))),
-          if (email.isNotEmpty) _contact(p, Icons.mail_outline, email, () => openUrl(context, Uri(scheme: 'mailto', path: email))),
-          if ((c['addr'] ?? '').trim().isNotEmpty) _contact(p, Icons.place_outlined, c['addr']!.trim(), null),
-          if ((c['hours'] ?? '').trim().isNotEmpty) _contact(p, Icons.schedule, c['hours']!.trim(), null),
-          if (tg.isNotEmpty) _contact(p, Icons.send_outlined, 'Telegram: $tg', () => openUrl(context, Uri.parse(socialUrl(tg, 'https://t.me/')))),
-          if (vk.isNotEmpty) _contact(p, Icons.public, 'ВКонтакте: $vk', () => openUrl(context, Uri.parse(socialUrl(vk, 'https://vk.com/')))),
-          if ((c['social'] ?? '').trim().isNotEmpty) _contact(p, Icons.share_outlined, c['social']!.trim(), null),
-          const SizedBox(height: 14),
-          Text(
-              (c['copy'] ?? '').trim().isNotEmpty
-                  ? c['copy']!.trim()
-                  : '© 2026 ДелоЕсть. Сервис публикует объявления пользователей и не является стороной сделки.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: p.mu, fontSize: 12.5)),
+          _seg(p),
+          const SizedBox(height: 16),
+          ...(sec == 0 ? _about(p) : sec == 1 ? _faq(p) : sec == 2 ? _biz(p) : _contacts(p)),
         ]),
       ),
     );
@@ -280,24 +346,27 @@ class _AboutAppPageState extends State<AboutAppPage> {
     } catch (_) {}
   }
 
-  Widget _row(Pal p, IconData ic, String label, String value, VoidCallback? f) {
-    return GestureDetector(
-      onTap: f,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: cardDeco(p, r: 14),
-        child: Row(children: [
-          Icon(ic, color: p.ac, size: 24),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(label, style: TextStyle(color: p.mu, fontSize: 12.5)),
-              Text(value, style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 15.5)),
-            ]),
-          ),
-          if (f != null) Icon(Icons.chevron_right, color: p.mu),
-        ]),
+  String _handle(String url) {
+    final u = Uri.tryParse(url);
+    if (u == null || u.pathSegments.isEmpty) return url;
+    return u.pathSegments.last;
+  }
+
+  Widget _soc(Pal p, String kind, String title, String url) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => openUrl(context, Uri.parse(url)),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
+          decoration: cardDeco(p, r: 18),
+          child: Column(children: [
+            BrandIcon(kind, size: 52),
+            const SizedBox(height: 10),
+            Text(title, style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 16)),
+            const SizedBox(height: 2),
+            Text(_handle(url), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13)),
+          ]),
+        ),
       ),
     );
   }
@@ -305,7 +374,8 @@ class _AboutAppPageState extends State<AboutAppPage> {
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
-    final tgUrl = socialUrl(tg.isEmpty ? '@mchipta' : tg, 'https://t.me/');
+    final tgUrl = socialUrl(tg.isEmpty ? 'mchipta' : tg, 'https://t.me/');
+    final vkUrl = socialUrl(vk.isEmpty ? 'mchipta' : vk, 'https://vk.com/');
     return Scaffold(
       appBar: AppBar(title: const Text('О приложении')),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 30), children: [
@@ -317,15 +387,30 @@ class _AboutAppPageState extends State<AboutAppPage> {
           const GradText('Есть', size: 28),
         ]),
         const SizedBox(height: 4),
-        Center(child: Text('подработка рядом с домом', style: TextStyle(color: p.mu, fontSize: 15))),
-        const SizedBox(height: 22),
-        _row(p, Icons.info_outline, 'Версия приложения', kAppVersion, null),
-        _row(p, Icons.code, 'Разработчик', '@mchipta', () => openUrl(context, Uri.parse('https://t.me/mchipta'))),
-        _row(p, Icons.send_outlined, 'Telegram', tg.isEmpty ? '@mchipta' : tg, () => openUrl(context, Uri.parse(tgUrl))),
-        if (vk.isNotEmpty)
-          _row(p, Icons.public, 'ВКонтакте', vk, () => openUrl(context, Uri.parse(socialUrl(vk, 'https://vk.com/')))),
-        const SizedBox(height: 10),
-        Text('Приложение сервиса ДелоЕсть. Объявления и аккаунты общие с сайтом.',
+        Center(child: Text('Версия $kAppVersion', style: TextStyle(color: p.mu, fontSize: 15))),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: cardDeco(p, r: 18),
+          child: Row(children: [
+            const Avatar('mchipta', size: 48),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Разработчик', style: TextStyle(color: p.mu, fontSize: 13)),
+                Text('mchipta', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 19)),
+              ]),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        Row(children: [
+          _soc(p, 'tg', 'Telegram', tgUrl),
+          const SizedBox(width: 12),
+          _soc(p, 'vk', 'ВКонтакте', vkUrl),
+        ]),
+        const SizedBox(height: 18),
+        Text('Приложение сервиса ДелоЕсть. Объявления, аккаунты и сообщения общие с сайтом.',
             textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 13.5)),
       ]),
     );
