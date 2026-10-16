@@ -29,11 +29,11 @@ class HomeShell extends StatelessWidget {
             systemNavigationBarIconBrightness: dark ? Brightness.light : Brightness.dark,
           ),
           child: PopScope(
-            canPop: S.i.tab == 0,
+            canPop: S.i.tab == S.i.rootTab,
             onPopInvoked: (didPop) {
               if (didPop) return;
               if (S.i.tab == 2 && (S.i.postBack?.call() ?? false)) return;
-              S.i.goTab(0);
+              S.i.goTab(S.i.rootTab);
             },
             child: Scaffold(
               body: IndexedStack(
@@ -57,13 +57,16 @@ class _Tabs extends StatelessWidget {
   Widget build(BuildContext context) {
     // [индекс вкладки, иконка, иконка выбранной, подпись, бейдж]
     final items = <List<Object>>[
-      [0, Icons.home_outlined, Icons.home_rounded, 'Главная', 0],
-      [1, Icons.search_rounded, Icons.search_rounded, 'Объявления', 0],
+      // не вошедшему поиск доступен на «Главной», вошедшему «Главная» не нужна
+      if (!S.i.logged) [0, Icons.home_outlined, Icons.home_rounded, 'Главная', 0],
+      if (S.i.logged) [1, Icons.search_rounded, Icons.search_rounded, 'Поиск', 0],
       [2, Icons.add_circle_outline_rounded, Icons.add_circle_rounded, 'Разместить', 0],
       // «Сообщения» видны только вошедшему в аккаунт
       if (S.i.logged) [4, Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded, 'Сообщения', S.i.unread],
       [3, Icons.person_outline_rounded, Icons.person_rounded, S.i.logged ? 'Кабинет' : 'Войти', 0],
     ];
+    // у не вошедшего результаты поиска (вкладка 1) открываются из «Главной», подсвечиваем её
+    bool on(int i) => S.i.tab == i || (!S.i.logged && i == 0 && S.i.tab == 1);
     return Container(
       decoration: BoxDecoration(
         color: p.card,
@@ -78,14 +81,14 @@ class _Tabs extends StatelessWidget {
               Expanded(
                 child: Semantics(
                   button: true,
-                  selected: S.i.tab == (it[0] as int),
+                  selected: on(it[0] as int),
                   label: it[3] as String,
                   child: InkWell(
                     onTap: () => S.i.goTab((it[0] as int) == 2 && !S.i.logged ? 3 : (it[0] as int)),
                     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                       Stack(clipBehavior: Clip.none, children: [
-                        Icon(S.i.tab == (it[0] as int) ? it[2] as IconData : it[1] as IconData,
-                            size: 23, color: S.i.tab == (it[0] as int) ? p.ac : p.mu),
+                        Icon(on(it[0] as int) ? it[2] as IconData : it[1] as IconData,
+                            size: 23, color: on(it[0] as int) ? p.ac : p.mu),
                         if ((it[4] as int) > 0)
                           Positioned(
                             right: -9,
@@ -104,8 +107,8 @@ class _Tabs extends StatelessWidget {
                       Text(it[3] as String,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 10.5, fontWeight: S.i.tab == (it[0] as int) ? FontWeight.w800 : FontWeight.w600,
-                              color: S.i.tab == (it[0] as int) ? p.ac : p.mu)),
+                          style: TextStyle(fontSize: 10.5, fontWeight: on(it[0] as int) ? FontWeight.w800 : FontWeight.w600,
+                              color: on(it[0] as int) ? p.ac : p.mu)),
                     ]),
                   ),
                 ),

@@ -17,6 +17,8 @@ class S extends ChangeNotifier {
   String? loadError;
   ThemeMode themeMode = ThemeMode.system;
   int tab = 0;
+  // корневая вкладка: у вошедшего «Главной» нет, ею служит «Поиск»
+  int get rootTab => logged ? 1 : 0;
   int cabTick = 0;
   int msgTick = 0;
   int unread = 0;
@@ -45,6 +47,7 @@ class S extends ChangeNotifier {
       try {
         i.user = Map<String, dynamic>.from(jsonDecode(u) as Map);
         Api.token = i.user!['t'] as String?;
+        i.tab = 1; // у вошедшего вкладки «Главная» нет, стартуем с поиска
       } catch (_) {
         i.user = null;
       }
@@ -108,6 +111,8 @@ class S extends ChangeNotifier {
       unread = 0;
       _unreadInit = false;
       if (tab == 4) tab = 0; // вкладка «Сообщения» только для вошедших
+    } else if (tab == 0) {
+      tab = 1; // вошли: «Главная» скрыта, открываем поиск
     }
     notifyListeners();
     if (j != null) refreshUnread();
