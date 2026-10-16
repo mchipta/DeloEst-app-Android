@@ -37,7 +37,12 @@ class _FeedPageState extends State<FeedPage> {
   }
 
   int get _activeFilters =>
-      (_city.trim().isNotEmpty ? 1 : 0) + (_min.isNotEmpty ? 1 : 0) + (_max.isNotEmpty ? 1 : 0) + (_sort.isNotEmpty ? 1 : 0);
+      (_type.isNotEmpty ? 1 : 0) +
+      (_cat.isNotEmpty ? 1 : 0) +
+      (_city.trim().isNotEmpty ? 1 : 0) +
+      (_min.isNotEmpty ? 1 : 0) +
+      (_max.isNotEmpty ? 1 : 0) +
+      (_sort.isNotEmpty ? 1 : 0);
 
   List<Ad> _filtered() {
     final q = _q.text.trim().toLowerCase();
@@ -373,38 +378,24 @@ class _FeedPageState extends State<FeedPage> {
             ]),
           ),
         ]),
-        const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(children: [
-            _pill(p, 'Все', _type.isEmpty, () => setState(() => _type = '')),
-            _pill(p, kTypes[0], _type == kTypes[0], () => setState(() => _type = kTypes[0])),
-            _pill(p, kTypes[1], _type == kTypes[1], () => setState(() => _type = kTypes[1])),
-          ]),
-        ),
-        const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(children: [
-            _pill(p, 'Все категории', _cat.isEmpty, () => setState(() => _cat = '')),
-            for (final c in kCats)
-              _pill(p, c.name, _cat == c.name, () => setState(() => _cat = _cat == c.name ? '' : c.name), icon: c.icon),
-          ]),
-        ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 14),
         Row(children: [
-          Expanded(child: Text('Найдено: $count', style: TextStyle(color: p.mu, fontWeight: FontWeight.w600))),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('$count ${plural(count, 'объявление', 'объявления', 'объявлений')}', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 16)),
+              const SizedBox(height: 2),
+              Text(_activeFilters == 0 ? 'Подработка и услуги рядом' : 'Фильтров выбрано: $_activeFilters',
+                  style: TextStyle(color: p.mu, fontSize: 12.5)),
+            ]),
+          ),
           if (S.i.logged)
-            GestureDetector(
-              onTap: _saveSearch,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.bookmark_border, size: 17, color: p.ac),
-                  const SizedBox(width: 5),
-                  Text('Сохранить поиск', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: p.tx)),
-                ]),
+            IconButton(
+              tooltip: 'Сохранить поиск',
+              onPressed: _saveSearch,
+              icon: Icon(Icons.bookmark_add_outlined, color: p.ac),
+              style: IconButton.styleFrom(
+                backgroundColor: p.card,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13), side: BorderSide(color: p.bd)),
               ),
             ),
         ]),
@@ -412,25 +403,4 @@ class _FeedPageState extends State<FeedPage> {
     );
   }
 
-  Widget _pill(Pal p, String t, bool on, VoidCallback f, {IconData? icon}) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: GestureDetector(
-        onTap: f,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: on ? LinearGradient(colors: [p.ac, p.ac2]) : null,
-            color: on ? null : p.card,
-            borderRadius: BorderRadius.circular(99),
-            border: Border.all(color: on ? Colors.transparent : p.bd),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            if (icon != null) ...[Icon(icon, size: 15, color: on ? Colors.white : p.mu), const SizedBox(width: 5)],
-            Text(t, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: on ? Colors.white : p.tx)),
-          ]),
-        ),
-      ),
-    );
-  }
 }

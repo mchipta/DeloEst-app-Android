@@ -59,13 +59,12 @@ class _Tabs extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: p.card,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(.08), blurRadius: 22, offset: const Offset(0, -4))],
+        border: Border(top: BorderSide(color: p.bd)),
       ),
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 68,
+          height: 62,
           child: Row(children: [
             for (var i = 0; i < items.length; i++)
               Expanded(
@@ -73,15 +72,7 @@ class _Tabs extends StatelessWidget {
                   onTap: () => S.i.goTab(i),
                   scale: .92,
                   child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 240),
-                      curve: Curves.easeOutCubic,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: S.i.tab == i ? p.ac.withOpacity(.14) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                      child: Stack(clipBehavior: Clip.none, children: [
+                    Stack(clipBehavior: Clip.none, children: [
                         Icon(S.i.tab == i ? items[i][1] as IconData : items[i][0] as IconData,
                             size: 25, color: S.i.tab == i ? p.ac : p.mu),
                         if (i == 2 && S.i.unread > 0)
@@ -101,8 +92,7 @@ class _Tabs extends StatelessWidget {
                                   style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
                             ),
                           ),
-                      ]),
-                    ),
+                    ]),
                     const SizedBox(height: 2),
                     AnimatedDefaultTextStyle(
                       duration: const Duration(milliseconds: 240),

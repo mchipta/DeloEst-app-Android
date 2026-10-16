@@ -6,7 +6,6 @@ import 'auth.dart';
 import 'messages.dart';
 import 'models.dart';
 import 'post.dart';
-import 'profile.dart';
 import 'settings.dart';
 import 'share.dart';
 import 'state.dart';
@@ -131,14 +130,7 @@ class _CabinetPageState extends State<CabinetPage> {
       builder: (context, _) {
         final p = pal(context);
         return Scaffold(
-          appBar: AppBar(title: Text(S.i.logged ? 'Кабинет' : 'Профиль'), actions: [
-            if (S.i.logged)
-              IconButton(
-                tooltip: 'Настройки',
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage())),
-              ),
-          ]),
+          appBar: AppBar(title: Text(S.i.logged ? 'Кабинет' : 'Профиль')),
           body: S.i.logged
               ? RefreshIndicator(
                   color: p.ac,
@@ -176,30 +168,34 @@ class _CabinetPageState extends State<CabinetPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
-      decoration: cardDeco(p),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: p.ac.withOpacity(.18), blurRadius: 22, offset: const Offset(0, 10))],
+      ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
           Avatar(S.i.name, data: av, size: 60),
           const SizedBox(width: 14),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(S.i.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: p.tx)),
+              Text(S.i.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: Colors.white)),
               if (mail.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Row(children: [
-                    Icon(Icons.mail_outline, size: 15, color: p.mu),
+                    Icon(Icons.mail_outline, size: 15, color: Colors.white.withOpacity(.82)),
                     const SizedBox(width: 6),
-                    Expanded(child: Text(mail, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13.5))),
+                    Expanded(child: Text(mail, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white.withOpacity(.88), fontSize: 13.5))),
                   ]),
                 ),
               if (S.i.phone.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 3),
                   child: Row(children: [
-                    Icon(Icons.call_outlined, size: 15, color: p.mu),
+                    Icon(Icons.call_outlined, size: 15, color: Colors.white.withOpacity(.82)),
                     const SizedBox(width: 6),
-                    Text(fmtPhone(S.i.phone), style: TextStyle(color: p.mu, fontSize: 13.5)),
+                    Text(fmtPhone(S.i.phone), style: TextStyle(color: Colors.white.withOpacity(.88), fontSize: 13.5)),
                   ]),
                 ),
             ]),
@@ -207,15 +203,18 @@ class _CabinetPageState extends State<CabinetPage> {
         ]),
         const SizedBox(height: 14),
         GestureDetector(
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(pid: S.i.pid, name: S.i.name))),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage())),
           child: Container(
             height: 44,
             alignment: Alignment.center,
-            decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.person_outline, size: 19, color: p.ac),
+              Icon(Icons.edit_outlined, size: 18, color: p.ac),
               const SizedBox(width: 8),
-              Text('Мой профиль', style: TextStyle(fontWeight: FontWeight.w700, color: p.tx)),
+              Text('Изменить профиль', style: TextStyle(fontWeight: FontWeight.w800, color: p.ac)),
             ]),
           ),
         ),
@@ -376,10 +375,7 @@ class _CabinetPageState extends State<CabinetPage> {
 
     final items = <Widget>[];
     if (all.isNotEmpty) {
-      items.add(Row(children: [
-        Expanded(child: Text('Мои объявления', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx))),
-        _small(p, 'Новое', () => S.i.goTab(1), fill: true, icon: Icons.add),
-      ]));
+      items.add(Text('Мои объявления', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx)));
       items.add(const SizedBox(height: 10));
       items.add(Row(children: [
         Expanded(child: f('all', 'Все', all.length)),
@@ -390,7 +386,6 @@ class _CabinetPageState extends State<CabinetPage> {
     }
     if (shown.isEmpty) {
       items.add(_empty(p, all.isEmpty ? 'У вас пока нет объявлений' : 'В этой группе ничего нет'));
-      if (all.isEmpty) items.add(Center(child: SizedBox(width: 260, child: GradBtn('Разместить объявление', icon: Icons.add, onTap: () => S.i.goTab(1)))));
     }
     for (final m in shown) {
       final ad = Ad.fromJson(m);
