@@ -35,9 +35,9 @@ jobs:
           for f in lib/*.dart *.dart; do
             if [ -f "$f" ]; then cp "$f" shell/lib/; fi
           done
-          for f in assets/icon.png assets/icon_fg.png icon.png icon_fg.png; do
-            if [ -f "$f" ]; then cp "$f" shell/assets/; fi
-          done
+          for f in assets/icon.png assets/icon_fg.png assets/icon_orange.png assets/icon_purple.png icon.png icon_fg.png icon_orange.png icon_purple.png; do
+  if [ -f "$f" ]; then cp "$f" shell/assets/; fi
+done
           ls shell/lib shell/assets
 
       - name: Настройка Android (интернет, название)
