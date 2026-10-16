@@ -131,7 +131,7 @@ class _CabinetPageState extends State<CabinetPage> {
       builder: (context, _) {
         final p = pal(context);
         return Scaffold(
-          appBar: AppBar(title: Text(S.i.logged ? (ct == 'set' ? 'Профиль и настройки' : 'Кабинет') : 'Профиль')),
+          appBar: AppBar(title: Text(S.i.logged ? (ct == 'set' ? 'Настройки' : 'Кабинет') : 'Профиль')),
           body: S.i.logged
               ? RefreshIndicator(
                   color: p.ac,
@@ -208,9 +208,9 @@ class _CabinetPageState extends State<CabinetPage> {
               icon: const Icon(Icons.person_outline_rounded, size: 18),
               label: const Text('Мой профиль'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: p.tx,
-                backgroundColor: p.card,
-                side: BorderSide(color: p.card),
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.white.withOpacity(.14),
+                side: BorderSide(color: Colors.white.withOpacity(.42)),
                 minimumSize: const Size(0, 42),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -288,10 +288,10 @@ class _CabinetPageState extends State<CabinetPage> {
   Widget _chips(Pal p) {
     final pend = _pend;
     final tabs = <List<Object>>[
-      ['ads', 'Объявления', Icons.work_outline_rounded],
+      ['ads', 'Мои объявления', Icons.work_outline_rounded],
       ['in', 'Отклики мне', Icons.bolt_rounded],
       ['out', 'Мои отклики', Icons.send_outlined],
-      ['set', 'Профиль и настройки', Icons.settings_outlined],
+      ['set', 'Настройки', Icons.settings_outlined],
     ];
     return Container(
       padding: const EdgeInsets.all(4),

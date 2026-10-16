@@ -136,14 +136,17 @@ class _LandingPageState extends State<LandingPage> {
                   _sectionTitle(p, 'Работа на любой вкус', 'Выберите направление и смотрите свежие объявления.'),
                   _categories(p),
                   if (!S.i.logged) ...[
-                    _sectionTitle(p, 'Как это работает', 'Три шага от идеи до выполненного дела.'),
+                    _sectionTitle(p, 'Как это работает', 'Три простых шага — и дело найдено.'),
                     _how(p),
-                    _sectionTitle(p, 'Отзывы', 'Что говорят те, кто уже нашёл свои дела.'),
+                    _sectionTitle(p, 'Отзывы', 'Что говорят пользователи ДелоЕсть.'),
                     _reviews(p, reviews),
+                    _business(p),
+                  ] else ...[
+                    _sectionTitle(p, 'Всё для удобного поиска', 'Ищите предложения и возвращайтесь к интересному.'),
+                    _loggedTips(p),
                   ],
                   _sectionTitle(p, 'Частые вопросы', 'Коротко о самом важном.'),
                   _faq(p, faq),
-                  _business(p),
                   _footer(p),
                 ],
               ),
@@ -151,6 +154,41 @@ class _LandingPageState extends State<LandingPage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _loggedTips(Pal p) {
+    final tips = <List<Object>>[
+      [Icons.search_rounded, 'Найдите своё дело', 'Используйте поиск и фильтры, чтобы быстро подобрать объявление.'],
+      [Icons.favorite_border_rounded, 'Сохраняйте интересное', 'Добавляйте объявления в избранное и возвращайтесь к ним позже.'],
+      [Icons.chat_bubble_outline_rounded, 'Общайтесь напрямую', 'Откликайтесь и обсуждайте детали в сообщениях.'],
+    ];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(children: [
+        for (final item in tips)
+          Container(
+            margin: const EdgeInsets.only(bottom: 9),
+            padding: const EdgeInsets.all(14),
+            decoration: cardDeco(p, r: 16),
+            child: Row(children: [
+              Container(
+                width: 42, height: 42,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [p.ac.withOpacity(.14), p.ac2.withOpacity(.14)]),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(item[0] as IconData, color: p.ac),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(item[1] as String, style: TextStyle(fontWeight: FontWeight.w800, color: p.tx)),
+                const SizedBox(height: 3),
+                Text(item[2] as String, style: TextStyle(fontSize: 13, height: 1.3, color: p.mu)),
+              ])),
+            ]),
+          ),
+      ]),
     );
   }
 
@@ -181,12 +219,6 @@ class _LandingPageState extends State<LandingPage> {
                 if (S.i.fav.isNotEmpty) Positioned(right: -7, top: -6, child: _badge(p, S.i.fav.length)),
               ]),
             ),
-          IconButton(
-            tooltip: 'Сменить тему',
-            onPressed: () => S.i.setTheme(Theme.of(context).brightness == Brightness.dark ? ThemeMode.light : ThemeMode.dark),
-            icon: Icon(Theme.of(context).brightness == Brightness.dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                color: p.mu, size: 22),
-          ),
         ]),
       );
 

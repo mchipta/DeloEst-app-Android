@@ -296,11 +296,16 @@ class _SettingsBodyState extends State<SettingsBody> {
               ]),
             ),
           ),
-          _label(p, 'ДАННЫЕ ПРОФИЛЯ'),
+          _label(p, 'НАСТРОЙКИ ПРОФИЛЯ'),
           _tile(p, Icons.person_outline, 'Имя', S.i.name, _name),
           _tile(p, Icons.mail_outline, 'Почта', S.i.login.contains('@') ? S.i.login : '—', _email),
           _tile(p, Icons.call_outlined, 'Телефон', S.i.phone.isEmpty ? '—' : fmtPhone(S.i.phone), _phone),
-          _label(p, 'НАСТРОЙКИ ПРИЛОЖЕНИЯ'),
+          _label(p, 'ВНЕШНИЙ ВИД ПРИЛОЖЕНИЯ'),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Text('Тема применяется ко всему приложению и меняется только здесь.',
+                style: TextStyle(color: p.mu, fontSize: 13)),
+          ),
           Row(children: [
             for (final t in [
               [ThemeMode.system, 'Как в телефоне'],
@@ -406,7 +411,7 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Профиль и настройки')),
+      appBar: AppBar(title: const Text('Настройки')),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: const [SettingsBody(), BottomLinks()]),
     );
   }
