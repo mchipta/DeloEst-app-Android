@@ -312,12 +312,93 @@ class _FeedPageState extends State<FeedPage> {
     );
   }
 
+  Widget _catChip(Pal p, String label, IconData icon, bool sel, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Tap(
+        onTap: onTap,
+        scale: .96,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 13),
+          decoration: BoxDecoration(
+            gradient: sel ? LinearGradient(colors: [p.ac, p.ac2]) : null,
+            color: sel ? null : p.card,
+            borderRadius: BorderRadius.circular(99),
+            border: sel ? null : Border.all(color: p.bd),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 17, color: sel ? Colors.white : p.mu),
+            const SizedBox(width: 6),
+            Text(label,
+                style: TextStyle(fontSize: 13.5, fontWeight: sel ? FontWeight.w800 : FontWeight.w600, color: sel ? Colors.white : p.tx)),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _tagChip(Pal p, String text, VoidCallback onRemove) {
+    return Tap(
+      onTap: onRemove,
+      scale: .96,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(11, 5, 7, 5),
+        decoration: BoxDecoration(
+          color: p.ac.withOpacity(.10),
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(color: p.ac.withOpacity(.35)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(text, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: p.tx)),
+          const SizedBox(width: 4),
+          Icon(Icons.close_rounded, size: 15, color: p.ac),
+        ]),
+      ),
+    );
+  }
+
   Widget _header(BuildContext context, Pal p, int count) {
     final af = _activeFilters;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
+    final lab = _ssLabel(_curSS());
+    // «Сохранить поиск» только когда пользователь что-то искал: текст, категория или фильтр
+    final canSave = S.i.logged && lab.isNotEmpty;
+    final saved = canSave && S.i.ss.any((x) => _ssLabel(x) == lab);
+    final tags = <List<Object>>[
+      if (_type.isNotEmpty) [_type, () => setState(() => _type = '')],
+      if (_city.trim().isNotEmpty)
+        [
+          _city.trim(),
+          () => setState(() {
+                _city = '';
+                _cityC.clear();
+              })
+        ],
+      if (_min.isNotEmpty)
+        [
+          'от $_min ₽',
+          () => setState(() {
+                _min = '';
+                _minC.clear();
+              })
+        ],
+      if (_max.isNotEmpty)
+        [
+          'до $_max ₽',
+          () => setState(() {
+                _max = '';
+                _maxC.clear();
+              })
+        ],
+      if (_sort == 'hi') ['Сначала дороже', () => setState(() => _sort = '')],
+      if (_sort == 'lo') ['Сначала дешевле', () => setState(() => _sort = '')],
+    ];
+    OutlineInputBorder none = const OutlineInputBorder(borderSide: BorderSide.none);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
           const Logo(),
           const SizedBox(width: 10),
           Text('Дело', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: p.tx)),
@@ -346,99 +427,146 @@ class _FeedPageState extends State<FeedPage> {
             },
           ),
         ]),
-        const SizedBox(height: 12),
-        Row(children: [
-          Expanded(
-            child: TextField(
-              controller: _q,
-              onChanged: (_) => setState(() {}),
-              style: TextStyle(color: p.tx),
-              decoration: deco(context, null,
-                  hint: 'Поиск: грузчик, уборка…',
-                  prefix: Icon(Icons.search, color: p.mu),
-                  suffix: _q.text.isEmpty
-                      ? null
-                      : IconButton(
-                          icon: Icon(Icons.close, color: p.mu),
-                          onPressed: () {
-                            _q.clear();
-                            setState(() {});
-                          })),
+          const SizedBox(height: 12),
+          // поиск и фильтры в одной «капсуле»
+          Container(
+            height: 54,
+            decoration: BoxDecoration(
+              color: p.card,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: p.bd),
+              boxShadow: [BoxShadow(color: p.ac.withOpacity(.07), blurRadius: 16, offset: const Offset(0, 5))],
             ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: _openFilters,
-            child: Container(
-              height: 52,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              constraints: const BoxConstraints(minWidth: 0),
-              decoration: BoxDecoration(
-                color: af > 0 ? p.ac.withOpacity(.08) : p.card,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: af > 0 ? p.ac : p.bd, width: af > 0 ? 1.3 : 1),
-              ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.tune_rounded, color: af > 0 ? p.ac : p.mu, size: 20),
-                const SizedBox(width: 7),
-                Text('Фильтры', style: TextStyle(fontWeight: FontWeight.w700, color: p.tx, fontSize: 14)),
-                if (af > 0) ...[
-                  const SizedBox(width: 7),
-                  SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: [p.ac, p.ac2]),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text('$af', style: const TextStyle(color: Colors.white, fontSize: 11, height: 1, fontWeight: FontWeight.w800)),
-                        ),
-                      ),
-                    ),
+            child: Row(children: [
+              const SizedBox(width: 14),
+              Icon(Icons.search_rounded, color: p.mu),
+              Expanded(
+                child: TextField(
+                  controller: _q,
+                  onChanged: (_) => setState(() {}),
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) => FocusScope.of(context).unfocus(),
+                  style: TextStyle(color: p.tx, fontSize: 15.5),
+                  decoration: InputDecoration(
+                    hintText: 'Поиск: грузчик, уборка…',
+                    hintStyle: TextStyle(color: p.mu.withOpacity(.75)),
+                    filled: false,
+                    isDense: true,
+                    border: none,
+                    enabledBorder: none,
+                    focusedBorder: none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
                   ),
-                ],
-              ]),
-            ),
+                ),
+              ),
+              if (_q.text.isNotEmpty)
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    _q.clear();
+                    setState(() {});
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Icon(Icons.cancel_rounded, size: 20, color: p.mu.withOpacity(.7)),
+                  ),
+                ),
+              Container(width: 1, height: 26, color: p.bd),
+              Tap(
+                onTap: _openFilters,
+                scale: .92,
+                child: SizedBox(
+                  width: 56,
+                  height: 54,
+                  child: Center(
+                    child: Stack(clipBehavior: Clip.none, children: [
+                      Icon(Icons.tune_rounded, size: 24, color: af > 0 ? p.ac : p.mu),
+                      if (af > 0)
+                        Positioned(
+                          right: -9,
+                          top: -7,
+                          child: Container(
+                            constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
+                            alignment: Alignment.center,
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(gradient: LinearGradient(colors: [p.ac, p.ac2]), borderRadius: BorderRadius.circular(99)),
+                            child: Text('$af', style: const TextStyle(color: Colors.white, fontSize: 10, height: 1.1, fontWeight: FontWeight.w800)),
+                          ),
+                        ),
+                    ]),
+                  ),
+                ),
+              ),
+            ]),
           ),
         ]),
-        if (af > 0) ...[
-          const SizedBox(height: 9),
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Expanded(child: Text(_filterSummary, style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.35))),
-            const SizedBox(width: 8),
+      ),
+      const SizedBox(height: 12),
+      // быстрые категории
+      SizedBox(
+        height: 38,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          children: [
+            _catChip(p, 'Все', Icons.apps_rounded, _cat.isEmpty, () => setState(() => _cat = '')),
+            for (final k in kCats) _catChip(p, k.name, k.icon, _cat == k.name, () => setState(() => _cat = _cat == k.name ? '' : k.name)),
+          ],
+        ),
+      ),
+      if (tags.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+          child: Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
+            for (final t in tags) _tagChip(p, t[0] as String, t[1] as VoidCallback),
             GestureDetector(
-              onTap: () { _resetFilters(); },
+              onTap: _resetFilters,
               child: Padding(
-                padding: const EdgeInsets.only(top: 1),
-                child: Text('Сбросить', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700, fontSize: 12.5)),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Text('Сбросить всё', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700, fontSize: 12.5)),
               ),
             ),
           ]),
-        ],
-        const SizedBox(height: 12),
-        Row(children: [
-          Expanded(child: Text('Найдено: $count', style: TextStyle(color: p.mu, fontWeight: FontWeight.w600))),
-          if (S.i.logged)
-            GestureDetector(
-              onTap: _saveSearch,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.bookmark_border, size: 17, color: p.ac),
-                  const SizedBox(width: 5),
-                  Text('Сохранить поиск', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: p.tx)),
-                ]),
-              ),
+        ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(18, 12, 16, 8),
+        child: SizedBox(
+          height: 36,
+          child: Row(children: [
+            Expanded(
+              child: Text.rich(TextSpan(children: [
+                TextSpan(text: 'Найдено: ', style: TextStyle(color: p.mu, fontWeight: FontWeight.w600)),
+                TextSpan(text: '$count', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
+              ])),
             ),
-        ]),
-      ]),
-    );
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              transitionBuilder: (c, a) => FadeTransition(opacity: a, child: ScaleTransition(scale: Tween<double>(begin: .92, end: 1).animate(a), child: c)),
+              child: !canSave
+                  ? const SizedBox(key: ValueKey('nosave'))
+                  : Tap(
+                      key: ValueKey(saved ? 'saved' : 'save'),
+                      onTap: _saveSearch,
+                      scale: .96,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: saved ? p.card : p.ac.withOpacity(.10),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: saved ? p.bd : p.ac.withOpacity(.4)),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, size: 17, color: saved ? p.mu : p.ac),
+                          const SizedBox(width: 5),
+                          Text(saved ? 'Поиск сохранён' : 'Сохранить поиск',
+                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: saved ? p.mu : p.tx)),
+                        ]),
+                      ),
+                    ),
+            ),
+          ]),
+        ),
+      ),
+    ]);
   }
-
-
 }
