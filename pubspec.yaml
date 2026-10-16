@@ -22,8 +22,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/icon_orange.png
-    - assets/icon_purple.png
+    - icon_orange.png
+    - icon_purple.pngpng
 
 flutter_launcher_icons:
   android: true
