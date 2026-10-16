@@ -23,7 +23,7 @@ flutter:
   uses-material-design: true
   assets:
     - icon_orange.png
-    - icon_purple.pngpng
+    - icon_purple.png
 
 flutter_launcher_icons:
   android: true
