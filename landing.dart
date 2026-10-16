@@ -446,7 +446,7 @@ class _LandingPageState extends State<LandingPage> {
               padding: const EdgeInsets.all(16),
               decoration: cardDeco(p, r: 19),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Row(children: [for (var i = 0; i < 5; i++) Icon(Icons.star_rounded, color: Color(0xFFFF9F1C), size: 17)]),
+                Row(children: [for (var i = 0; i < 5; i++) const Icon(Icons.star_rounded, color: Color(0xFFFF9F1C), size: 17)]),
                 const SizedBox(height: 10),
                 Expanded(child: Text(r.length > 2 ? r[2] : '', maxLines: 5, overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: p.tx, height: 1.4, fontSize: 13.5))),
