@@ -22,6 +22,7 @@ class LandingPage extends StatefulWidget {
 class _LandingPageState extends State<LandingPage> {
   final _q = TextEditingController();
   final _city = TextEditingController();
+  final _cityFocus = FocusNode();
   int _mode = 0;
   bool _siteLoading = true;
   Map<String, String> _site = {
@@ -42,6 +43,7 @@ class _LandingPageState extends State<LandingPage> {
   void dispose() {
     _q.dispose();
     _city.dispose();
+    _cityFocus.dispose();
     super.dispose();
   }
 
@@ -294,6 +296,7 @@ class _LandingPageState extends State<LandingPage> {
     ];
     return RawAutocomplete<String>(
       textEditingController: _city,
+      focusNode: _cityFocus,
       optionsBuilder: (value) {
         final q = value.text.trim().toLowerCase();
         if (q.length < 2) return const Iterable<String>.empty();
