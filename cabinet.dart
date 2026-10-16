@@ -131,7 +131,16 @@ class _CabinetPageState extends State<CabinetPage> {
       builder: (context, _) {
         final p = pal(context);
         return Scaffold(
-          appBar: AppBar(title: Text(S.i.logged ? (ct == 'set' ? 'Настройки' : 'Кабинет') : 'Профиль')),
+          appBar: AppBar(
+            title: Text(S.i.logged ? (ct == 'set' ? 'Настройки' : 'Кабинет') : 'Профиль'),
+            actions: S.i.logged ? [
+              IconButton(
+                tooltip: 'Настройки приложения',
+                onPressed: () => setState(() => ct = 'set'),
+                icon: Icon(Icons.settings_outlined, color: pal(context).ac),
+              ),
+            ] : null,
+          ),
           body: S.i.logged
               ? RefreshIndicator(
                   color: p.ac,
@@ -189,7 +198,7 @@ class _CabinetPageState extends State<CabinetPage> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
           GestureDetector(
-            onTap: () => setState(() => ct = 'set'),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileEditPage())),
             child: Avatar(S.i.name, data: av, size: 64),
           ),
           const SizedBox(width: 13),
@@ -204,7 +213,7 @@ class _CabinetPageState extends State<CabinetPage> {
           ])),
           IconButton(
             tooltip: 'Изменить профиль',
-            onPressed: () => setState(() => ct = 'set'),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileEditPage())),
             icon: const Icon(Icons.edit_outlined, color: Colors.white),
             style: IconButton.styleFrom(
               backgroundColor: Colors.white.withOpacity(.16),
@@ -221,8 +230,8 @@ class _CabinetPageState extends State<CabinetPage> {
               label: const Text('Мой профиль'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white,
-                backgroundColor: const Color(0xFFB42332),
-                side: const BorderSide(color: Color(0xFFFF8B94), width: 1.1),
+                backgroundColor: Colors.white.withOpacity(.14),
+                side: BorderSide(color: Colors.white.withOpacity(.48), width: 1.1),
                 minimumSize: const Size(0, 42),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -237,9 +246,9 @@ class _CabinetPageState extends State<CabinetPage> {
               icon: const Icon(Icons.logout_rounded, size: 17),
               label: const Text('Выйти'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: p.tx,
-                backgroundColor: p.card,
-                side: BorderSide(color: p.bd),
+                foregroundColor: Colors.white,
+                backgroundColor: const Color(0xFFB42332),
+                side: const BorderSide(color: Color(0xFFFF8B94), width: 1.1),
                 minimumSize: const Size(0, 42),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -248,19 +257,6 @@ class _CabinetPageState extends State<CabinetPage> {
             ),
           ),
         ]),
-        const SizedBox(height: 10),
-        OutlinedButton.icon(
-          onPressed: () => launchUrl(Uri(scheme: 'mailto', path: 'michipta@ya.ru', queryParameters: {'subject': 'Поддержка ДелоЕсть'})),
-          icon: const Icon(Icons.support_agent_rounded, size: 18),
-          label: const Text('Поддержка · michipta@ya.ru'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.white,
-            side: BorderSide(color: Colors.white.withOpacity(.48)),
-            minimumSize: const Size(0, 42),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-          ),
-        ),
       ]),
     );
   }
@@ -316,7 +312,6 @@ class _CabinetPageState extends State<CabinetPage> {
       ['ads', 'Мои объявления', Icons.work_outline_rounded],
       ['in', 'Отклики мне', Icons.bolt_rounded],
       ['out', 'Мои отклики', Icons.send_outlined],
-      ['set', 'Настройки', Icons.settings_outlined],
     ];
     return Container(
       padding: const EdgeInsets.all(4),

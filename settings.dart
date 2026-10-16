@@ -83,7 +83,8 @@ class _FieldsDialogState extends State<_FieldsDialog> {
 }
 
 class SettingsBody extends StatefulWidget {
-  const SettingsBody({super.key});
+  final bool profileOnly;
+  const SettingsBody({super.key, this.profileOnly = false});
   @override
   State<SettingsBody> createState() => _SettingsBodyState();
 }
@@ -271,7 +272,7 @@ class _SettingsBodyState extends State<SettingsBody> {
         final tm = S.i.themeMode;
         return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           if (busy) LinearProgressIndicator(color: p.ac, backgroundColor: p.bd, minHeight: 3),
-          GestureDetector(
+          if (widget.profileOnly) GestureDetector(
             onTap: busy ? null : _avatar,
             child: Container(
               padding: const EdgeInsets.all(16),
@@ -296,11 +297,14 @@ class _SettingsBodyState extends State<SettingsBody> {
               ]),
             ),
           ),
-          _label(p, 'НАСТРОЙКИ ПРОФИЛЯ'),
-          _tile(p, Icons.person_outline, 'Имя', S.i.name, _name),
-          _tile(p, Icons.mail_outline, 'Почта', S.i.login.contains('@') ? S.i.login : '—', _email),
-          _tile(p, Icons.call_outlined, 'Телефон', S.i.phone.isEmpty ? '—' : fmtPhone(S.i.phone), _phone),
-          _label(p, 'ВНЕШНИЙ ВИД ПРИЛОЖЕНИЯ'),
+          if (widget.profileOnly) ...[
+            _label(p, 'ДАННЫЕ ПРОФИЛЯ'),
+            _tile(p, Icons.person_outline, 'Имя', S.i.name, _name),
+            _tile(p, Icons.mail_outline, 'Почта', S.i.login.contains('@') ? S.i.login : '—', _email),
+            _tile(p, Icons.call_outlined, 'Телефон', S.i.phone.isEmpty ? '—' : fmtPhone(S.i.phone), _phone),
+          ],
+          if (!widget.profileOnly) ...[
+          _label(p, 'ВНЕШНИЙ ВИД'),
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Text('Тема применяется ко всему приложению и меняется только здесь.',
@@ -402,8 +406,36 @@ class _SettingsBodyState extends State<SettingsBody> {
           ),
           _label(p, 'ПРОЧЕЕ'),
           _tile(p, Icons.business_center_outlined, 'Для бизнеса', 'Оставить заявку', _lead),
+          ],
         ]);
       },
+    );
+  }
+}
+
+class ProfileEditPage extends StatelessWidget {
+  const ProfileEditPage({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Изменить профиль')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: cardDeco(p, r: 18),
+            child: Row(children: [
+              Icon(Icons.info_outline, color: p.ac),
+              const SizedBox(width: 10),
+              Expanded(child: Text('Измените фото, имя, почту или номер телефона.', style: TextStyle(color: p.mu, height: 1.35))),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          SettingsBody(profileOnly: true),
+        ],
+      ),
     );
   }
 }

@@ -393,7 +393,8 @@ class _FeedPageState extends State<FeedPage> {
             onTap: _openFilters,
             child: Container(
               height: 52,
-              padding: const EdgeInsets.symmetric(horizontal: 13),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              constraints: const BoxConstraints(minWidth: 0),
               decoration: BoxDecoration(
                 color: af > 0 ? p.ac.withOpacity(.08) : p.card,
                 borderRadius: BorderRadius.circular(14),
@@ -405,12 +406,21 @@ class _FeedPageState extends State<FeedPage> {
                 Text('Фильтры', style: TextStyle(fontWeight: FontWeight.w700, color: p.tx, fontSize: 14)),
                 if (af > 0) ...[
                   const SizedBox(width: 7),
-                  Container(
-                    constraints: const BoxConstraints(minWidth: 20),
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(gradient: LinearGradient(colors: [p.ac, p.ac2]), borderRadius: BorderRadius.circular(99)),
-                    child: Text('$af', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+                  SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: [p.ac, p.ac2]),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text('$af', style: const TextStyle(color: Colors.white, fontSize: 11, height: 1, fontWeight: FontWeight.w800)),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ]),
