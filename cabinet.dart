@@ -132,11 +132,11 @@ class _CabinetPageState extends State<CabinetPage> {
         final p = pal(context);
         return Scaffold(
           appBar: AppBar(
-            title: Text(S.i.logged ? (ct == 'set' ? 'Настройки' : 'Кабинет') : 'Профиль'),
+            title: Text(S.i.logged ? 'Кабинет' : 'Профиль'),
             actions: S.i.logged ? [
               IconButton(
                 tooltip: 'Настройки приложения',
-                onPressed: () => setState(() => ct = 'set'),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage())),
                 icon: Icon(Icons.settings_outlined, color: pal(context).ac),
               ),
             ] : null,
@@ -229,9 +229,9 @@ class _CabinetPageState extends State<CabinetPage> {
               icon: const Icon(Icons.person_outline_rounded, size: 18),
               label: const Text('Мой профиль'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: Colors.white.withOpacity(.14),
-                side: BorderSide(color: Colors.white.withOpacity(.48), width: 1.1),
+                foregroundColor: p.tx,
+                backgroundColor: p.card,
+                side: BorderSide(color: p.bd, width: 1),
                 minimumSize: const Size(0, 42),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -246,9 +246,9 @@ class _CabinetPageState extends State<CabinetPage> {
               icon: const Icon(Icons.logout_rounded, size: 17),
               label: const Text('Выйти'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: const Color(0xFFB42332),
-                side: const BorderSide(color: Color(0xFFFF8B94), width: 1.1),
+                foregroundColor: p.tx,
+                backgroundColor: p.card,
+                side: BorderSide(color: p.bd, width: 1),
                 minimumSize: const Size(0, 42),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -257,6 +257,25 @@ class _CabinetPageState extends State<CabinetPage> {
             ),
           ),
         ]),
+        if (S.i.user?['admin'] == true) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPage())),
+              icon: const Icon(Icons.admin_panel_settings_outlined, size: 18),
+              label: const Text('Админ-панель'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: p.tx,
+                backgroundColor: p.card,
+                side: BorderSide(color: p.bd, width: 1),
+                minimumSize: const Size(0, 40),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+              ),
+            ),
+          ),
+        ],
       ]),
     );
   }
@@ -363,7 +382,7 @@ class _CabinetPageState extends State<CabinetPage> {
       case 'out':
         return _sent(p);
       case 'set':
-        return [const SettingsBody()];
+        return [];
       default:
         return _myAds(p);
     }

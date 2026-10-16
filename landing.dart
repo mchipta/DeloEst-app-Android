@@ -142,8 +142,10 @@ class _LandingPageState extends State<LandingPage> {
                     _reviews(p, reviews),
                     _business(p),
                   ],
-                  _sectionTitle(p, 'Частые вопросы', 'Коротко о самом важном.'),
-                  _faq(p, faq),
+                  if (!S.i.logged) ...[
+                    _sectionTitle(p, 'Частые вопросы', 'Коротко о самом важном.'),
+                    _faq(p, faq),
+                  ],
                   _footer(p),
                 ],
               ),

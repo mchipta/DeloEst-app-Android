@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
 import 'admin.dart';
 import 'api.dart';
 import 'info.dart';
@@ -91,6 +93,26 @@ class SettingsBody extends StatefulWidget {
 
 class _SettingsBodyState extends State<SettingsBody> {
   bool busy = false;
+  String _iconStyle = 'orange';
+  static const _iconChannel = MethodChannel('ru.deloest.delo_est/launcher_icon');
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((prefs) { if (mounted) setState(() => _iconStyle = prefs.getString('launcher_icon_style') ?? 'orange'); });
+  }
+  Future<void> _setIcon(String style) async {
+    try {
+      await _iconChannel.invokeMethod('setLauncherIcon', style);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('launcher_icon_style', style);
+      if (mounted) setState(() => _iconStyle = style);
+      if (mounted) toast(context, 'Иконка приложения изменена');
+    } on PlatformException catch (e) {
+      if (mounted) toast(context, 'Не удалось изменить иконку: ${e.message ?? 'ошибка Android'}');
+    } catch (_) {
+      if (mounted) toast(context, 'Не удалось изменить иконку. Проверьте сборку Android.');
+    }
+  }
   static final _emailRe = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$');
 
   Future<void> _run(Future<void> Function() f) async {
@@ -257,6 +279,29 @@ class _SettingsBodyState extends State<SettingsBody> {
     );
   }
 
+  Widget _iconChoice(Pal p, String style, String title, String asset, Color accent) => InkWell(
+        onTap: busy ? null : () => _setIcon(style),
+        borderRadius: BorderRadius.circular(16),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _iconStyle == style ? accent.withOpacity(.10) : p.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _iconStyle == style ? accent : p.bd, width: _iconStyle == style ? 1.8 : 1),
+          ),
+          child: Column(children: [
+            Image.asset(asset, width: 58, height: 58, fit: BoxFit.contain),
+            const SizedBox(height: 8),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              if (_iconStyle == style) Icon(Icons.check_circle_rounded, color: accent, size: 16),
+              if (_iconStyle == style) const SizedBox(width: 5),
+              Text(title, style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 13.5)),
+            ]),
+          ]),
+        ),
+      );
+
   Widget _label(Pal p, String t) => Padding(
         padding: const EdgeInsets.only(top: 14, bottom: 8),
         child: Text(t, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: p.mu)),
@@ -337,6 +382,15 @@ class _SettingsBodyState extends State<SettingsBody> {
                 ),
               ),
           ]),
+          _label(p, 'ИКОНКА ПРИЛОЖЕНИЯ'),
+          Text('Выберите вариант значка на экране телефона.', style: TextStyle(color: p.mu, fontSize: 13)),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(child: _iconChoice(p, 'orange', 'Апельсин', 'assets/icon_orange.png', const Color(0xFFFF6A2A))),
+            const SizedBox(width: 10),
+            Expanded(child: _iconChoice(p, 'purple', 'Фиолет', 'assets/icon_purple.png', const Color(0xFF7C5CFF))),
+          ]),
+          const SizedBox(height: 4),
           _label(p, 'УВЕДОМЛЕНИЯ'),
           Container(
             margin: const EdgeInsets.only(bottom: 10),
@@ -398,7 +452,13 @@ class _SettingsBodyState extends State<SettingsBody> {
                  borderRadius: BorderRadius.circular(16),
                  menuMaxHeight: 320,
                 style: TextStyle(color: p.tx, fontSize: 14),
-                decoration: deco(context, 'Часовой пояс'),
+                decoration: deco(context, 'Часовой пояс').copyWith(
+                  filled: true, fillColor: p.bg2,
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: p.bd, width: 1.2)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: p.ac, width: 1.8)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  suffixIconColor: p.ac,
+                ),
                 items: [for (final z in kSiteTimeZones) DropdownMenuItem<String>(value: z[0], child: Text(z[1], overflow: TextOverflow.ellipsis))],
                 onChanged: (v) { if (v != null) S.i.setTimeZone(v); },
               ),

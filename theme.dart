@@ -56,6 +56,9 @@ ThemeData buildTheme(Brightness b) {
     dividerColor: p.bd,
     colorScheme: ColorScheme.fromSeed(seedColor: p.ac, brightness: b)
         .copyWith(primary: p.ac, surface: p.card, onSurface: p.tx),
+    dialogTheme: DialogThemeData(backgroundColor: p.card, surfaceTintColor: Colors.transparent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: BorderSide(color: p.bd))),
+    popupMenuTheme: PopupMenuThemeData(color: p.card, surfaceTintColor: Colors.transparent, textStyle: TextStyle(color: p.tx), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: p.bd))),
+    dropdownMenuTheme: DropdownMenuThemeData(menuStyle: MenuStyle(backgroundColor: WidgetStatePropertyAll(p.card), surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent), side: WidgetStatePropertyAll(BorderSide(color: p.bd)), shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))))),
     appBarTheme: AppBarTheme(
       backgroundColor: p.bg,
       foregroundColor: p.tx,
