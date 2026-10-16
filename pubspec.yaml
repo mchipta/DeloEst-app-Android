@@ -24,10 +24,12 @@ flutter:
   assets:
     - icon_orange.png
     - icon_purple.png
+    - icon.png
+    - icon_fg.png
 
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: "assets/icon.png"
+  image_path: "icon.png"
   adaptive_icon_background: "#ff5a36"
-  adaptive_icon_foreground: "assets/icon_fg.png"
+  adaptive_icon_foreground: "icon_fg.png"
