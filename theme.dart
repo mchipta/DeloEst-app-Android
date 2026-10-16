@@ -23,8 +23,8 @@ class Pal {
     tx: Color(0xFF1B1530),
     mu: Color(0xFF6B6480),
     bd: Color(0xFFEADFD3),
-    ac: Color(0xFFFF5A36),
-    ac2: Color(0xFFFF9F1C),
+    ac: Color(0xFFFF4F2E),
+    ac2: Color(0xFFFFA31A),
     ok: Color(0xFF12A150),
     dng: Color(0xFFC0262D),
   );
@@ -36,7 +36,7 @@ class Pal {
     tx: Color(0xFFEEF1FF),
     mu: Color(0xFF9AA3C7),
     bd: Color(0xFF232B52),
-    ac: Color(0xFF7C5CFF),
+    ac: Color(0xFF8F6BFF),
     ac2: Color(0xFF22D3EE),
     ok: Color(0xFF4ADE80),
     dng: Color(0xFFFF7B84),
@@ -63,6 +63,10 @@ ThemeData buildTheme(Brightness b) {
       centerTitle: false,
       titleTextStyle: TextStyle(color: p.tx, fontSize: 20, fontWeight: FontWeight.w800),
     ),
+    pageTransitionsTheme: const PageTransitionsTheme(builders: {
+      TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+    }),
     textSelectionTheme: TextSelectionThemeData(cursorColor: p.ac),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
@@ -72,17 +76,17 @@ ThemeData buildTheme(Brightness b) {
   );
 }
 
-BoxDecoration cardDeco(Pal p, {double r = 18}) => BoxDecoration(
+BoxDecoration cardDeco(Pal p, {double r = 24}) => BoxDecoration(
       color: p.card,
       borderRadius: BorderRadius.circular(r),
       border: Border.all(color: p.bd),
-      boxShadow: const [BoxShadow(color: Color(0x10783C1E), blurRadius: 14, offset: Offset(0, 5))],
+      boxShadow: [BoxShadow(color: p.ac.withOpacity(.10), blurRadius: 24, offset: const Offset(0, 10))],
     );
 
 InputDecoration deco(BuildContext c, String? label, {String? hint, Widget? suffix, Widget? prefix}) {
   final p = pal(c);
   OutlineInputBorder ob(Color col, [double w = 1]) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: col, width: w),
       );
   return InputDecoration(

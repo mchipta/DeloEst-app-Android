@@ -14,6 +14,79 @@ void toast(BuildContext c, String m) {
   sm.showSnackBar(SnackBar(content: Text(m)));
 }
 
+/// Нажатие с лёгким «вдавливанием» (для кнопок и карточек)
+class Tap extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  final double scale;
+  const Tap({super.key, required this.child, this.onTap, this.scale = .97});
+  @override
+  State<Tap> createState() => _TapState();
+}
+
+class _TapState extends State<Tap> {
+  bool down = false;
+  @override
+  Widget build(BuildContext context) {
+    final on = widget.onTap != null;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: on ? (_) => setState(() => down = true) : null,
+      onTapUp: on ? (_) => setState(() => down = false) : null,
+      onTapCancel: on ? () => setState(() => down = false) : null,
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: down ? widget.scale : 1,
+        duration: const Duration(milliseconds: 110),
+        curve: Curves.easeOut,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// Плавное появление: проявление + лёгкий подъём снизу
+class Appear extends StatefulWidget {
+  final Widget child;
+  final int delay; // мс
+  const Appear({super.key, required this.child, this.delay = 0});
+  @override
+  State<Appear> createState() => _AppearState();
+}
+
+class _AppearState extends State<Appear> with SingleTickerProviderStateMixin {
+  late final AnimationController c =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
+  late final Animation<double> a = CurvedAnimation(parent: c, curve: Curves.easeOutCubic);
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.delay == 0) {
+      c.forward();
+    } else {
+      Future.delayed(Duration(milliseconds: widget.delay), () {
+        if (mounted) c.forward();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FadeTransition(
+        opacity: a,
+        child: SlideTransition(
+          position: Tween<Offset>(begin: const Offset(0, .06), end: Offset.zero).animate(a),
+          child: widget.child,
+        ),
+      );
+}
+
 class Logo extends StatelessWidget {
   final double size;
   const Logo({super.key, this.size = 34});
@@ -58,32 +131,25 @@ class GradBtn extends StatelessWidget {
     final p = pal(context);
     return Opacity(
       opacity: (onTap == null && !busy) ? .5 : 1,
-      child: Material(
-        color: Colors.transparent,
-        child: Ink(
+      child: Tap(
+        onTap: busy ? null : onTap,
+        scale: .96,
+        child: Container(
+          height: 54,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 18),
           decoration: BoxDecoration(
             gradient: LinearGradient(colors: [p.ac, p.ac2]),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [BoxShadow(color: p.ac.withOpacity(.35), blurRadius: 16, offset: const Offset(0, 6))],
           ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: busy ? null : onTap,
-            child: Container(
-              height: 50,
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              child: busy
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
-                  : Row(mainAxisSize: MainAxisSize.min, children: [
-                      if (icon != null) ...[Icon(icon, color: Colors.white, size: 20), const SizedBox(width: 8)],
-                      Text(text,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
-                    ]),
-            ),
-          ),
+          child: busy
+              ? const SizedBox(
+                  width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
+              : Row(mainAxisSize: MainAxisSize.min, children: [
+                  if (icon != null) ...[Icon(icon, color: Colors.white, size: 21), const SizedBox(width: 8)],
+                  Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+                ]),
         ),
       ),
     );
@@ -100,25 +166,22 @@ class OutBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = pal(context);
     final col = color ?? p.tx;
-    return Material(
-      color: p.card,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          height: 50,
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: p.bd),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            if (icon != null) ...[Icon(icon, color: col, size: 20), const SizedBox(width: 8)],
-            Text(text, style: TextStyle(color: col, fontWeight: FontWeight.w700, fontSize: 16)),
-          ]),
+    return Tap(
+      onTap: onTap,
+      scale: .96,
+      child: Container(
+        height: 54,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        decoration: BoxDecoration(
+          color: p.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: p.bd, width: 1.2),
         ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (icon != null) ...[Icon(icon, color: col, size: 21), const SizedBox(width: 8)],
+          Text(text, style: TextStyle(color: col, fontWeight: FontWeight.w800, fontSize: 16)),
+        ]),
       ),
     );
   }
@@ -210,97 +273,125 @@ class AdCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(14),
-        decoration: cardDeco(p),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _thumb(p),
-            const SizedBox(width: 14),
-            Expanded(
+    return Appear(
+      child: Tap(
+        onTap: onTap,
+        scale: .975,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: cardDeco(p, r: 26),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _cover(p),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Expanded(
-                    child: Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                      typeTag(context, ad.type),
-                      CatChip(ad.category),
-                    ]),
-                  ),
-                  if (showFav && S.i.logged)
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => S.i.toggleFav(ad.id),
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 6, bottom: 4),
-                        child: Icon(S.i.isFav(ad.id) ? Icons.favorite : Icons.favorite_border,
-                            size: 22, color: S.i.isFav(ad.id) ? p.ac : p.mu),
-                      ),
-                    ),
+                Wrap(spacing: 10, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                  typeTag(context, ad.type),
+                  CatChip(ad.category),
                 ]),
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
                 Text(ad.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: p.tx, height: 1.25)),
-                const SizedBox(height: 4),
-                Text(payF(ad.pay), style: TextStyle(fontWeight: FontWeight.w800, color: p.ok, fontSize: 15)),
-                const SizedBox(height: 4),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: p.tx, height: 1.25)),
+                const SizedBox(height: 8),
                 Row(children: [
-                  Icon(Icons.place_outlined, size: 14, color: p.mu),
+                  Icon(Icons.place_outlined, size: 15, color: p.mu),
                   const SizedBox(width: 3),
                   Flexible(
                     child: Text(ad.city.isEmpty ? 'Город не указан' : ad.city,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12.5, color: p.mu)),
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: p.mu)),
                   ),
+                  Text('  ·  ${ago(ad.ts)}', style: TextStyle(fontSize: 13, color: p.mu)),
                 ]),
-                Text(ago(ad.ts), style: TextStyle(fontSize: 12.5, color: p.mu)),
+                if (footer != null) ...[const SizedBox(height: 14), footer!],
               ]),
             ),
           ]),
-          if (footer != null) ...[const SizedBox(height: 12), footer!],
-        ]),
+        ),
       ),
     );
   }
 
-  Widget _thumb(Pal p) {
+  Widget _cover(Pal p) {
     Widget ph() => Container(
-          color: p.bg2,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [p.ac.withOpacity(.16), p.ac2.withOpacity(.16)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
           alignment: Alignment.center,
-          child: Icon(catIcon(ad.category), size: 36, color: p.mu),
+          child: Icon(catIcon(ad.category), size: 56, color: p.ac.withOpacity(.6)),
         );
-    return SizedBox(
-      width: 112,
-      height: 112,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+      child: AspectRatio(
+        aspectRatio: 16 / 10,
         child: Stack(fit: StackFit.expand, children: [
           ad.imgs.isEmpty
               ? ph()
               : CachedNetworkImage(
-                  imageUrl: imgUrl(ad.imgs[0], 300),
+                  imageUrl: imgUrl(ad.imgs[0], 700),
                   fit: BoxFit.cover,
                   placeholder: (c, u) => Container(color: p.bg2),
                   errorWidget: (c, u, e) => ph(),
                 ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.center,
+                  colors: [Colors.black.withOpacity(.45), Colors.transparent],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 12,
+            bottom: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [p.ac, p.ac2]),
+                borderRadius: BorderRadius.circular(99),
+                boxShadow: const [BoxShadow(color: Color(0x40000000), blurRadius: 8, offset: Offset(0, 3))],
+              ),
+              child: Text(payF(ad.pay),
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+            ),
+          ),
           if (ad.imgs.length > 1)
             Positioned(
-              right: 6,
-              bottom: 6,
+              right: 12,
+              bottom: 12,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(99)),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.photo_camera_outlined, size: 12, color: Colors.white),
-                  const SizedBox(width: 3),
+                  const Icon(Icons.photo_camera_outlined, size: 14, color: Colors.white),
+                  const SizedBox(width: 4),
                   Text('${ad.imgs.length}',
-                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
                 ]),
+              ),
+            ),
+          if (showFav && S.i.logged)
+            Positioned(
+              right: 12,
+              top: 12,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => S.i.toggleFav(ad.id),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(.92), shape: BoxShape.circle),
+                  child: Icon(S.i.isFav(ad.id) ? Icons.favorite : Icons.favorite_border,
+                      size: 22, color: S.i.isFav(ad.id) ? p.ac : const Color(0xFF6B6480)),
+                ),
               ),
             ),
         ]),
