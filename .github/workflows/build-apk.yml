@@ -36,17 +36,13 @@ jobs:
             if [ -f "$f" ]; then cp "$f" shell/lib/; fi
           done
           for f in assets/icon.png assets/icon_fg.png assets/icon_orange.png assets/icon_purple.png icon.png icon_fg.png icon_orange.png icon_purple.png; do
-  if [ -f "$f" ]; then cp "$f" shell/assets/; fi
-done
+            if [ -f "$f" ]; then cp "$f" shell/assets/; fi
+          done
+          test -f shell/lib/main.dart || { echo "::error::Не найден main.dart"; exit 1; }
+          for need in icon.png icon_fg.png icon_orange.png icon_purple.png; do
+            test -f "shell/assets/$need" || { echo "::error::Не найден файл иконки $need"; exit 1; }
+          done
           ls shell/lib shell/assets
-
-      - name: Настройка Android (интернет, название)
-        working-directory: shell
-        run: |
-          M=android/app/src/main/AndroidManifest.xml
-          sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <queries><intent><action android:name="android.intent.action.DIAL"/><data android:scheme="tel"/></intent></queries>\n    <application|' "$M"
-          sed -i 's|android:label="delo_est"|android:label="ДелоЕсть"|' "$M"
-          grep -n "INTERNET\|android:label\|DIAL" "$M"
 
       - name: Зависимости и иконка
         working-directory: shell
@@ -54,11 +50,20 @@ done
           flutter pub get
           dart run flutter_launcher_icons
 
+      - name: Настройка Android (интернет, название, смена иконки)
+        working-directory: shell
+        run: python3 ../configure_android.py
+
       - name: Постоянная подпись (обновления ставятся поверх)
         run: |
           mkdir -p ~/.android
-          if [ -f signing/debug.keystore ]; then cp signing/debug.keystore ~/.android/debug.keystore; fi
-          if [ -f debug.keystore ]; then cp debug.keystore ~/.android/debug.keystore; fi
+          if [ -f signing/debug.keystore ]; then
+            cp signing/debug.keystore ~/.android/debug.keystore
+          elif [ -f debug.keystore ]; then
+            cp debug.keystore ~/.android/debug.keystore
+          else
+            echo "::warning::debug.keystore не найден, будет создан новый ключ"
+          fi
 
       - name: Сборка APK
         working-directory: shell
