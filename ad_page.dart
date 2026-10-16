@@ -193,7 +193,7 @@ class _AdPageState extends State<AdPage> {
                 Row(children: [
                   Expanded(child: OutBtn('Позвонить', icon: Icons.call_outlined, onTap: () => _call(ph))),
                   const SizedBox(width: 6),
-                  Expanded(child: OutBtn('WhatsApp', icon: Icons.chat_outlined, onTap: () => _openSocial('wa', ph))),
+                  Expanded(child: OutBtn('WhatsApp', icon: Icons.phone_in_talk_rounded, onTap: () => _openSocial('wa', ph))),
                   const SizedBox(width: 6),
                   Expanded(child: OutBtn('Telegram', icon: Icons.send_rounded, onTap: () => _openSocial('tg', ph))),
                 ]),

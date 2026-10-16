@@ -188,7 +188,10 @@ class _CabinetPageState extends State<CabinetPage> {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-          Avatar(S.i.name, data: av, size: 64),
+          GestureDetector(
+            onTap: () => setState(() => ct = 'set'),
+            child: Avatar(S.i.name, data: av, size: 64),
+          ),
           const SizedBox(width: 13),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(S.i.name, maxLines: 2, overflow: TextOverflow.ellipsis,
@@ -199,6 +202,15 @@ class _CabinetPageState extends State<CabinetPage> {
               if (S.i.phone.isNotEmpty) contact(Icons.call_outlined, fmtPhone(S.i.phone)),
             ]),
           ])),
+          IconButton(
+            tooltip: 'Изменить профиль',
+            onPressed: () => setState(() => ct = 'set'),
+            icon: const Icon(Icons.edit_outlined, color: Colors.white),
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.white.withOpacity(.16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
         ]),
         const SizedBox(height: 14),
         Row(children: [
@@ -209,8 +221,8 @@ class _CabinetPageState extends State<CabinetPage> {
               label: const Text('Мой профиль'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white,
-                backgroundColor: Colors.white.withOpacity(.14),
-                side: BorderSide(color: Colors.white.withOpacity(.42)),
+                backgroundColor: const Color(0xFFB42332),
+                side: const BorderSide(color: Color(0xFFFF8B94), width: 1.1),
                 minimumSize: const Size(0, 42),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -225,9 +237,9 @@ class _CabinetPageState extends State<CabinetPage> {
               icon: const Icon(Icons.logout_rounded, size: 17),
               label: const Text('Выйти'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: Colors.white.withOpacity(.14),
-                side: BorderSide(color: Colors.white.withOpacity(.42)),
+                foregroundColor: p.tx,
+                backgroundColor: p.card,
+                side: BorderSide(color: p.bd),
                 minimumSize: const Size(0, 42),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -236,6 +248,19 @@ class _CabinetPageState extends State<CabinetPage> {
             ),
           ),
         ]),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: () => launchUrl(Uri(scheme: 'mailto', path: 'michipta@ya.ru', queryParameters: {'subject': 'Поддержка ДелоЕсть'})),
+          icon: const Icon(Icons.support_agent_rounded, size: 18),
+          label: const Text('Поддержка · michipta@ya.ru'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.white,
+            side: BorderSide(color: Colors.white.withOpacity(.48)),
+            minimumSize: const Size(0, 42),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+          ),
+        ),
       ]),
     );
   }

@@ -166,6 +166,8 @@ class _FeedPageState extends State<FeedPage> {
                 value: value,
                 isExpanded: true,
                 dropdownColor: p.card,
+                 borderRadius: BorderRadius.circular(16),
+                 menuMaxHeight: 320,
                 style: TextStyle(color: p.tx, fontSize: 16),
                 decoration: deco(c, label),
                 items: [for (final it in items) DropdownMenuItem(value: it[0], child: Text(it[1]))],
@@ -345,7 +347,18 @@ class _FeedPageState extends State<FeedPage> {
             ),
           IconButton(
             tooltip: 'Избранное',
-            icon: Icon(S.i.logged ? Icons.favorite_border_rounded : Icons.favorite_border_rounded, color: p.ac),
+            icon: Stack(clipBehavior: Clip.none, children: [
+              Icon(Icons.favorite_border_rounded, color: p.ac),
+              if (S.i.logged && S.i.fav.isNotEmpty)
+                Positioned(right: -7, top: -6, child: Container(
+                  constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(gradient: LinearGradient(colors: [p.ac, p.ac2]), borderRadius: BorderRadius.circular(99)),
+                  child: Text(S.i.fav.length > 99 ? '99+' : '${S.i.fav.length}',
+                    style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                )),
+            ]),
             onPressed: () {
               if (!S.i.logged) {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));

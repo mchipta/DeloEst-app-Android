@@ -308,7 +308,7 @@ class _SettingsBodyState extends State<SettingsBody> {
           ),
           Row(children: [
             for (final t in [
-              [ThemeMode.system, 'Как в телефоне'],
+              [ThemeMode.system, 'Системная'],
               [ThemeMode.light, 'Светлая'],
               [ThemeMode.dark, 'Тёмная'],
             ])
@@ -391,6 +391,8 @@ class _SettingsBodyState extends State<SettingsBody> {
                 value: kSiteTimeZones.any((z) => z[0] == S.i.timeZone) ? S.i.timeZone : '',
                 isExpanded: true,
                 dropdownColor: p.card,
+                 borderRadius: BorderRadius.circular(16),
+                 menuMaxHeight: 320,
                 style: TextStyle(color: p.tx, fontSize: 14),
                 decoration: deco(context, 'Часовой пояс'),
                 items: [for (final z in kSiteTimeZones) DropdownMenuItem<String>(value: z[0], child: Text(z[1], overflow: TextOverflow.ellipsis))],

@@ -141,9 +141,6 @@ class _LandingPageState extends State<LandingPage> {
                     _sectionTitle(p, 'Отзывы', 'Что говорят пользователи ДелоЕсть.'),
                     _reviews(p, reviews),
                     _business(p),
-                  ] else ...[
-                    _sectionTitle(p, 'Всё для удобного поиска', 'Ищите предложения и возвращайтесь к интересному.'),
-                    _loggedTips(p),
                   ],
                   _sectionTitle(p, 'Частые вопросы', 'Коротко о самом важном.'),
                   _faq(p, faq),
@@ -154,41 +151,6 @@ class _LandingPageState extends State<LandingPage> {
           ),
         );
       },
-    );
-  }
-
-  Widget _loggedTips(Pal p) {
-    final tips = <List<Object>>[
-      [Icons.search_rounded, 'Найдите своё дело', 'Используйте поиск и фильтры, чтобы быстро подобрать объявление.'],
-      [Icons.favorite_border_rounded, 'Сохраняйте интересное', 'Добавляйте объявления в избранное и возвращайтесь к ним позже.'],
-      [Icons.chat_bubble_outline_rounded, 'Общайтесь напрямую', 'Откликайтесь и обсуждайте детали в сообщениях.'],
-    ];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(children: [
-        for (final item in tips)
-          Container(
-            margin: const EdgeInsets.only(bottom: 9),
-            padding: const EdgeInsets.all(14),
-            decoration: cardDeco(p, r: 16),
-            child: Row(children: [
-              Container(
-                width: 42, height: 42,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [p.ac.withOpacity(.14), p.ac2.withOpacity(.14)]),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(item[0] as IconData, color: p.ac),
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(item[1] as String, style: TextStyle(fontWeight: FontWeight.w800, color: p.tx)),
-                const SizedBox(height: 3),
-                Text(item[2] as String, style: TextStyle(fontSize: 13, height: 1.3, color: p.mu)),
-              ])),
-            ]),
-          ),
-      ]),
     );
   }
 
@@ -293,13 +255,7 @@ class _LandingPageState extends State<LandingPage> {
           decoration: deco(context, null, hint: _mode == 0 ? 'Например: ищу подработку грузчиком…' : 'Например: нужен грузчик на сегодня…', prefix: Icon(Icons.search_rounded, color: p.mu)),
         ),
         const SizedBox(height: 8),
-        TextField(
-          controller: _city,
-          textCapitalization: TextCapitalization.words,
-          onSubmitted: (_) => _search(),
-          style: TextStyle(color: p.tx),
-          decoration: deco(context, null, hint: 'Ваш город', prefix: Icon(Icons.place_outlined, color: p.mu)),
-        ),
+        _cityAutocomplete(p),
         const SizedBox(height: 10),
         SizedBox(width: double.infinity, child: GradBtn('Найти', icon: Icons.search_rounded, onTap: _search)),
         const SizedBox(height: 13),
@@ -321,6 +277,65 @@ class _LandingPageState extends State<LandingPage> {
           ]),
         ),
       ]),
+    );
+  }
+
+  Widget _cityAutocomplete(Pal p) {
+    const cities = <String>[
+      'Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Казань',
+      'Нижний Новгород', 'Челябинск', 'Самара', 'Омск', 'Ростов-на-Дону',
+      'Уфа', 'Красноярск', 'Пермь', 'Воронеж', 'Волгоград', 'Краснодар',
+      'Тюмень', 'Калининград', 'Саратов', 'Тольятти', 'Ижевск', 'Барнаул',
+      'Ульяновск', 'Иркутск', 'Хабаровск', 'Ярославль', 'Владивосток',
+      'Махачкала', 'Томск', 'Оренбург', 'Кемерово', 'Рязань', 'Пенза',
+      'Липецк', 'Киров', 'Чебоксары', 'Курск', 'Тула', 'Сочи',
+    ];
+    return RawAutocomplete<String>(
+      textEditingController: _city,
+      optionsBuilder: (value) {
+        final q = value.text.trim().toLowerCase();
+        if (q.length < 2) return const Iterable<String>.empty();
+        return cities.where((c) => c.toLowerCase().contains(q)).take(6);
+      },
+      displayStringForOption: (option) => option,
+      onSelected: (value) { _city.text = value; FocusScope.of(context).unfocus(); },
+      fieldViewBuilder: (context, controller, focusNode, onSubmitted) => TextField(
+        controller: controller,
+        focusNode: focusNode,
+        textCapitalization: TextCapitalization.words,
+        onSubmitted: (_) => _search(),
+        style: TextStyle(color: p.tx),
+        decoration: deco(context, null, hint: 'Ваш город', prefix: Icon(Icons.place_outlined, color: p.mu)),
+      ),
+      optionsViewBuilder: (context, onSelected, options) => Align(
+        alignment: Alignment.topLeft,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            margin: const EdgeInsets.only(top: 5),
+            constraints: const BoxConstraints(maxHeight: 240),
+            width: MediaQuery.of(context).size.width - 28,
+            decoration: BoxDecoration(
+              color: p.card,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: p.bd),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(.12), blurRadius: 18, offset: const Offset(0, 6))],
+            ),
+            child: ListView(
+              padding: const EdgeInsets.all(6),
+              shrinkWrap: true,
+              children: [for (final option in options)
+                ListTile(
+                  dense: true,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  leading: Icon(Icons.location_city_rounded, color: p.ac, size: 20),
+                  title: Text(option, style: TextStyle(color: p.tx, fontWeight: FontWeight.w600)),
+                  onTap: () => onSelected(option),
+                )],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

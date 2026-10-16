@@ -253,6 +253,50 @@ class _PostScreenState extends State<PostScreen> {
     );
   }
 
+  Widget _cityField(Pal p) {
+    const cities = <String>[
+      'Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Казань',
+      'Нижний Новгород', 'Челябинск', 'Самара', 'Омск', 'Ростов-на-Дону',
+      'Уфа', 'Красноярск', 'Пермь', 'Воронеж', 'Волгоград', 'Краснодар',
+      'Тюмень', 'Калининград', 'Саратов', 'Тольятти', 'Ижевск', 'Барнаул',
+      'Ульяновск', 'Иркутск', 'Хабаровск', 'Ярославль', 'Владивосток',
+      'Махачкала', 'Томск', 'Оренбург', 'Кемерово', 'Рязань', 'Пенза',
+      'Липецк', 'Киров', 'Чебоксары', 'Курск', 'Тула', 'Сочи',
+    ];
+    return RawAutocomplete<String>(
+      textEditingController: city,
+      optionsBuilder: (value) {
+        final q = value.text.trim().toLowerCase();
+        if (q.length < 2) return const Iterable<String>.empty();
+        return cities.where((c) => c.toLowerCase().contains(q)).take(6);
+      },
+      displayStringForOption: (option) => option,
+      fieldViewBuilder: (context, controller, focusNode, onSubmitted) => TextField(
+        controller: controller, focusNode: focusNode,
+        textCapitalization: TextCapitalization.words,
+        style: TextStyle(color: p.tx),
+        decoration: _d(context, hint: 'Начните вводить город'),
+      ),
+      optionsViewBuilder: (context, onSelected, options) => Align(
+        alignment: Alignment.topLeft,
+        child: Material(color: Colors.transparent, child: Container(
+          constraints: const BoxConstraints(maxHeight: 230),
+          margin: const EdgeInsets.only(top: 5),
+          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(.12), blurRadius: 16, offset: const Offset(0, 5))]),
+          child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(5), children: [
+            for (final option in options) ListTile(
+              dense: true, leading: Icon(Icons.location_city_rounded, color: p.ac, size: 20),
+              title: Text(option, style: TextStyle(color: p.tx)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              onTap: () => onSelected(option),
+            ),
+          ]),
+        )),
+      ),
+    );
+  }
+
   Widget _label(Pal p, String t, {String? hint}) => Padding(
         padding: const EdgeInsets.only(bottom: 6, top: 6),
         child: Row(children: [
