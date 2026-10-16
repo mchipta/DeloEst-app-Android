@@ -309,7 +309,10 @@ class _PostScreenState extends State<PostScreen> {
 
   Widget _form(BuildContext context, Pal p) {
     final hideAmount = unit == 'n' || unit == 'x';
-    final units = [for (final u in kPayUnits) DropdownMenuItem(value: u[0], child: Text(u[1]))];
+    final units = [
+      for (final u in kPayUnits) PickItem(u[0], u[1]),
+      if (unit == 'x') PickItem('x', 'Как было: $payRaw'),
+    ];
     return ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 28), children: [
       if (widget.edit == null) ...[
         Text('Начните с шаблона: подставим заголовок и описание', style: TextStyle(color: p.mu, fontSize: 13.5)),
@@ -334,16 +337,12 @@ class _PostScreenState extends State<PostScreen> {
         const SizedBox(height: 6),
       ],
       _label(p, 'Тип'),
-      DropdownButtonFormField<int>(
-        value: type,
-        isExpanded: true,
-        dropdownColor: p.card,
-        style: TextStyle(color: p.tx, fontSize: 16),
-        decoration: _d(context),
-        items: [for (var i = 0; i < kTypes.length; i++) DropdownMenuItem(value: i, child: Text(kTypes[i]))],
-        onChanged: (v) {
-          if (v != null) setState(() => type = v);
-        },
+      PickerField(
+        label: '',
+        sheetTitle: 'Тип объявления',
+        value: '$type',
+        items: [for (var i = 0; i < kTypes.length; i++) PickItem('$i', kTypes[i])],
+        onChanged: (v) => setState(() => type = int.tryParse(v) ?? 0),
       ),
       _label(p, 'Заголовок'),
       TextField(
@@ -354,16 +353,12 @@ class _PostScreenState extends State<PostScreen> {
         decoration: _d(context, hint: 'Например: Нужны грузчики на 3 часа').copyWith(counterText: ''),
       ),
       _label(p, 'Категория'),
-      DropdownButtonFormField<String>(
+      PickerField(
+        label: '',
+        sheetTitle: 'Категория',
         value: cat,
-        isExpanded: true,
-        dropdownColor: p.card,
-        style: TextStyle(color: p.tx, fontSize: 16),
-        decoration: _d(context),
-        items: [for (final c in kCats) DropdownMenuItem(value: c.name, child: Text(c.name))],
-        onChanged: (v) {
-          if (v != null) setState(() => cat = v);
-        },
+        items: [for (final c in kCats) PickItem(c.name, c.name)],
+        onChanged: (v) => setState(() => cat = v),
       ),
       _label(p, 'Оплата'),
       Row(children: [
@@ -383,19 +378,12 @@ class _PostScreenState extends State<PostScreen> {
           ),
         Expanded(
           flex: 6,
-          child: DropdownButtonFormField<String>(
+          child: PickerField(
+            label: '',
+            sheetTitle: 'Единица оплаты',
             value: unit,
-            isExpanded: true,
-            dropdownColor: p.card,
-            style: TextStyle(color: p.tx, fontSize: 16),
-            decoration: _d(context),
-            items: [
-              ...units,
-              if (unit == 'x') DropdownMenuItem(value: 'x', child: Text('Как было: $payRaw', overflow: TextOverflow.ellipsis)),
-            ],
-            onChanged: (v) {
-              if (v != null) setState(() => unit = v);
-            },
+            items: units,
+            onChanged: (v) => setState(() => unit = v),
           ),
         ),
       ]),

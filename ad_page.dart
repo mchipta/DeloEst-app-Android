@@ -191,11 +191,11 @@ class _AdPageState extends State<AdPage> {
               if (ph.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Row(children: [
-                  Expanded(child: OutBtn('Позвонить', icon: Icons.call_outlined, onTap: () => _call(ph))),
-                  const SizedBox(width: 6),
-                  Expanded(child: OutBtn('WhatsApp', icon: Icons.phone_in_talk_rounded, onTap: () => _openSocial('wa', ph))),
-                  const SizedBox(width: 6),
-                  Expanded(child: OutBtn('Telegram', icon: Icons.send_rounded, onTap: () => _openSocial('tg', ph))),
+                  _contactBtn(p, const CallBadge(), 'Позвонить', () => _call(ph)),
+                  const SizedBox(width: 8),
+                  _contactBtn(p, const BrandIcon('wa', size: 30), 'WhatsApp', () => _openSocial('wa', ph)),
+                  const SizedBox(width: 8),
+                  _contactBtn(p, const BrandIcon('tg', size: 30), 'Telegram', () => _openSocial('tg', ph)),
                 ]),
               ] else if (!S.i.logged) ...[
                 const SizedBox(height: 8),
@@ -205,6 +205,32 @@ class _AdPageState extends State<AdPage> {
           ]),
         );
       },
+    );
+  }
+
+  Widget _contactBtn(Pal p, Widget icon, String label, VoidCallback onTap) {
+    return Expanded(
+      child: Tap(
+        onTap: onTap,
+        scale: .96,
+        child: Container(
+          height: 70,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            color: p.card,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: p.bd),
+          ),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            icon,
+            const SizedBox(height: 6),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(label, maxLines: 1, style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 12.5)),
+            ),
+          ]),
+        ),
+      ),
     );
   }
 

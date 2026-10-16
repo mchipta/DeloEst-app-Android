@@ -456,23 +456,266 @@ class VerifiedBadge extends StatelessWidget {
 }
 
 class BrandIcon extends StatelessWidget {
-  final String kind; // tg или vk
+  final String kind; // tg, wa или vk
   final double size;
   const BrandIcon(this.kind, {super.key, this.size = 40});
   @override
   Widget build(BuildContext context) {
-    final tg = kind == 'tg';
+    final Color bg = kind == 'tg'
+        ? const Color(0xFF229ED9)
+        : kind == 'wa'
+            ? const Color(0xFF25D366)
+            : const Color(0xFF0077FF);
+    final Widget glyph;
+    if (kind == 'tg') {
+      glyph = CustomPaint(size: Size.square(size * .64), painter: const _TgPainter());
+    } else if (kind == 'wa') {
+      glyph = SizedBox(
+        width: size * .68,
+        height: size * .68,
+        child: Stack(alignment: Alignment.center, children: [
+          CustomPaint(size: Size.square(size * .68), painter: const _WaPainter()),
+          Padding(
+            padding: EdgeInsets.only(bottom: size * .04),
+            child: Icon(Icons.phone, color: Colors.white, size: size * .27),
+          ),
+        ]),
+      );
+    } else {
+      glyph = Text('VK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: size * .4));
+    }
     return Container(
       width: size,
       height: size,
       alignment: Alignment.center,
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(size * .3)),
+      child: glyph,
+    );
+  }
+}
+
+// Самолётик Telegram
+class _TgPainter extends CustomPainter {
+  const _TgPainter();
+  @override
+  void paint(Canvas canvas, Size s) {
+    final k = s.width / 24;
+    final body = Path()
+      ..moveTo(20.2 * k, 4.7 * k)
+      ..lineTo(3.6 * k, 11.2 * k)
+      ..lineTo(8.2 * k, 13.1 * k)
+      ..lineTo(9.9 * k, 18.9 * k)
+      ..lineTo(12.9 * k, 15.7 * k)
+      ..lineTo(17.1 * k, 18.9 * k)
+      ..close();
+    canvas.drawPath(body, Paint()..color = Colors.white);
+    canvas.drawLine(
+      Offset(8.2 * k, 13.1 * k),
+      Offset(16.2 * k, 8.2 * k),
+      Paint()
+        ..color = const Color(0xFF229ED9)
+        ..strokeWidth = .9 * k
+        ..style = PaintingStyle.stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// Кольцо с хвостиком WhatsApp (трубка рисуется поверх иконкой)
+class _WaPainter extends CustomPainter {
+  const _WaPainter();
+  @override
+  void paint(Canvas canvas, Size s) {
+    final k = s.width / 24;
+    final ring = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8 * k;
+    canvas.drawCircle(Offset(12 * k, 11.4 * k), 7.4 * k, ring);
+    final tail = Path()
+      ..moveTo(5.2 * k, 15.4 * k)
+      ..lineTo(3.8 * k, 20.6 * k)
+      ..lineTo(9.4 * k, 18.4 * k)
+      ..close();
+    canvas.drawPath(tail, Paint()..color = Colors.white);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// Значок «Позвонить» в цветах приложения
+class CallBadge extends StatelessWidget {
+  final double size;
+  const CallBadge({super.key, this.size = 30});
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return Container(
+      width: size,
+      height: size,
       decoration: BoxDecoration(
-        color: tg ? const Color(0xFF229ED9) : const Color(0xFF0077FF),
+        gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(size * .3),
       ),
-      child: tg
-          ? Icon(Icons.send_rounded, color: Colors.white, size: size * .55)
-          : Text('VK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: size * .4)),
+      child: Icon(Icons.call_rounded, color: Colors.white, size: size * .58),
+    );
+  }
+}
+
+// ---------- Выбор из списка в стиле приложения ----------
+class PickItem {
+  final String value;
+  final String label;
+  const PickItem(this.value, this.label);
+}
+
+Future<String?> showPickerSheet(BuildContext context,
+    {required String title, required List<PickItem> items, required String selected}) {
+  final p = pal(context);
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  // Поверхность чуть светлее и «подкрашена» акцентом, чтобы не сливаться с фоном
+  final surface = Color.alphaBlend(p.ac.withOpacity(dark ? .12 : .05), p.card);
+  return showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withOpacity(.6),
+    builder: (c) {
+      final h = MediaQuery.sizeOf(c).height;
+      return Container(
+        constraints: BoxConstraints(maxHeight: h * .72),
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+          border: Border.all(color: p.ac.withOpacity(.4), width: 1.2),
+          boxShadow: [BoxShadow(color: p.ac.withOpacity(.22), blurRadius: 32, offset: const Offset(0, -6))],
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 44,
+              height: 4,
+              decoration: BoxDecoration(color: p.mu.withOpacity(.45), borderRadius: BorderRadius.circular(99)),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(title, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: p.tx)),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
+                children: [
+                  for (final it in items) _pickRow(p, it, it.value == selected, () => Navigator.pop(c, it.value)),
+                ],
+              ),
+            ),
+          ]),
+        ),
+      );
+    },
+  );
+}
+
+Widget _pickRow(Pal p, PickItem it, bool sel, VoidCallback onTap) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Tap(
+      onTap: onTap,
+      scale: .985,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: sel ? p.ac.withOpacity(.16) : p.bg.withOpacity(.4),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: sel ? p.ac : p.bd, width: sel ? 1.4 : 1),
+        ),
+        child: Row(children: [
+          Expanded(
+            child: Text(it.label,
+                style: TextStyle(fontSize: 15.5, fontWeight: sel ? FontWeight.w800 : FontWeight.w600, color: p.tx)),
+          ),
+          const SizedBox(width: 10),
+          sel
+              ? Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [p.ac, p.ac2]),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check_rounded, size: 15, color: Colors.white),
+                )
+              : Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: p.bd, width: 1.5)),
+                ),
+        ]),
+      ),
+    ),
+  );
+}
+
+class PickerField extends StatelessWidget {
+  final String label;
+  final String value;
+  final List<PickItem> items;
+  final ValueChanged<String> onChanged;
+  final String? sheetTitle;
+  const PickerField({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+    this.sheetTitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    var shown = '';
+    for (final it in items) {
+      if (it.value == value) shown = it.label;
+    }
+    return Tap(
+      scale: .99,
+      onTap: () async {
+        final v = await showPickerSheet(context,
+            title: sheetTitle ?? (label.isEmpty ? 'Выберите' : label), items: items, selected: value);
+        if (v != null) onChanged(v);
+      },
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 54),
+        padding: const EdgeInsets.fromLTRB(14, 8, 10, 8),
+        decoration: BoxDecoration(
+          color: p.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: p.bd),
+        ),
+        child: Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              if (label.isNotEmpty)
+                Text(label, style: TextStyle(fontSize: 12, color: p.mu, fontWeight: FontWeight.w600)),
+              Text(shown,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 16, color: p.tx, fontWeight: FontWeight.w600)),
+            ]),
+          ),
+          Icon(Icons.keyboard_arrow_down_rounded, color: p.ac, size: 26),
+        ]),
+      ),
     );
   }
 }

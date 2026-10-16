@@ -164,8 +164,7 @@ class _CabinetPageState extends State<CabinetPage> {
                 )
               : ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), children: [
                   SizedBox(height: 360, child: const NeedAuth(icon: Icons.person_outline, title: 'Ваш кабинет', text: 'Войдите, чтобы видеть свои объявления, отклики и управлять ими.')),
-                  const SupportLinks(),
-                  const BottomLinks(),
+                  const BottomLinks(support: true),
                 ]),
         );
       },
@@ -215,10 +214,12 @@ class _CabinetPageState extends State<CabinetPage> {
           IconButton(
             tooltip: 'Изменить профиль',
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileEditPage())),
-            icon: const Icon(Icons.edit_outlined, color: Colors.white),
+            icon: Icon(Icons.edit_outlined, color: p.tx),
             style: IconButton.styleFrom(
-              backgroundColor: Colors.white.withOpacity(.16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              backgroundColor: p.card,
+              side: BorderSide(color: p.bd, width: 1),
+              minimumSize: const Size(46, 46),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
           ),
         ]),

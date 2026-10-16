@@ -217,28 +217,6 @@ class _SettingsBodyState extends State<SettingsBody> {
     });
   }
 
-  Future<void> _lead() async {
-    final r = await askFields(
-        context,
-        'Для бизнеса',
-        [
-          FieldSpec('Имя', initial: S.i.name),
-          FieldSpec('Телефон', initial: S.i.phone, type: TextInputType.phone),
-          const FieldSpec('Что нужно?', multi: true),
-        ],
-        ok: 'Отправить',
-        hint: 'Оставьте заявку, мы свяжемся с вами.');
-    if (r == null) return;
-    if (r[1].replaceAll(RegExp(r'\D'), '').length < 8) {
-      toast(context, 'Укажите телефон');
-      return;
-    }
-    await _run(() async {
-      await Api.call('lead', {'name': r[0], 'phone': r[1], 'msg': r[2]});
-      if (mounted) toast(context, 'Заявка отправлена');
-    });
-  }
-
   Future<void> _logout() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -445,27 +423,15 @@ class _SettingsBodyState extends State<SettingsBody> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('По нему показывается время сообщений и объявлений.', style: TextStyle(color: p.mu, fontSize: 13, height: 1.35)),
               const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
+              PickerField(
+                label: 'Часовой пояс',
+                sheetTitle: 'Часовой пояс',
                 value: kSiteTimeZones.any((z) => z[0] == S.i.timeZone) ? S.i.timeZone : '',
-                isExpanded: true,
-                dropdownColor: p.card,
-                 borderRadius: BorderRadius.circular(16),
-                 menuMaxHeight: 320,
-                style: TextStyle(color: p.tx, fontSize: 14),
-                decoration: deco(context, 'Часовой пояс').copyWith(
-                  filled: true, fillColor: p.bg2,
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: p.bd, width: 1.2)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: p.ac, width: 1.8)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                  suffixIconColor: p.ac,
-                ),
-                items: [for (final z in kSiteTimeZones) DropdownMenuItem<String>(value: z[0], child: Text(z[1], overflow: TextOverflow.ellipsis))],
-                onChanged: (v) { if (v != null) S.i.setTimeZone(v); },
+                items: [for (final z in kSiteTimeZones) PickItem(z[0], z[1])],
+                onChanged: (v) => S.i.setTimeZone(v),
               ),
             ]),
           ),
-          _label(p, 'ПРОЧЕЕ'),
-          _tile(p, Icons.business_center_outlined, 'Для бизнеса', 'Оставить заявку', _lead),
           ],
         ]);
       },
@@ -506,7 +472,7 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Настройки')),
-      body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: const [SettingsBody(), BottomLinks()]),
+      body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: const [SettingsBody(), BottomLinks(business: true, title: 'ПРОЧЕЕ')]),
     );
   }
 }
@@ -528,30 +494,82 @@ Future<void> confirmLogout(BuildContext context) async {
   }
 }
 
-// Нижний блок профиля: о сервисе, о приложении, админ-панель, выход
-class BottomLinks extends StatelessWidget {
-  const BottomLinks({super.key});
+Future<void> showLeadForm(BuildContext context) async {
+  final r = await askFields(
+      context,
+      'Для бизнеса',
+      [
+        FieldSpec('Имя', initial: S.i.name),
+        FieldSpec('Телефон', initial: S.i.phone, type: TextInputType.phone),
+        const FieldSpec('Что нужно?', multi: true),
+      ],
+      ok: 'Отправить',
+      hint: 'Оставьте заявку, мы свяжемся с вами.');
+  if (r == null || !context.mounted) return;
+  if (r[1].replaceAll(RegExp(r'\D'), '').length < 8) {
+    toast(context, 'Укажите телефон');
+    return;
+  }
+  try {
+    await Api.call('lead', {'name': r[0], 'phone': r[1], 'msg': r[2]});
+    if (context.mounted) toast(context, 'Заявка отправлена');
+  } catch (e) {
+    if (context.mounted) toast(context, S.i.fail(e));
+  }
+}
 
-  Widget _t(BuildContext context, Pal p, IconData icon, String title, String value, VoidCallback f, {Color? color}) {
-    return GestureDetector(
-      onTap: f,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: cardDeco(p, r: 16),
-        child: Row(children: [
-          Icon(icon, color: color ?? p.ac, size: 24),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, color: color ?? p.tx)),
-              if (value.isNotEmpty) Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13.5)),
-            ]),
-          ),
-          Icon(Icons.chevron_right, color: p.mu),
-        ]),
+class _MenuRow {
+  final IconData icon;
+  final String title;
+  final String sub;
+  final VoidCallback onTap;
+  final Color? color;
+  const _MenuRow(this.icon, this.title, this.sub, this.onTap, {this.color});
+}
+
+// Одна аккуратная группа строк: Для бизнеса / Поддержка / О сервисе / О приложении / Админ / Выход
+class BottomLinks extends StatelessWidget {
+  final bool support; // строка «Поддержка» (экран входа)
+  final bool business; // строка «Для бизнеса» (настройки)
+  final String? title;
+  const BottomLinks({super.key, this.support = false, this.business = false, this.title});
+
+  Widget _row(Pal p, _MenuRow r, bool last) {
+    final col = r.color;
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      Tap(
+        onTap: r.onTap,
+        scale: .99,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: p.bg2,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: p.bd),
+              ),
+              child: Icon(r.icon, color: col ?? p.ac, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(r.title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, color: col ?? p.tx)),
+                if (r.sub.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(r.sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13)),
+                  ),
+              ]),
+            ),
+            Icon(Icons.chevron_right, color: p.mu),
+          ]),
+        ),
       ),
-    );
+      if (!last) Divider(height: 1, thickness: 1, indent: 66, color: p.bd),
+    ]);
   }
 
   @override
@@ -560,57 +578,38 @@ class BottomLinks extends StatelessWidget {
       listenable: S.i,
       builder: (context, _) {
         final p = pal(context);
-        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const SizedBox(height: 18),
-          _t(context, p, Icons.info_outline, 'О сервисе', 'О нас, частые вопросы, контакты',
+        final rows = <_MenuRow>[
+          if (business)
+            _MenuRow(Icons.business_center_outlined, 'Для бизнеса', 'Оставить заявку', () => showLeadForm(context)),
+          if (support)
+            _MenuRow(Icons.support_agent, 'Поддержка', 'Напишите или позвоните нам',
+                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage(only: 3, title: 'Поддержка')))),
+          _MenuRow(Icons.info_outline, 'О сервисе', 'О нас, вопросы, контакты',
               () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage()))),
-          _t(context, p, Icons.phone_android, 'О приложении', 'Версия $kAppVersion, разработчик @mchipta',
+          _MenuRow(Icons.phone_android, 'О приложении', 'Версия $kAppVersion, разработчик @mchipta',
               () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutAppPage()))),
           if (S.i.logged && S.i.user?['admin'] == true)
-            _t(context, p, Icons.admin_panel_settings_outlined, 'Админ-панель', 'Модерация, жалобы, заявки',
+            _MenuRow(Icons.admin_panel_settings_outlined, 'Админ-панель', 'Модерация, жалобы, заявки',
                 () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPage()))),
-          if (S.i.logged) _t(context, p, Icons.logout, 'Выйти из аккаунта', '', () => confirmLogout(context), color: p.dng),
+          if (S.i.logged)
+            _MenuRow(Icons.logout, 'Выйти из аккаунта', '', () => confirmLogout(context), color: p.dng),
+        ];
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (title != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 14, bottom: 8),
+              child: Text(title!, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: p.mu)),
+            )
+          else
+            const SizedBox(height: 14),
+          Container(
+            decoration: cardDeco(p, r: 18),
+            child: Column(children: [
+              for (var i = 0; i < rows.length; i++) _row(p, rows[i], i == rows.length - 1),
+            ]),
+          ),
         ]);
       },
     );
-  }
-}
-
-// Низ кабинета: только «Частые вопросы» и «Поддержка»
-class SupportLinks extends StatelessWidget {
-  const SupportLinks({super.key});
-
-  Widget _t(Pal p, IconData icon, String title, String sub, VoidCallback f) {
-    return GestureDetector(
-      onTap: f,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: cardDeco(p, r: 16),
-        child: Row(children: [
-          Icon(icon, color: p.ac, size: 24),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, color: p.tx)),
-              Text(sub, style: TextStyle(color: p.mu, fontSize: 13.5)),
-            ]),
-          ),
-          Icon(Icons.chevron_right, color: p.mu),
-        ]),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final p = pal(context);
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      const SizedBox(height: 18),
-      _t(p, Icons.help_outline, 'Частые вопросы', 'Ответы на популярные вопросы',
-          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage(only: 1, title: 'Частые вопросы')))),
-      _t(p, Icons.support_agent, 'Поддержка', 'Напишите или позвоните нам',
-          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage(only: 3, title: 'Поддержка')))),
-    ]);
   }
 }

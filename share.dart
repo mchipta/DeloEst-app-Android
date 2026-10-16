@@ -39,7 +39,7 @@ Future<void> showShare(BuildContext context, Ad ad) async {
           ),
         ),
         ListTile(
-          leading: Icon(Icons.send_rounded, color: p.ac),
+          leading: const BrandIcon('tg', size: 36),
           title: const Text('Telegram'),
           onTap: () {
             Navigator.pop(c);
@@ -47,7 +47,7 @@ Future<void> showShare(BuildContext context, Ad ad) async {
           },
         ),
         ListTile(
-          leading: Icon(Icons.chat_outlined, color: p.ac),
+          leading: const BrandIcon('wa', size: 36),
           title: const Text('WhatsApp'),
           onTap: () {
             Navigator.pop(c);
@@ -55,7 +55,7 @@ Future<void> showShare(BuildContext context, Ad ad) async {
           },
         ),
         ListTile(
-          leading: Icon(Icons.public, color: p.ac),
+          leading: const BrandIcon('vk', size: 36),
           title: const Text('ВКонтакте'),
           onTap: () {
             Navigator.pop(c);

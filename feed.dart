@@ -162,17 +162,11 @@ class _FeedPageState extends State<FeedPage> {
           Widget dd(String label, String value, List<List<String>> items, void Function(String) f) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: DropdownButtonFormField<String>(
+              child: PickerField(
+                label: label,
                 value: value,
-                isExpanded: true,
-                dropdownColor: p.card,
-                 borderRadius: BorderRadius.circular(16),
-                 menuMaxHeight: 320,
-                style: TextStyle(color: p.tx, fontSize: 16),
-                decoration: deco(c, label),
-                items: [for (final it in items) DropdownMenuItem(value: it[0], child: Text(it[1]))],
+                items: [for (final it in items) PickItem(it[0], it[1])],
                 onChanged: (v) {
-                  if (v == null) return;
                   f(v);
                   setS(() {});
                   setState(() {});
