@@ -296,11 +296,11 @@ class _SettingsBodyState extends State<SettingsBody> {
               ]),
             ),
           ),
-          _label(p, 'ПРОФИЛЬ'),
+          _label(p, 'ДАННЫЕ ПРОФИЛЯ'),
           _tile(p, Icons.person_outline, 'Имя', S.i.name, _name),
           _tile(p, Icons.mail_outline, 'Почта', S.i.login.contains('@') ? S.i.login : '—', _email),
           _tile(p, Icons.call_outlined, 'Телефон', S.i.phone.isEmpty ? '—' : fmtPhone(S.i.phone), _phone),
-          _label(p, 'ОФОРМЛЕНИЕ'),
+          _label(p, 'НАСТРОЙКИ ПРИЛОЖЕНИЯ'),
           Row(children: [
             for (final t in [
               [ThemeMode.system, 'Как в телефоне'],
@@ -406,7 +406,7 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Настройки')),
+      appBar: AppBar(title: const Text('Профиль и настройки')),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: const [SettingsBody(), BottomLinks()]),
     );
   }

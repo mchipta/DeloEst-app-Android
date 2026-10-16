@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 import 'api.dart';
 import 'auth.dart';
 import 'messages.dart';
@@ -58,6 +59,22 @@ class _AdPageState extends State<AdPage> {
       context,
       MaterialPageRoute(builder: (_) => ChatPage(pid: ad.pid, name: ad.author, ver: ad.ver, adId: ad.id)),
     );
+  }
+
+  Future<void> _openSocial(String kind, String phone) async {
+    var digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.length == 11 && digits.startsWith('8')) digits = '7${digits.substring(1)}';
+    const message = 'Здравствуйте, я с ДелоЕсть по вашему объявлению';
+    await Clipboard.setData(const ClipboardData(text: message));
+    final uri = kind == 'wa'
+        ? Uri.parse('https://wa.me/$digits?text=${Uri.encodeComponent(message)}')
+        : Uri.parse('https://t.me/+${digits}?text=${Uri.encodeComponent(message)}');
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (mounted) toast(context, 'Текст скопирован — можно отправить его в чате');
+    } catch (_) {
+      if (mounted) toast(context, 'Текст скопирован. Не удалось открыть приложение');
+    }
   }
 
   Future<void> _report() async {
@@ -173,7 +190,13 @@ class _AdPageState extends State<AdPage> {
               OutBtn('Написать автору', icon: Icons.chat_bubble_outline, onTap: _write),
               if (ph.isNotEmpty) ...[
                 const SizedBox(height: 10),
-                OutBtn('Позвонить  ${fmtPhone(ph)}', icon: Icons.call_outlined, onTap: () => _call(ph)),
+                Row(children: [
+                  Expanded(child: OutBtn('Позвонить', icon: Icons.call_outlined, onTap: () => _call(ph))),
+                  const SizedBox(width: 6),
+                  Expanded(child: OutBtn('WhatsApp', icon: Icons.chat_outlined, onTap: () => _openSocial('wa', ph))),
+                  const SizedBox(width: 6),
+                  Expanded(child: OutBtn('Telegram', icon: Icons.send_rounded, onTap: () => _openSocial('tg', ph))),
+                ]),
               ] else if (!S.i.logged) ...[
                 const SizedBox(height: 8),
                 Text('Телефон автора виден после входа', textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 13)),

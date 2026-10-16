@@ -11,7 +11,7 @@ const Map<String, String> kSiteDefaults = {
   'stats': '12400|исполнителей\n3800|заказчиков\n27000|выполненных дел\n4,8|средняя оценка',
   'year': '2026',
   'phone': '+7 (3952) 00-00-00',
-  'email': 'hello@delo-est.ru',
+  'email': 'michipta@ya.ru',
   'addr': 'г. Иркутск, ул. Байкальская, 105, офис 12',
   'hours': 'Пн–Пт, 9:00–18:00',
   'social': 'Telegram и VK: @delo_est',

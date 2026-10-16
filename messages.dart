@@ -431,7 +431,7 @@ class _ChatPageState extends State<ChatPage> {
                       itemBuilder: (c, i) => _bubble(p, rev[i]),
                     ),
         ),
-        _quick(p),
+        if (S.i.chatQuickSuggestionsEnabled) _quick(p),
         _input(p),
       ]),
     );
@@ -538,6 +538,12 @@ class _ChatPageState extends State<ChatPage> {
                 ),
               ),
             ),
+          GestureDetector(
+            onTap: () => S.i.setChatQuickSuggestionsEnabled(false),
+            child: Container(width: 32, alignment: Alignment.center,
+              decoration: BoxDecoration(color: p.bg2, shape: BoxShape.circle, border: Border.all(color: p.bd)),
+              child: Icon(Icons.close_rounded, size: 17, color: p.mu)),
+          ),
         ],
       ),
     );

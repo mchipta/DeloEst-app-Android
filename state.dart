@@ -22,6 +22,7 @@ class S extends ChangeNotifier {
   int unread = 0;
   bool messagesOpen = false;
   bool messageNotificationsEnabled = true;
+  bool chatQuickSuggestionsEnabled = true;
   String timeZone = '';
   VoidCallback? openMessages;
   Set<String> fav = {};
@@ -47,6 +48,7 @@ class S extends ChangeNotifier {
       }
     }
     i.messageNotificationsEnabled = p.getBool('messages_notifications') ?? true;
+    i.chatQuickSuggestionsEnabled = p.getBool('chat_quick_suggestions') ?? true;
     i.timeZone = p.getString('timezone') ?? '';
     final tm = p.getString('theme');
     i.themeMode = tm == 'dark'
@@ -118,6 +120,12 @@ class S extends ChangeNotifier {
   bool isFav(String id) => fav.contains(id);
 
   bool isChatMuted(String pid) => mutedChats.containsKey(pid);
+
+  Future<void> setChatQuickSuggestionsEnabled(bool enabled) async {
+    chatQuickSuggestionsEnabled = enabled;
+    await prefs.setBool('chat_quick_suggestions', enabled);
+    notifyListeners();
+  }
 
   Future<void> setChatMuted(String pid, String name, bool muted) async {
     if (muted) {

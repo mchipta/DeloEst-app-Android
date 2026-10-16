@@ -131,7 +131,7 @@ class _CabinetPageState extends State<CabinetPage> {
       builder: (context, _) {
         final p = pal(context);
         return Scaffold(
-          appBar: AppBar(title: Text(S.i.logged ? (ct == 'set' ? 'Настройки' : 'Кабинет') : 'Профиль')),
+          appBar: AppBar(title: Text(S.i.logged ? (ct == 'set' ? 'Профиль и настройки' : 'Кабинет') : 'Профиль')),
           body: S.i.logged
               ? RefreshIndicator(
                   color: p.ac,
@@ -291,7 +291,7 @@ class _CabinetPageState extends State<CabinetPage> {
       ['ads', 'Объявления', Icons.work_outline_rounded],
       ['in', 'Отклики мне', Icons.bolt_rounded],
       ['out', 'Мои отклики', Icons.send_outlined],
-      ['set', 'Настройки', Icons.settings_outlined],
+      ['set', 'Профиль и настройки', Icons.settings_outlined],
     ];
     return Container(
       padding: const EdgeInsets.all(4),

@@ -104,7 +104,6 @@ class _LandingPageState extends State<LandingPage> {
       builder: (context, _) {
         final p = pal(context);
         final recent = List<Ad>.of(S.i.ads)..sort((a, b) => b.ts.compareTo(a.ts));
-        final stats = siteLines(_site['stats']);
         final reviews = siteLines(_site['reviews']);
         final faq = siteLines(_site['faq']);
         return Scaffold(
@@ -121,7 +120,6 @@ class _LandingPageState extends State<LandingPage> {
                 children: [
                   _topBar(p),
                   _hero(p),
-                  _stats(p, stats),
                   _sectionTitle(p, 'Свежие объявления', 'Новые предложения рядом с вами.', action: 'Все объявления', onAction: () => S.i.goTab(1)),
                   if (S.i.loading && recent.isEmpty)
                     Padding(padding: const EdgeInsets.all(30), child: Center(child: CircularProgressIndicator(color: p.ac)))
@@ -174,13 +172,15 @@ class _LandingPageState extends State<LandingPage> {
                   Positioned(right: -6, top: -5, child: _badge(p, S.i.unread)),
               ]),
             ),
-          IconButton(
-            tooltip: 'Избранное',
-            onPressed: () => S.i.logged
-                ? Navigator.push(context, MaterialPageRoute(builder: (_) => const FavoritesPage()))
-                : Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage())),
-            icon: Icon(Icons.favorite_border_rounded, color: p.ac, size: 22),
-          ),
+          if (S.i.logged)
+            IconButton(
+              tooltip: 'Избранное',
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FavoritesPage())),
+              icon: Stack(clipBehavior: Clip.none, children: [
+                Icon(Icons.favorite_border_rounded, color: p.ac, size: 22),
+                if (S.i.fav.isNotEmpty) Positioned(right: -7, top: -6, child: _badge(p, S.i.fav.length)),
+              ]),
+            ),
           IconButton(
             tooltip: 'Сменить тему',
             onPressed: () => S.i.setTheme(Theme.of(context).brightness == Brightness.dark ? ThemeMode.light : ThemeMode.dark),
@@ -258,7 +258,7 @@ class _LandingPageState extends State<LandingPage> {
           textInputAction: TextInputAction.search,
           onSubmitted: (_) => _search(),
           style: TextStyle(color: p.tx),
-          decoration: deco(context, null, hint: 'Например: грузчик, уборка…', prefix: Icon(Icons.search_rounded, color: p.mu)),
+          decoration: deco(context, null, hint: _mode == 0 ? 'Например: ищу подработку грузчиком…' : 'Например: нужен грузчик на сегодня…', prefix: Icon(Icons.search_rounded, color: p.mu)),
         ),
         const SizedBox(height: 8),
         TextField(
@@ -295,7 +295,7 @@ class _LandingPageState extends State<LandingPage> {
   Widget _modeButton(Pal p, String title, int n) {
     final selected = _mode == n;
     return GestureDetector(
-      onTap: () => setState(() => _mode = n),
+      onTap: () { setState(() => _mode = n); _q.clear(); FocusScope.of(context).unfocus(); },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         alignment: Alignment.center,
@@ -536,8 +536,8 @@ class _LandingPageState extends State<LandingPage> {
               openUrl(context, Uri(scheme: 'tel', path: digits));
             }),
           if ((_site['email'] ?? '').trim().isNotEmpty)
-            _contactLine(p, Icons.mail_outline_rounded, _site['email']!, () {
-              openUrl(context, Uri(scheme: 'mailto', path: _site['email']!.trim()));
+            _contactLine(p, Icons.mail_outline_rounded, 'michipta@ya.ru', () {
+              openUrl(context, Uri(scheme: 'mailto', path: 'michipta@ya.ru'));
             }),
           if ((_site['tg'] ?? '').trim().isNotEmpty)
             _contactLine(p, Icons.send_rounded, 'Telegram', () => openUrl(context, Uri.parse(socialUrl(_site['tg']!, 'https://t.me/')))),
