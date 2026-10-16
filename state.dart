@@ -25,6 +25,8 @@ class S extends ChangeNotifier {
   bool chatQuickSuggestionsEnabled = true;
   String timeZone = '';
   VoidCallback? openMessages;
+  // экран «Разместить»: системная «назад» сначала возвращает на прошлый шаг формы
+  bool Function()? postBack;
   Set<String> fav = {};
   Map<String, String> mutedChats = {};
   List<Map<String, String>> ss = [];

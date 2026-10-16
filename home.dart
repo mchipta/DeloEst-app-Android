@@ -31,7 +31,9 @@ class HomeShell extends StatelessWidget {
           child: PopScope(
             canPop: S.i.tab == 0,
             onPopInvoked: (didPop) {
-              if (!didPop) S.i.goTab(0);
+              if (didPop) return;
+              if (S.i.tab == 2 && (S.i.postBack?.call() ?? false)) return;
+              S.i.goTab(0);
             },
             child: Scaffold(
               body: IndexedStack(
