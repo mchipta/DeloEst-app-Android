@@ -22,6 +22,7 @@ class S extends ChangeNotifier {
   int unread = 0;
   Set<String> fav = {};
   List<Map<String, String>> ss = [];
+  Map<String, String>? pendingSearch;
   String cid = '';
   Timer? _timer;
   bool _unreadInit = false;

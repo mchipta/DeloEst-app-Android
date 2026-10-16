@@ -343,7 +343,7 @@ class VerifiedBadge extends StatelessWidget {
         Icon(Icons.verified, size: size, color: p.ok),
         if (label) ...[
           const SizedBox(width: 5),
-          Text('Проверенный пользователь', style: TextStyle(color: p.ok, fontWeight: FontWeight.w700, fontSize: 13)),
+          Text('Проверенный', style: TextStyle(color: p.ok, fontWeight: FontWeight.w700, fontSize: 13)),
         ],
       ]),
     );

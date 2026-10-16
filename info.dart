@@ -50,7 +50,9 @@ Future<void> openUrl(BuildContext context, Uri u) async {
 }
 
 class InfoPage extends StatefulWidget {
-  const InfoPage({super.key});
+  final int? only; // показать один раздел без переключателя: 1 — вопросы, 3 — контакты
+  final String title;
+  const InfoPage({super.key, this.only, this.title = 'О сервисе'});
   @override
   State<InfoPage> createState() => _InfoPageState();
 }
@@ -64,6 +66,7 @@ class _InfoPageState extends State<InfoPage> {
   @override
   void initState() {
     super.initState();
+    sec = widget.only ?? 0;
     _load();
   }
 
@@ -297,7 +300,7 @@ class _InfoPageState extends State<InfoPage> {
   Widget build(BuildContext context) {
     final p = pal(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('О сервисе')),
+      appBar: AppBar(title: Text(widget.title)),
       body: RefreshIndicator(
         color: p.ac,
         onRefresh: _load,
@@ -309,8 +312,7 @@ class _InfoPageState extends State<InfoPage> {
               child: Text('Не удалось обновить тексты с сайта ($err). Показаны сохранённые. Потяните вниз, чтобы повторить.',
                   style: TextStyle(color: p.dng, fontSize: 13)),
             ),
-          _seg(p),
-          const SizedBox(height: 16),
+          if (widget.only == null) ...[_seg(p), const SizedBox(height: 16)],
           ...(sec == 0 ? _about(p) : sec == 1 ? _faq(p) : sec == 2 ? _biz(p) : _contacts(p)),
         ]),
       ),

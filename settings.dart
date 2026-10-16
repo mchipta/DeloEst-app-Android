@@ -411,3 +411,42 @@ class BottomLinks extends StatelessWidget {
     );
   }
 }
+
+// Низ кабинета: только «Частые вопросы» и «Поддержка»
+class SupportLinks extends StatelessWidget {
+  const SupportLinks({super.key});
+
+  Widget _t(Pal p, IconData icon, String title, String sub, VoidCallback f) {
+    return GestureDetector(
+      onTap: f,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: cardDeco(p, r: 16),
+        child: Row(children: [
+          Icon(icon, color: p.ac, size: 24),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, color: p.tx)),
+              Text(sub, style: TextStyle(color: p.mu, fontSize: 13.5)),
+            ]),
+          ),
+          Icon(Icons.chevron_right, color: p.mu),
+        ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      const SizedBox(height: 18),
+      _t(p, Icons.help_outline, 'Частые вопросы', 'Ответы на популярные вопросы',
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage(only: 1, title: 'Частые вопросы')))),
+      _t(p, Icons.support_agent, 'Поддержка', 'Напишите или позвоните нам',
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage(only: 3, title: 'Поддержка')))),
+    ]);
+  }
+}

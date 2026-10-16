@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'ad_page.dart';
-import 'info.dart';
+import 'auth.dart';
+import 'favorites.dart';
 import 'models.dart';
 import 'state.dart';
 import 'theme.dart';
@@ -19,7 +20,6 @@ class _FeedPageState extends State<FeedPage> {
   final _minC = TextEditingController();
   final _maxC = TextEditingController();
   String _cat = '', _type = '', _city = '', _min = '', _max = '', _sort = '';
-  bool _favOnly = false;
 
   @override
   void initState() {
@@ -46,7 +46,6 @@ class _FeedPageState extends State<FeedPage> {
     final mx = int.tryParse(digitsOnly(_max)) ?? 0;
     final r = S.i.ads.where((a) {
       final n = payNum(a.pay);
-      if (_favOnly && !S.i.isFav(a.id)) return false;
       if (_type.isNotEmpty && a.type != _type) return false;
       if (_cat.isNotEmpty && a.category != _cat) return false;
       if (c.isNotEmpty && !a.city.toLowerCase().contains(c)) return false;
@@ -118,7 +117,6 @@ class _FeedPageState extends State<FeedPage> {
       _cityC.text = _city;
       _minC.text = _min;
       _maxC.text = _max;
-      _favOnly = false;
     });
   }
 
@@ -244,6 +242,13 @@ class _FeedPageState extends State<FeedPage> {
       listenable: S.i,
       builder: (context, _) {
         final p = pal(context);
+        final pend = S.i.pendingSearch;
+        if (pend != null) {
+          S.i.pendingSearch = null;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _useSearch(pend);
+          });
+        }
         final list = _filtered();
         return Scaffold(
           body: SafeArea(
@@ -308,9 +313,15 @@ class _FeedPageState extends State<FeedPage> {
           const GradText('Есть', size: 22),
           const Spacer(),
           IconButton(
-            tooltip: 'О сервисе',
-            icon: Icon(Icons.info_outline, color: p.mu),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage())),
+            tooltip: 'Избранное',
+            icon: Icon(Icons.favorite_border, color: p.ac),
+            onPressed: () {
+              if (!S.i.logged) {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
+              } else {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const FavoritesPage()));
+              }
+            },
           ),
         ]),
         const SizedBox(height: 12),
@@ -369,8 +380,6 @@ class _FeedPageState extends State<FeedPage> {
             _pill(p, 'Все', _type.isEmpty, () => setState(() => _type = '')),
             _pill(p, kTypes[0], _type == kTypes[0], () => setState(() => _type = kTypes[0])),
             _pill(p, kTypes[1], _type == kTypes[1], () => setState(() => _type = kTypes[1])),
-            if (S.i.logged)
-              _pill(p, 'Избранное', _favOnly, () => setState(() => _favOnly = !_favOnly), icon: Icons.favorite_border),
           ]),
         ),
         const SizedBox(height: 8),
@@ -382,35 +391,6 @@ class _FeedPageState extends State<FeedPage> {
               _pill(p, c.name, _cat == c.name, () => setState(() => _cat = _cat == c.name ? '' : c.name), icon: c.icon),
           ]),
         ),
-        if (_favOnly && S.i.ss.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text('Сохранённые поиски', style: TextStyle(fontWeight: FontWeight.w800, color: p.tx)),
-          const SizedBox(height: 8),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            for (final s in List<Map<String, String>>.of(S.i.ss))
-              Container(
-                padding: const EdgeInsets.only(left: 12, right: 4, top: 4, bottom: 4),
-                decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(99), border: Border.all(color: p.bd)),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  GestureDetector(
-                    onTap: () => _useSearch(s),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.search, size: 15, color: p.ac),
-                      const SizedBox(width: 4),
-                      Text(_ssLabel(s), style: TextStyle(fontSize: 13, color: p.tx, fontWeight: FontWeight.w600)),
-                    ]),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      S.i.ss.remove(s);
-                      S.i.saveSS();
-                    },
-                    child: Padding(padding: const EdgeInsets.all(6), child: Icon(Icons.close, size: 16, color: p.mu)),
-                  ),
-                ]),
-              ),
-          ]),
-        ],
         const SizedBox(height: 10),
         Row(children: [
           Expanded(child: Text('Найдено: $count', style: TextStyle(color: p.mu, fontWeight: FontWeight.w600))),

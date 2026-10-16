@@ -133,3 +133,16 @@ const kTpls = <Tpl>[
   Tpl('Предлагаю грузчиков', 1, 'Грузчики: помогу с переездом', 'Грузчики и переезд',
       'Помогу перенести мебель и вещи.\nОпыт: …\nСколько нас: …\nКогда могу: …\nОплата после работы.'),
 ];
+
+String ssLabel(Map<String, String> s) {
+  final parts = <String>[
+    s['q'] ?? '',
+    s['type'] ?? '',
+    s['cat'] ?? '',
+    s['city'] ?? '',
+    (s['min'] ?? '').isEmpty ? '' : 'от ${s['min']} ₽',
+    (s['max'] ?? '').isEmpty ? '' : 'до ${s['max']} ₽',
+    s['sort'] == 'hi' ? 'дороже' : s['sort'] == 'lo' ? 'дешевле' : '',
+  ].where((e) => e.isNotEmpty).toList();
+  return parts.join(' · ');
+}

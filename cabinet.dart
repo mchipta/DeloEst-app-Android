@@ -130,7 +130,6 @@ class _CabinetPageState extends State<CabinetPage> {
       listenable: S.i,
       builder: (context, _) {
         final p = pal(context);
-        final dark = Theme.of(context).brightness == Brightness.dark;
         return Scaffold(
           appBar: AppBar(title: Text(S.i.logged ? 'Кабинет' : 'Профиль'), actions: [
             if (S.i.logged)
@@ -139,11 +138,6 @@ class _CabinetPageState extends State<CabinetPage> {
                 icon: const Icon(Icons.settings_outlined),
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage())),
               ),
-            IconButton(
-              tooltip: 'Тема',
-              icon: Icon(dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
-              onPressed: () => S.i.setTheme(dark ? ThemeMode.light : ThemeMode.dark),
-            ),
           ]),
           body: S.i.logged
               ? RefreshIndicator(
@@ -162,12 +156,13 @@ class _CabinetPageState extends State<CabinetPage> {
                       if (err != null && data == null)
                         Padding(padding: const EdgeInsets.all(24), child: Text(err!, textAlign: TextAlign.center, style: TextStyle(color: p.mu))),
                       if (data != null || ct == 'set') ..._content(p),
-                      const BottomLinks(),
+                      const SupportLinks(),
                     ],
                   ),
                 )
               : ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), children: [
                   SizedBox(height: 360, child: const NeedAuth(icon: Icons.person_outline, title: 'Ваш кабинет', text: 'Войдите, чтобы видеть свои объявления, отклики и управлять ими.')),
+                  const SupportLinks(),
                   const BottomLinks(),
                 ]),
         );
@@ -335,7 +330,7 @@ class _CabinetPageState extends State<CabinetPage> {
         child: Text(text, textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 15)),
       );
 
-  Widget _small(Pal p, String text, VoidCallback f, {Color? color, bool fill = false}) {
+  Widget _small(Pal p, String text, VoidCallback f, {Color? color, bool fill = false, IconData? icon}) {
     final c = color ?? p.tx;
     return GestureDetector(
       onTap: f,
@@ -347,7 +342,10 @@ class _CabinetPageState extends State<CabinetPage> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: fill ? Colors.transparent : p.bd),
         ),
-        child: Text(text, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: fill ? Colors.white : c)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (icon != null) ...[Icon(icon, size: 17, color: fill ? Colors.white : c), const SizedBox(width: 6)],
+          Text(text, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: fill ? Colors.white : c)),
+        ]),
       ),
     );
   }
@@ -380,7 +378,7 @@ class _CabinetPageState extends State<CabinetPage> {
     if (all.isNotEmpty) {
       items.add(Row(children: [
         Expanded(child: Text('Мои объявления', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx))),
-        _small(p, '+ Новое', () => S.i.goTab(1), fill: true),
+        _small(p, 'Новое', () => S.i.goTab(1), fill: true, icon: Icons.add),
       ]));
       items.add(const SizedBox(height: 10));
       items.add(Row(children: [
@@ -413,14 +411,14 @@ class _CabinetPageState extends State<CabinetPage> {
           ]),
           const SizedBox(height: 10),
           Wrap(spacing: 8, runSpacing: 8, children: [
-            if (isOpen) _small(p, 'Открыть', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: ad)))),
-            _small(p, 'Изменить', () async {
+            if (isOpen) _small(p, 'Открыть', icon: Icons.open_in_new, () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: ad)))),
+            _small(p, 'Изменить', icon: Icons.edit_outlined, () async {
               final r = await Navigator.push(context, MaterialPageRoute(builder: (_) => PostScreen(edit: ad, embedded: false)));
               if (r == true) _load();
             }),
             if (!hidden)
-              _small(p, isOpen ? 'Снять' : 'Опубликовать', () => _act('status', {'id': ad.id, 's': isOpen ? 'closed' : 'open'}, isOpen ? 'Объявление снято' : 'Объявление снова опубликовано')),
-            if (isOpen) _small(p, 'Поделиться', () => showShare(context, ad)),
+              _small(p, isOpen ? 'Снять' : 'Опубликовать', icon: isOpen ? Icons.visibility_off_outlined : Icons.publish_outlined, color: isOpen ? p.dng : p.ok, () => _act('status', {'id': ad.id, 's': isOpen ? 'closed' : 'open'}, isOpen ? 'Объявление снято' : 'Объявление снова опубликовано')),
+            if (isOpen) _small(p, 'Поделиться', icon: Icons.share_outlined, () => showShare(context, ad)),
           ]),
         ]),
       ));
@@ -477,16 +475,16 @@ class _CabinetPageState extends State<CabinetPage> {
           const SizedBox(height: 10),
           Wrap(spacing: 8, runSpacing: 8, children: [
             if (st == 'rejected')
-              _small(p, 'Удалить', () => _act('rdel', {'rid': rid}, 'Отклик удалён'))
+              _small(p, 'Удалить', icon: Icons.delete_outline, color: p.dng, () => _act('rdel', {'rid': rid}, 'Отклик удалён'))
             else ...[
-              if ((r['pid'] ?? '').toString().isNotEmpty) _small(p, 'Написать', () => _chat((r['pid']).toString(), (r['name'] ?? '').toString(), adId: adId)),
+              if ((r['pid'] ?? '').toString().isNotEmpty) _small(p, 'Написать', icon: Icons.chat_bubble_outline, () => _chat((r['pid']).toString(), (r['name'] ?? '').toString(), adId: adId)),
               if (st == 'chosen')
-                _small(p, 'Работа выполнена', () => _act('fin', {'rid': rid}, 'Отмечено как выполнено'), fill: true)
+                _small(p, 'Работа выполнена', () => _act('fin', {'rid': rid}, 'Отмечено как выполнено'), fill: true, icon: Icons.check_circle_outline)
               else if (st != 'done')
-                _small(p, 'Выбрать исполнителем', () => _act('pick', {'rid': rid}, 'Исполнитель выбран')),
-              if (st != 'done') _small(p, 'Отклонить', () => _act('rej', {'rid': rid}, 'Отклик отклонён'), color: p.dng),
+                _small(p, 'Выбрать исполнителем', icon: Icons.how_to_reg_outlined, () => _act('pick', {'rid': rid}, 'Исполнитель выбран')),
+              if (st != 'done') _small(p, 'Отклонить', () => _act('rej', {'rid': rid}, 'Отклик отклонён'), color: p.dng, icon: Icons.close),
             ],
-            if (adObj != null) _small(p, 'Объявление', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: adObj)))),
+            if (adObj != null) _small(p, 'Объявление', icon: Icons.open_in_new, () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: adObj)))),
           ]),
         ]),
       ));
@@ -526,8 +524,8 @@ class _CabinetPageState extends State<CabinetPage> {
             if ((r['pid'] ?? '').toString().isNotEmpty && (r['ad'] ?? '').toString().isNotEmpty) ...[
               const SizedBox(height: 10),
               Wrap(spacing: 8, children: [
-                _small(p, 'Написать автору', () => _chat((r['pid']).toString(), '', adId: adId)),
-                if (found != null) _small(p, 'Объявление', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: found)))),
+                _small(p, 'Написать автору', icon: Icons.chat_bubble_outline, () => _chat((r['pid']).toString(), '', adId: adId)),
+                if (found != null) _small(p, 'Объявление', icon: Icons.open_in_new, () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: found)))),
               ]),
             ],
           ]),
