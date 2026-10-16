@@ -14,7 +14,8 @@ class HomeShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     S.i.openMessages = () {
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MessagesPage()));
+      Navigator.of(context).popUntil((r) => r.isFirst);
+      S.i.goTab(4);
     };
     return ListenableBuilder(
       listenable: S.i,
@@ -35,7 +36,7 @@ class HomeShell extends StatelessWidget {
             child: Scaffold(
               body: IndexedStack(
                 index: S.i.tab,
-                children: const [LandingPage(), FeedPage(), PostScreen(), CabinetPage()],
+                children: const [LandingPage(), FeedPage(), PostScreen(), CabinetPage(), MessagesPage(embedded: true)],
               ),
               bottomNavigationBar: _Tabs(p: p),
             ),
@@ -52,11 +53,14 @@ class _Tabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // [индекс вкладки, иконка, иконка выбранной, подпись, бейдж]
     final items = <List<Object>>[
-      [Icons.home_outlined, Icons.home_rounded, 'Главная'],
-      [Icons.search_rounded, Icons.search_rounded, 'Объявления'],
-      [Icons.add_circle_outline_rounded, Icons.add_circle_rounded, 'Разместить'],
-      [Icons.person_outline_rounded, Icons.person_rounded, S.i.logged ? 'Кабинет' : 'Войти'],
+      [0, Icons.home_outlined, Icons.home_rounded, 'Главная', 0],
+      [1, Icons.search_rounded, Icons.search_rounded, 'Объявления', 0],
+      [2, Icons.add_circle_outline_rounded, Icons.add_circle_rounded, 'Разместить', 0],
+      // «Сообщения» видны только вошедшему в аккаунт
+      if (S.i.logged) [4, Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded, 'Сообщения', S.i.unread],
+      [3, Icons.person_outline_rounded, Icons.person_rounded, S.i.logged ? 'Кабинет' : 'Войти', 0],
     ];
     return Container(
       decoration: BoxDecoration(
@@ -68,25 +72,38 @@ class _Tabs extends StatelessWidget {
         child: SizedBox(
           height: 60,
           child: Row(children: [
-            for (var i = 0; i < items.length; i++)
+            for (final it in items)
               Expanded(
                 child: Semantics(
                   button: true,
-                  selected: S.i.tab == i,
-                  label: items[i][2] as String,
+                  selected: S.i.tab == (it[0] as int),
+                  label: it[3] as String,
                   child: InkWell(
-                    onTap: () => S.i.goTab(i == 2 && !S.i.logged ? 3 : i),
+                    onTap: () => S.i.goTab((it[0] as int) == 2 && !S.i.logged ? 3 : (it[0] as int)),
                     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                       Stack(clipBehavior: Clip.none, children: [
-                        Icon(S.i.tab == i ? items[i][1] as IconData : items[i][0] as IconData,
-                            size: 23, color: S.i.tab == i ? p.ac : p.mu),
+                        Icon(S.i.tab == (it[0] as int) ? it[2] as IconData : it[1] as IconData,
+                            size: 23, color: S.i.tab == (it[0] as int) ? p.ac : p.mu),
+                        if ((it[4] as int) > 0)
+                          Positioned(
+                            right: -9,
+                            top: -5,
+                            child: Container(
+                              constraints: const BoxConstraints(minWidth: 16),
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(color: p.ac, borderRadius: BorderRadius.circular(99)),
+                              child: Text((it[4] as int) > 99 ? '99+' : '${it[4]}',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                            ),
+                          ),
                       ]),
                       const SizedBox(height: 3),
-                      Text(items[i][2] as String,
+                      Text(it[3] as String,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 10.5, fontWeight: S.i.tab == i ? FontWeight.w800 : FontWeight.w600,
-                              color: S.i.tab == i ? p.ac : p.mu)),
+                          style: TextStyle(fontSize: 10.5, fontWeight: S.i.tab == (it[0] as int) ? FontWeight.w800 : FontWeight.w600,
+                              color: S.i.tab == (it[0] as int) ? p.ac : p.mu)),
                     ]),
                   ),
                 ),

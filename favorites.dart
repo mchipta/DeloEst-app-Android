@@ -23,7 +23,7 @@ class FavoritesPage extends StatelessWidget {
               ? const NeedAuth(
                   icon: Icons.favorite_border,
                   title: 'Избранное',
-                  text: 'Войдите, чтобы сохранять объявления и поиски.')
+                  text: 'Войдите, чтобы добавлять объявления в избранное и сохранять поиски.')
               : ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
                   if (S.i.ss.isNotEmpty) ...[
                     Text('Сохранённые поиски', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx)),
@@ -63,7 +63,7 @@ class FavoritesPage extends StatelessWidget {
                   if (ads.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 28),
-                      child: Text('Здесь пока пусто. Нажмите на сердечко у объявления, чтобы сохранить его.',
+                      child: Text('Здесь пока пусто.\nЧтобы добавить объявление, нажмите на сердечко ♡ на его карточке в разделе «Объявления».',
                           textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 15)),
                     ),
                   for (final a in ads)

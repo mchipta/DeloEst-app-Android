@@ -322,7 +322,7 @@ class _CabinetPageState extends State<CabinetPage> {
     }
     if (S.i.unread > 0) {
       out.add(al(S.i.unread, plural(S.i.unread, 'непрочитанное сообщение', 'непрочитанных сообщения', 'непрочитанных сообщений'),
-          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MessagesPage()))));
+          () => S.i.goTab(4)));
     }
     return out;
   }

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'ad_page.dart';
 import 'auth.dart';
-import 'favorites.dart';
 import 'info.dart';
-import 'messages.dart';
 import 'models.dart';
 import 'site_defaults.dart';
 import 'state.dart';
@@ -166,34 +164,7 @@ class _LandingPageState extends State<LandingPage> {
           Text('Дело', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: p.tx)),
           const GradText('Есть', size: 21),
           const Spacer(),
-          if (S.i.logged)
-            IconButton(
-              tooltip: 'Сообщения',
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MessagesPage())),
-              icon: Stack(clipBehavior: Clip.none, children: [
-                Icon(Icons.chat_bubble_outline_rounded, color: p.mu, size: 22),
-                if (S.i.unread > 0)
-                  Positioned(right: -6, top: -5, child: _badge(p, S.i.unread)),
-              ]),
-            ),
-          if (S.i.logged)
-            IconButton(
-              tooltip: 'Избранное',
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FavoritesPage())),
-              icon: Stack(clipBehavior: Clip.none, children: [
-                Icon(Icons.favorite_border_rounded, color: p.ac, size: 22),
-                if (S.i.fav.isNotEmpty) Positioned(right: -7, top: -6, child: _badge(p, S.i.fav.length)),
-              ]),
-            ),
         ]),
-      );
-
-  Widget _badge(Pal p, int n) => Container(
-        constraints: const BoxConstraints(minWidth: 17),
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-        decoration: BoxDecoration(color: p.ac, borderRadius: BorderRadius.circular(99)),
-        child: Text(n > 99 ? '99+' : '$n', textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
       );
 
   Widget _hero(Pal p) {

@@ -28,7 +28,9 @@ String stamp(int ts) => siteChatStamp(ts, S.i.timeZone);
 
 // ---------- Список диалогов ----------
 class MessagesPage extends StatefulWidget {
-  const MessagesPage({super.key});
+  // embedded = true: страница живёт во вкладке нижнего меню (без кнопки «назад»)
+  final bool embedded;
+  const MessagesPage({super.key, this.embedded = false});
   @override
   State<MessagesPage> createState() => _MessagesPageState();
 }
@@ -45,7 +47,7 @@ class _MessagesPageState extends State<MessagesPage> {
   void initState() {
     super.initState();
     S.i.addListener(_onState);
-    S.i.messagesOpen = true;
+    S.i.messagesOpen = !widget.embedded;
     _t = Timer.periodic(const Duration(seconds: 8), (_) {
       if (mounted && _isCurrent && S.i.logged) _load(silent: true);
     });
@@ -60,10 +62,12 @@ class _MessagesPageState extends State<MessagesPage> {
     super.dispose();
   }
 
-  bool get _isCurrent => ModalRoute.of(context)?.isCurrent ?? false;
+  bool get _isCurrent =>
+      widget.embedded ? S.i.tab == 4 : (ModalRoute.of(context)?.isCurrent ?? false);
 
   void _onState() {
     if (!mounted) return;
+    if (widget.embedded) S.i.messagesOpen = S.i.tab == 4;
     if (!S.i.logged) {
       if (list.isNotEmpty || loaded) {
         setState(() {
@@ -112,7 +116,7 @@ class _MessagesPageState extends State<MessagesPage> {
       builder: (context, _) {
         final p = pal(context);
         return Scaffold(
-          appBar: AppBar(title: const Text('Сообщения')),
+          appBar: AppBar(title: const Text('Сообщения'), automaticallyImplyLeading: !widget.embedded),
           body: !S.i.logged
               ? const NeedAuth(
                   icon: Icons.chat_bubble_outline,

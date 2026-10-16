@@ -105,6 +105,7 @@ class S extends ChangeNotifier {
     if (j == null) {
       unread = 0;
       _unreadInit = false;
+      if (tab == 4) tab = 0; // вкладка «Сообщения» только для вошедших
     }
     notifyListeners();
     if (j != null) refreshUnread();
@@ -246,6 +247,7 @@ class S extends ChangeNotifier {
   void goTab(int t) {
     tab = t;
     if (t == 3) cabTick++;
+    if (t == 4) msgTick++;
     notifyListeners();
   }
 

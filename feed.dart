@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'ad_page.dart';
 import 'auth.dart';
 import 'favorites.dart';
-import 'messages.dart';
 import 'models.dart';
 import 'state.dart';
 import 'theme.dart';
@@ -324,21 +323,6 @@ class _FeedPageState extends State<FeedPage> {
           Text('Дело', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: p.tx)),
           const GradText('Есть', size: 22),
           const Spacer(),
-          if (S.i.logged)
-            IconButton(
-              tooltip: 'Сообщения',
-              icon: Stack(clipBehavior: Clip.none, children: [
-                Icon(Icons.chat_bubble_outline_rounded, color: p.mu),
-                if (S.i.unread > 0)
-                  Positioned(right: -5, top: -5, child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                    decoration: BoxDecoration(color: p.ac, borderRadius: BorderRadius.circular(99)),
-                    child: Text(S.i.unread > 99 ? '99+' : '${S.i.unread}',
-                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
-                  )),
-              ]),
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MessagesPage())),
-            ),
           IconButton(
             tooltip: 'Избранное',
             icon: Stack(clipBehavior: Clip.none, children: [
