@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'ad_page.dart';
 import 'auth.dart';
 import 'favorites.dart';
+import 'messages.dart';
 import 'models.dart';
 import 'state.dart';
 import 'theme.dart';
@@ -43,6 +44,16 @@ class _FeedPageState extends State<FeedPage> {
       (_min.isNotEmpty ? 1 : 0) +
       (_max.isNotEmpty ? 1 : 0) +
       (_sort.isNotEmpty ? 1 : 0);
+
+  String get _filterSummary => [
+        if (_type.isNotEmpty) _type,
+        if (_cat.isNotEmpty) _cat,
+        if (_city.trim().isNotEmpty) _city.trim(),
+        if (_min.isNotEmpty) 'от $_min ₽',
+        if (_max.isNotEmpty) 'до $_max ₽',
+        if (_sort == 'hi') 'Сначала дороже',
+        if (_sort == 'lo') 'Сначала дешевле',
+      ].join(' · ');
 
   List<Ad> _filtered() {
     final q = _q.text.trim().toLowerCase();
@@ -317,9 +328,24 @@ class _FeedPageState extends State<FeedPage> {
           Text('Дело', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: p.tx)),
           const GradText('Есть', size: 22),
           const Spacer(),
+          if (S.i.logged)
+            IconButton(
+              tooltip: 'Сообщения',
+              icon: Stack(clipBehavior: Clip.none, children: [
+                Icon(Icons.chat_bubble_outline_rounded, color: p.mu),
+                if (S.i.unread > 0)
+                  Positioned(right: -5, top: -5, child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(color: p.ac, borderRadius: BorderRadius.circular(99)),
+                    child: Text(S.i.unread > 99 ? '99+' : '${S.i.unread}',
+                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                  )),
+              ]),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MessagesPage())),
+            ),
           IconButton(
             tooltip: 'Избранное',
-            icon: Icon(Icons.favorite_border, color: p.ac),
+            icon: Icon(S.i.logged ? Icons.favorite_border_rounded : Icons.favorite_border_rounded, color: p.ac),
             onPressed: () {
               if (!S.i.logged) {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
@@ -352,55 +378,66 @@ class _FeedPageState extends State<FeedPage> {
           const SizedBox(width: 8),
           GestureDetector(
             onTap: _openFilters,
-            child: Stack(clipBehavior: Clip.none, children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: p.card,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: af > 0 ? p.ac : p.bd, width: af > 0 ? 1.6 : 1),
-                ),
-                child: Icon(Icons.tune_rounded, color: af > 0 ? p.ac : p.mu),
+            child: Container(
+              height: 52,
+              padding: const EdgeInsets.symmetric(horizontal: 13),
+              decoration: BoxDecoration(
+                color: af > 0 ? p.ac.withOpacity(.08) : p.card,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: af > 0 ? p.ac : p.bd, width: af > 0 ? 1.3 : 1),
               ),
-              if (af > 0)
-                Positioned(
-                  right: -4,
-                  top: -4,
-                  child: Container(
-                    width: 20,
-                    height: 20,
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.tune_rounded, color: af > 0 ? p.ac : p.mu, size: 20),
+                const SizedBox(width: 7),
+                Text('Фильтры', style: TextStyle(fontWeight: FontWeight.w700, color: p.tx, fontSize: 14)),
+                if (af > 0) ...[
+                  const SizedBox(width: 7),
+                  Container(
+                    constraints: const BoxConstraints(minWidth: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                     alignment: Alignment.center,
-                    decoration: BoxDecoration(gradient: LinearGradient(colors: [p.ac, p.ac2]), shape: BoxShape.circle),
+                    decoration: BoxDecoration(gradient: LinearGradient(colors: [p.ac, p.ac2]), borderRadius: BorderRadius.circular(99)),
                     child: Text('$af', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
                   ),
-                ),
-            ]),
+                ],
+              ]),
+            ),
           ),
         ]),
-        const SizedBox(height: 14),
+        if (af > 0) ...[
+          const SizedBox(height: 9),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(child: Text(_filterSummary, style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.35))),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () { _resetFilters(); },
+              child: Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: Text('Сбросить', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700, fontSize: 12.5)),
+              ),
+            ),
+          ]),
+        ],
+        const SizedBox(height: 12),
         Row(children: [
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('$count ${plural(count, 'объявление', 'объявления', 'объявлений')}', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 16)),
-              const SizedBox(height: 2),
-              Text(_activeFilters == 0 ? 'Подработка и услуги рядом' : 'Фильтров выбрано: $_activeFilters',
-                  style: TextStyle(color: p.mu, fontSize: 12.5)),
-            ]),
-          ),
+          Expanded(child: Text('Найдено: $count', style: TextStyle(color: p.mu, fontWeight: FontWeight.w600))),
           if (S.i.logged)
-            IconButton(
-              tooltip: 'Сохранить поиск',
-              onPressed: _saveSearch,
-              icon: Icon(Icons.bookmark_add_outlined, color: p.ac),
-              style: IconButton.styleFrom(
-                backgroundColor: p.card,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13), side: BorderSide(color: p.bd)),
+            GestureDetector(
+              onTap: _saveSearch,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.bookmark_border, size: 17, color: p.ac),
+                  const SizedBox(width: 5),
+                  Text('Сохранить поиск', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: p.tx)),
+                ]),
               ),
             ),
         ]),
       ]),
     );
   }
+
 
 }

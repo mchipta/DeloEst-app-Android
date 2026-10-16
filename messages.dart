@@ -10,6 +10,7 @@ import 'models.dart';
 import 'profile.dart';
 import 'state.dart';
 import 'theme.dart';
+import 'util.dart';
 import 'widgets.dart';
 
 const kQuick = [
@@ -23,13 +24,7 @@ const kQuick = [
 
 int _n(dynamic v) => v is num ? v.toInt() : int.tryParse((v ?? '').toString()) ?? 0;
 
-String stamp(int ts) {
-  final t = DateTime.fromMillisecondsSinceEpoch(ts);
-  final now = DateTime.now();
-  final hm = '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-  if (t.year == now.year && t.month == now.month && t.day == now.day) return hm;
-  return '${t.day.toString().padLeft(2, '0')}.${t.month.toString().padLeft(2, '0')} $hm';
-}
+String stamp(int ts) => siteChatStamp(ts, S.i.timeZone);
 
 // ---------- Список диалогов ----------
 class MessagesPage extends StatefulWidget {
@@ -50,8 +45,9 @@ class _MessagesPageState extends State<MessagesPage> {
   void initState() {
     super.initState();
     S.i.addListener(_onState);
+    S.i.messagesOpen = true;
     _t = Timer.periodic(const Duration(seconds: 8), (_) {
-      if (mounted && S.i.tab == 2 && S.i.logged) _load(silent: true);
+      if (mounted && _isCurrent && S.i.logged) _load(silent: true);
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _onState());
   }
@@ -59,9 +55,12 @@ class _MessagesPageState extends State<MessagesPage> {
   @override
   void dispose() {
     S.i.removeListener(_onState);
+    S.i.messagesOpen = false;
     _t?.cancel();
     super.dispose();
   }
+
+  bool get _isCurrent => ModalRoute.of(context)?.isCurrent ?? false;
 
   void _onState() {
     if (!mounted) return;
@@ -75,7 +74,7 @@ class _MessagesPageState extends State<MessagesPage> {
       _tick = -1;
       return;
     }
-    if (S.i.tab == 2 && S.i.msgTick != _tick) {
+    if (_isCurrent && (S.i.msgTick != _tick || !loaded)) {
       _tick = S.i.msgTick;
       _load();
     }
@@ -182,7 +181,7 @@ class _MessagesPageState extends State<MessagesPage> {
                 ),
                 if (d['ver'] == true) ...[const SizedBox(width: 5), Icon(Icons.verified, size: 16, color: p.ok)],
                 const Spacer(),
-                Text(ago(_n(d['ts'])), style: TextStyle(color: p.mu, fontSize: 12)),
+                Text(siteListTime(_n(d['ts']), S.i.timeZone), style: TextStyle(color: p.mu, fontSize: 11.5)),
               ]),
               const SizedBox(height: 3),
               Text('${d['mine'] == true ? 'Вы: ' : ''}${text.isEmpty ? 'Фото' : text}',
@@ -191,6 +190,10 @@ class _MessagesPageState extends State<MessagesPage> {
                   style: TextStyle(color: n > 0 ? p.tx : p.mu, fontWeight: n > 0 ? FontWeight.w700 : FontWeight.w500, fontSize: 14)),
             ]),
           ),
+          if (S.i.isChatMuted((d['pid'] ?? '').toString())) ...[
+            const SizedBox(width: 6),
+            Icon(Icons.notifications_off_outlined, size: 17, color: p.mu),
+          ],
           if (n > 0) ...[
             const SizedBox(width: 8),
             Container(
@@ -226,6 +229,7 @@ class _ChatPageState extends State<ChatPage> {
   int seen = 0, lastTs = 0;
   String name = '', avatar = '';
   bool ver = false;
+  bool _muted = false;
   String? err;
   DateTime _lastTyping = DateTime.fromMillisecondsSinceEpoch(0);
 
@@ -236,6 +240,7 @@ class _ChatPageState extends State<ChatPage> {
     name = widget.name;
     avatar = widget.avatar;
     ver = widget.ver;
+    _muted = S.i.isChatMuted(widget.pid);
     _poll(first: true);
     _timer = Timer.periodic(const Duration(seconds: 4), (_) => _poll());
   }
@@ -381,6 +386,18 @@ class _ChatPageState extends State<ChatPage> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
+        actions: [
+          IconButton(
+            tooltip: _muted ? 'Включить уведомления от пользователя' : 'Выключить уведомления от пользователя',
+            onPressed: () {
+              final next = !_muted;
+              setState(() => _muted = next);
+              S.i.setChatMuted(widget.pid, name, next);
+              toast(context, next ? 'Уведомления от пользователя выключены' : 'Уведомления от пользователя включены');
+            },
+            icon: Icon(_muted ? Icons.notifications_off_outlined : Icons.notifications_active_outlined, color: _muted ? p.mu : p.ac),
+          ),
+        ],
         title: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () => Navigator.push(

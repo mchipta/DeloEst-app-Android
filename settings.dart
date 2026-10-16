@@ -328,6 +328,71 @@ class _SettingsBodyState extends State<SettingsBody> {
                 ),
               ),
           ]),
+          _label(p, 'УВЕДОМЛЕНИЯ'),
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+            decoration: cardDeco(p, r: 16),
+            child: Row(children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12)),
+                child: Icon(Icons.notifications_none_rounded, color: p.ac),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Уведомления о сообщениях', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: p.tx)),
+                const SizedBox(height: 3),
+                Text('Оповещение внутри приложения, когда приходят новые сообщения.', style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.3)),
+              ])),
+              Switch(
+                value: S.i.messageNotificationsEnabled,
+                activeColor: p.ac,
+                onChanged: (v) { S.i.setMessageNotificationsEnabled(v); },
+              ),
+            ]),
+          ),
+          if (S.i.mutedChats.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: cardDeco(p, r: 16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Уведомления отключены для диалогов', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 14)),
+                const SizedBox(height: 6),
+                for (final entry in S.i.mutedChats.entries)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: Row(children: [
+                      Expanded(child: Text(entry.value.isEmpty ? 'Пользователь' : entry.value, style: TextStyle(color: p.mu, fontSize: 13.5))),
+                      TextButton(
+                        onPressed: () { S.i.setChatMuted(entry.key, entry.value, false); },
+                        child: Text('Включить', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
+                      ),
+                    ]),
+                  ),
+              ]),
+            ),
+          _label(p, 'ЧАСОВОЙ ПОЯС'),
+          Container(
+            padding: const EdgeInsets.all(14),
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: cardDeco(p, r: 16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('По нему показывается время сообщений и объявлений.', style: TextStyle(color: p.mu, fontSize: 13, height: 1.35)),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                value: kSiteTimeZones.any((z) => z[0] == S.i.timeZone) ? S.i.timeZone : '',
+                isExpanded: true,
+                dropdownColor: p.card,
+                style: TextStyle(color: p.tx, fontSize: 14),
+                decoration: deco(context, 'Часовой пояс'),
+                items: [for (final z in kSiteTimeZones) DropdownMenuItem<String>(value: z[0], child: Text(z[1], overflow: TextOverflow.ellipsis))],
+                onChanged: (v) { if (v != null) S.i.setTimeZone(v); },
+              ),
+            ]),
+          ),
           _label(p, 'ПРОЧЕЕ'),
           _tile(p, Icons.business_center_outlined, 'Для бизнеса', 'Оставить заявку', _lead),
         ]);
@@ -341,7 +406,7 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Профиль и настройки')),
+      appBar: AppBar(title: const Text('Настройки')),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: const [SettingsBody(), BottomLinks()]),
     );
   }

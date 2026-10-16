@@ -135,7 +135,7 @@ class _AdPageState extends State<AdPage> {
             ]),
             const SizedBox(height: 2),
             Row(children: [
-              Text(ago(ad.ts), style: TextStyle(color: p.mu, fontSize: 13)),
+              Text(siteDateTime(ad.ts, S.i.timeZone), style: TextStyle(color: p.mu, fontSize: 13)),
               if (ad.opens > 0) ...[
                 Text('  ·  ', style: TextStyle(color: p.mu, fontSize: 13)),
                 Icon(Icons.visibility_outlined, size: 16, color: p.mu),

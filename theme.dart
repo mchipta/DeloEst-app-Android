@@ -50,6 +50,7 @@ ThemeData buildTheme(Brightness b) {
   return ThemeData(
     useMaterial3: true,
     brightness: b,
+    visualDensity: VisualDensity.standard,
     scaffoldBackgroundColor: p.bg,
     canvasColor: p.bg,
     dividerColor: p.bd,
@@ -58,6 +59,7 @@ ThemeData buildTheme(Brightness b) {
     appBarTheme: AppBarTheme(
       backgroundColor: p.bg,
       foregroundColor: p.tx,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
@@ -76,17 +78,18 @@ ThemeData buildTheme(Brightness b) {
   );
 }
 
-BoxDecoration cardDeco(Pal p, {double r = 24}) => BoxDecoration(
+BoxDecoration cardDeco(Pal p, {double r = 20}) => BoxDecoration(
       color: p.card,
       borderRadius: BorderRadius.circular(r),
       border: Border.all(color: p.bd),
-      boxShadow: [BoxShadow(color: p.ac.withOpacity(.10), blurRadius: 24, offset: const Offset(0, 10))],
+      // The site uses a flat card by default; keep only a very soft lift here.
+      boxShadow: [BoxShadow(color: p.ac.withOpacity(.035), blurRadius: 14, offset: const Offset(0, 4))],
     );
 
 InputDecoration deco(BuildContext c, String? label, {String? hint, Widget? suffix, Widget? prefix}) {
   final p = pal(c);
   OutlineInputBorder ob(Color col, [double w = 1]) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(color: col, width: w),
       );
   return InputDecoration(

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'models.dart';
 import 'state.dart';
 import 'theme.dart';
+import 'util.dart';
 
 String imgUrl(String id, int w) => 'https://lh3.googleusercontent.com/d/$id=w$w';
 
@@ -135,13 +136,13 @@ class GradBtn extends StatelessWidget {
         onTap: busy ? null : onTap,
         scale: .96,
         child: Container(
-          height: 54,
+          height: 46,
           alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 18),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             gradient: LinearGradient(colors: [p.ac, p.ac2]),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [BoxShadow(color: p.ac.withOpacity(.35), blurRadius: 16, offset: const Offset(0, 6))],
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [BoxShadow(color: p.ac.withOpacity(.16), blurRadius: 12, offset: const Offset(0, 4))],
           ),
           child: busy
               ? const SizedBox(
@@ -170,13 +171,13 @@ class OutBtn extends StatelessWidget {
       onTap: onTap,
       scale: .96,
       child: Container(
-        height: 54,
+        height: 46,
         alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           color: p.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: p.bd, width: 1.2),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: p.bd, width: 1),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           if (icon != null) ...[Icon(icon, color: col, size: 21), const SizedBox(width: 8)],
@@ -273,133 +274,146 @@ class AdCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
+    final width = MediaQuery.sizeOf(context).width;
+    final thumb = width >= 600 ? 112.0 : 92.0;
     return Appear(
       child: Tap(
         onTap: onTap,
-        scale: .975,
+        scale: .99,
         child: Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          decoration: cardDeco(p, r: 26),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _cover(p),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Wrap(spacing: 10, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                  typeTag(context, ad.type),
-                  CatChip(ad.category),
-                ]),
-                const SizedBox(height: 10),
-                Text(ad.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: p.tx, height: 1.25)),
-                const SizedBox(height: 8),
-                Row(children: [
-                  Icon(Icons.place_outlined, size: 15, color: p.mu),
-                  const SizedBox(width: 3),
-                  Flexible(
-                    child: Text(ad.city.isEmpty ? 'Город не указан' : ad.city,
-                        maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: p.mu)),
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: cardDeco(p, r: 20),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              SizedBox(width: thumb, height: thumb, child: _cover(p, thumb)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Expanded(
+                      child: Wrap(
+                        spacing: 5,
+                        runSpacing: 5,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          typeTag(context, ad.type),
+                          _categoryTag(p, ad.category),
+                        ],
+                      ),
+                    ),
+                    if (showFav && S.i.logged) ...[
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => S.i.toggleFav(ad.id),
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 3, top: 1),
+                          child: Icon(
+                            S.i.isFav(ad.id) ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                            color: S.i.isFav(ad.id) ? p.ac : p.mu,
+                            size: 21,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ]),
+                  const SizedBox(height: 6),
+                  Text(ad.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, height: 1.18, color: p.tx)),
+                  const SizedBox(height: 4),
+                  Text(payF(ad.pay),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: p.ok)),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 2,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Icon(Icons.place_outlined, size: 13, color: p.mu),
+                      Text(ad.city.isEmpty ? 'Город не указан' : ad.city,
+                          style: TextStyle(fontSize: 12, color: p.mu), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text('· ${siteDateTime(ad.ts, S.i.timeZone)}', style: TextStyle(fontSize: 12, color: p.mu)),
+                      Icon(Icons.visibility_outlined, size: 13, color: p.mu),
+                      Text('${ad.opens}', style: TextStyle(fontSize: 12, color: p.mu)),
+                    ],
                   ),
-                  Text('  ·  ${ago(ad.ts)}', style: TextStyle(fontSize: 13, color: p.mu)),
+                  if (ad.desc.trim().isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(ad.desc.trim(), maxLines: 2, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12.5, height: 1.25, color: p.mu)),
+                  ],
                 ]),
-                if (footer != null) ...[const SizedBox(height: 14), footer!],
-              ]),
-            ),
+              ),
+            ]),
+            if (footer != null) ...[const SizedBox(height: 12), footer!],
           ]),
         ),
       ),
     );
   }
 
-  Widget _cover(Pal p) {
+  Widget _categoryTag(Pal p, String category) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 132),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: p.bg2,
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: p.bd),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(catIcon(category), size: 12, color: p.mu),
+        const SizedBox(width: 3),
+        Flexible(child: Text(category, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 10.5, color: p.mu, fontWeight: FontWeight.w600))),
+      ]),
+    );
+  }
+
+  Widget _cover(Pal p, double size) {
     Widget ph() => Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [p.ac.withOpacity(.16), p.ac2.withOpacity(.16)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: Color.alphaBlend(p.ac.withOpacity(.07), p.bg2),
+            border: Border.all(color: p.bd),
+            borderRadius: BorderRadius.circular(14),
           ),
           alignment: Alignment.center,
-          child: Icon(catIcon(ad.category), size: 56, color: p.ac.withOpacity(.6)),
+          child: Icon(catIcon(ad.category), size: size * .35, color: p.ac.withOpacity(.75)),
         );
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-      child: AspectRatio(
-        aspectRatio: 16 / 10,
-        child: Stack(fit: StackFit.expand, children: [
-          ad.imgs.isEmpty
-              ? ph()
-              : CachedNetworkImage(
-                  imageUrl: imgUrl(ad.imgs[0], 700),
-                  fit: BoxFit.cover,
-                  placeholder: (c, u) => Container(color: p.bg2),
-                  errorWidget: (c, u, e) => ph(),
-                ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.center,
-                  colors: [Colors.black.withOpacity(.45), Colors.transparent],
-                ),
+      borderRadius: BorderRadius.circular(14),
+      child: Stack(fit: StackFit.expand, children: [
+        ad.imgs.isEmpty
+            ? ph()
+            : CachedNetworkImage(
+                imageUrl: imgUrl(ad.imgs[0], 300),
+                fit: BoxFit.cover,
+                placeholder: (c, u) => Container(color: p.bg2),
+                errorWidget: (c, u, e) => ph(),
               ),
-            ),
-          ),
+        if (ad.imgs.length > 1)
           Positioned(
-            left: 12,
-            bottom: 12,
+            right: 5,
+            bottom: 5,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [p.ac, p.ac2]),
-                borderRadius: BorderRadius.circular(99),
-                boxShadow: const [BoxShadow(color: Color(0x40000000), blurRadius: 8, offset: Offset(0, 3))],
-              ),
-              child: Text(payF(ad.pay),
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+              decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(99)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.photo_camera_outlined, size: 11, color: Colors.white),
+                const SizedBox(width: 3),
+                Text('${ad.imgs.length}', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+              ]),
             ),
           ),
-          if (ad.imgs.length > 1)
-            Positioned(
-              right: 12,
-              bottom: 12,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(99)),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.photo_camera_outlined, size: 14, color: Colors.white),
-                  const SizedBox(width: 4),
-                  Text('${ad.imgs.length}',
-                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
-                ]),
-              ),
-            ),
-          if (showFav && S.i.logged)
-            Positioned(
-              right: 12,
-              top: 12,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => S.i.toggleFav(ad.id),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(color: Colors.white.withOpacity(.92), shape: BoxShape.circle),
-                  child: Icon(S.i.isFav(ad.id) ? Icons.favorite : Icons.favorite_border,
-                      size: 22, color: S.i.isFav(ad.id) ? p.ac : const Color(0xFF6B6480)),
-                ),
-              ),
-            ),
-        ]),
-      ),
+      ]),
     );
   }
 }
-
 
 void showVerifiedInfo(BuildContext context) {
   showDialog<void>(

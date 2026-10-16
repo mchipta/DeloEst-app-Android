@@ -38,7 +38,7 @@ class FavoritesPage extends StatelessWidget {
                               onTap: () {
                                 S.i.pendingSearch = s;
                                 Navigator.pop(context);
-                                S.i.goTab(0);
+                                S.i.goTab(1);
                               },
                               child: Row(mainAxisSize: MainAxisSize.min, children: [
                                 Icon(Icons.search, size: 15, color: p.ac),

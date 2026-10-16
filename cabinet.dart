@@ -6,6 +6,7 @@ import 'auth.dart';
 import 'messages.dart';
 import 'models.dart';
 import 'post.dart';
+import 'profile.dart';
 import 'settings.dart';
 import 'share.dart';
 import 'state.dart';
@@ -130,7 +131,7 @@ class _CabinetPageState extends State<CabinetPage> {
       builder: (context, _) {
         final p = pal(context);
         return Scaffold(
-          appBar: AppBar(title: Text(S.i.logged ? 'Кабинет' : 'Профиль')),
+          appBar: AppBar(title: Text(S.i.logged ? (ct == 'set' ? 'Настройки' : 'Кабинет') : 'Профиль')),
           body: S.i.logged
               ? RefreshIndicator(
                   color: p.ac,
@@ -143,12 +144,11 @@ class _CabinetPageState extends State<CabinetPage> {
                       ..._alerts(p),
                       _chips(p),
                       const SizedBox(height: 12),
-                      if (loading && data == null)
+                      if (ct != 'set' && loading && data == null)
                         Padding(padding: const EdgeInsets.all(40), child: Center(child: CircularProgressIndicator(color: p.ac))),
-                      if (err != null && data == null)
+                      if (ct != 'set' && err != null && data == null)
                         Padding(padding: const EdgeInsets.all(24), child: Text(err!, textAlign: TextAlign.center, style: TextStyle(color: p.mu))),
                       if (data != null || ct == 'set') ..._content(p),
-                      const SupportLinks(),
                     ],
                   ),
                 )
@@ -164,60 +164,78 @@ class _CabinetPageState extends State<CabinetPage> {
 
   Widget _header(Pal p) {
     final av = (S.i.user?['avatar'] ?? '').toString();
-    final mail = S.i.login.contains('@') ? S.i.login : '';
+    final mail = S.i.login.contains('@') ? S.i.login : '@${S.i.login}';
+    Widget contact(IconData icon, String label) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(.18),
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(color: Colors.white.withOpacity(.30)),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 14, color: Colors.white),
+            const SizedBox(width: 5),
+            Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+          ]),
+        );
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: p.ac.withOpacity(.18), blurRadius: 22, offset: const Offset(0, 10))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Row(children: [
-          Avatar(S.i.name, data: av, size: 60),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(S.i.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: Colors.white)),
-              if (mail.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Row(children: [
-                    Icon(Icons.mail_outline, size: 15, color: Colors.white.withOpacity(.82)),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text(mail, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white.withOpacity(.88), fontSize: 13.5))),
-                  ]),
-                ),
-              if (S.i.phone.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 3),
-                  child: Row(children: [
-                    Icon(Icons.call_outlined, size: 15, color: Colors.white.withOpacity(.82)),
-                    const SizedBox(width: 6),
-                    Text(fmtPhone(S.i.phone), style: TextStyle(color: Colors.white.withOpacity(.88), fontSize: 13.5)),
-                  ]),
-                ),
+        Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+          Avatar(S.i.name, data: av, size: 64),
+          const SizedBox(width: 13),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(S.i.name, maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900, color: Colors.white, height: 1.15)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              contact(S.i.login.contains('@') ? Icons.mail_outline : Icons.person_outline, mail),
+              if (S.i.phone.isNotEmpty) contact(Icons.call_outlined, fmtPhone(S.i.phone)),
             ]),
-          ),
+          ])),
         ]),
         const SizedBox(height: 14),
-        GestureDetector(
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage())),
-          child: Container(
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+        Row(children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(pid: S.i.pid, name: S.i.name))),
+              icon: const Icon(Icons.person_outline_rounded, size: 18),
+              label: const Text('Мой профиль'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: p.tx,
+                backgroundColor: p.card,
+                side: BorderSide(color: p.card),
+                minimumSize: const Size(0, 42),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+              ),
             ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.edit_outlined, size: 18, color: p.ac),
-              const SizedBox(width: 8),
-              Text('Изменить профиль', style: TextStyle(fontWeight: FontWeight.w800, color: p.ac)),
-            ]),
           ),
-        ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => confirmLogout(context),
+              icon: const Icon(Icons.logout_rounded, size: 17),
+              label: const Text('Выйти'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.white.withOpacity(.14),
+                side: BorderSide(color: Colors.white.withOpacity(.42)),
+                minimumSize: const Size(0, 42),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+              ),
+            ),
+          ),
+        ]),
       ]),
     );
   }
@@ -262,50 +280,55 @@ class _CabinetPageState extends State<CabinetPage> {
     }
     if (S.i.unread > 0) {
       out.add(al(S.i.unread, plural(S.i.unread, 'непрочитанное сообщение', 'непрочитанных сообщения', 'непрочитанных сообщений'),
-          () => S.i.goTab(2)));
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MessagesPage()))));
     }
     return out;
   }
 
   Widget _chips(Pal p) {
     final pend = _pend;
-    final tabs = [
-      ['ads', 'Объявления'],
-      ['in', 'Отклики мне'],
-      ['out', 'Мои отклики'],
+    final tabs = <List<Object>>[
+      ['ads', 'Объявления', Icons.work_outline_rounded],
+      ['in', 'Отклики мне', Icons.bolt_rounded],
+      ['out', 'Мои отклики', Icons.send_outlined],
+      ['set', 'Настройки', Icons.settings_outlined],
     ];
     return Container(
       padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
+      decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(18), border: Border.all(color: p.bd)),
       child: Row(children: [
         for (final t in tabs)
           Expanded(
             child: GestureDetector(
               onTap: () {
-                setState(() => ct = t[0]);
+                setState(() => ct = t[0] as String);
                 _markSeen();
               },
-              child: Container(
-                height: 42,
-                alignment: Alignment.center,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                constraints: const BoxConstraints(minHeight: 66),
+                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
                 decoration: BoxDecoration(
-                  gradient: ct == t[0] ? LinearGradient(colors: [p.ac, p.ac2]) : null,
-                  borderRadius: BorderRadius.circular(12),
+                  color: ct == t[0] ? p.card : Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: ct == t[0] ? p.bd : Colors.transparent),
+                  boxShadow: ct == t[0] ? [BoxShadow(color: p.tx.withOpacity(.05), blurRadius: 8, offset: const Offset(0, 2))] : null,
                 ),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Text(t[1], style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: ct == t[0] ? Colors.white : p.tx)),
-                    if (t[0] == 'in' && pend > 0) ...[
-                      const SizedBox(width: 5),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                        decoration: BoxDecoration(color: ct == t[0] ? Colors.white : p.ac, borderRadius: BorderRadius.circular(99)),
-                        child: Text('$pend', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: ct == t[0] ? p.ac : Colors.white)),
-                      ),
-                    ],
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Stack(clipBehavior: Clip.none, children: [
+                    Icon(t[2] as IconData, size: 21, color: ct == t[0] ? p.ac : p.mu),
+                    if (t[0] == 'in' && pend > 0)
+                      Positioned(right: -10, top: -7, child: Container(
+                        constraints: const BoxConstraints(minWidth: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(color: p.ac, borderRadius: BorderRadius.circular(99)),
+                        child: Text('$pend', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                      )),
                   ]),
-                ),
+                  const SizedBox(height: 5),
+                  Text(t[1] as String, maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 10.5, height: 1.05, color: ct == t[0] ? p.tx : p.mu)),
+                ]),
               ),
             ),
           ),
@@ -319,6 +342,8 @@ class _CabinetPageState extends State<CabinetPage> {
         return _inbox(p);
       case 'out':
         return _sent(p);
+      case 'set':
+        return [const SettingsBody()];
       default:
         return _myAds(p);
     }
@@ -375,7 +400,10 @@ class _CabinetPageState extends State<CabinetPage> {
 
     final items = <Widget>[];
     if (all.isNotEmpty) {
-      items.add(Text('Мои объявления', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx)));
+      items.add(Row(children: [
+        Expanded(child: Text('Мои объявления', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx))),
+        Text('${all.length}', style: TextStyle(color: p.mu, fontSize: 13, fontWeight: FontWeight.w700)),
+      ]));
       items.add(const SizedBox(height: 10));
       items.add(Row(children: [
         Expanded(child: f('all', 'Все', all.length)),
@@ -385,7 +413,9 @@ class _CabinetPageState extends State<CabinetPage> {
       items.add(const SizedBox(height: 12));
     }
     if (shown.isEmpty) {
-      items.add(_empty(p, all.isEmpty ? 'У вас пока нет объявлений' : 'В этой группе ничего нет'));
+      items.add(_empty(p, all.isEmpty
+          ? 'У вас пока нет объявлений. Нажмите «Разместить» в нижнем меню, чтобы опубликовать первое.'
+          : 'В этой группе ничего нет'));
     }
     for (final m in shown) {
       final ad = Ad.fromJson(m);
@@ -449,7 +479,7 @@ class _CabinetPageState extends State<CabinetPage> {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text((r['name'] ?? '').toString(), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: p.tx)),
-                Text('${(r['ad'] ?? '').toString()} · ${ago(((r['ts'] as num?) ?? 0).toInt())}',
+                Text('${(r['ad'] ?? '').toString()} · ${siteDateTime(((r['ts'] as num?) ?? 0).toInt(), S.i.timeZone)}',
                     maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 12.5)),
               ]),
             ),
@@ -511,7 +541,7 @@ class _CabinetPageState extends State<CabinetPage> {
               Tag(label, col),
             ]),
             const SizedBox(height: 4),
-            Text('${meta.isEmpty ? '' : '$meta · '}отклик ${ago(((r['ts'] as num?) ?? 0).toInt())}', style: TextStyle(color: p.mu, fontSize: 13)),
+            Text('${meta.isEmpty ? '' : '$meta · '}отклик ${siteDateTime(((r['ts'] as num?) ?? 0).toInt(), S.i.timeZone)}', style: TextStyle(color: p.mu, fontSize: 13)),
             if ((r['msg'] ?? '').toString().isNotEmpty) ...[
               const SizedBox(height: 6),
               Text('Вы: ${r['msg']}', style: TextStyle(color: p.tx, height: 1.35)),

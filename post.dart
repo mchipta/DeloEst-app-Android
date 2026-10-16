@@ -223,7 +223,7 @@ class _PostScreenState extends State<PostScreen> {
         Navigator.pop(context, true);
       } else {
         setState(_reset);
-        S.i.goTab(0);
+        S.i.goTab(1);
         toast(context, 'Объявление опубликовано');
       }
     } catch (e) {

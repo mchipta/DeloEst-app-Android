@@ -146,3 +146,81 @@ String ssLabel(Map<String, String> s) {
   ].where((e) => e.isNotEmpty).toList();
   return parts.join(' · ');
 }
+
+
+// Настройки часового пояса из веб-версии. Все доступные зоны сайта — российские
+// зоны без сезонного перевода часов, поэтому их действующие смещения заданы явно.
+const kSiteTimeZones = <List<String>>[
+  ['', 'Часовой пояс: как на устройстве'],
+  ['Europe/Kaliningrad', 'Калининград (UTC+2)'],
+  ['Europe/Moscow', 'Москва (UTC+3)'],
+  ['Europe/Samara', 'Самара (UTC+4)'],
+  ['Asia/Yekaterinburg', 'Екатеринбург (UTC+5)'],
+  ['Asia/Omsk', 'Омск (UTC+6)'],
+  ['Asia/Krasnoyarsk', 'Красноярск (UTC+7)'],
+  ['Asia/Irkutsk', 'Иркутск (UTC+8)'],
+  ['Asia/Yakutsk', 'Якутск (UTC+9)'],
+  ['Asia/Vladivostok', 'Владивосток (UTC+10)'],
+  ['Asia/Magadan', 'Магадан (UTC+11)'],
+  ['Asia/Kamchatka', 'Камчатка (UTC+12)'],
+];
+
+int? _siteZoneHours(String zone) {
+  const offsets = <String, int>{
+    'Europe/Kaliningrad': 2,
+    'Europe/Moscow': 3,
+    'Europe/Samara': 4,
+    'Asia/Yekaterinburg': 5,
+    'Asia/Omsk': 6,
+    'Asia/Krasnoyarsk': 7,
+    'Asia/Irkutsk': 8,
+    'Asia/Yakutsk': 9,
+    'Asia/Vladivostok': 10,
+    'Asia/Magadan': 11,
+    'Asia/Kamchatka': 12,
+  };
+  return offsets[zone];
+}
+
+DateTime siteDate(int ts, String zone) {
+  final offset = _siteZoneHours(zone);
+  if (offset == null) return DateTime.fromMillisecondsSinceEpoch(ts).toLocal();
+  return DateTime.fromMillisecondsSinceEpoch(ts, isUtc: true).add(Duration(hours: offset));
+}
+
+String siteDateTime(int ts, String zone) {
+  if (ts <= 0) return '';
+  final d = siteDate(ts, zone);
+  final day = d.day.toString().padLeft(2, '0');
+  final month = d.month.toString().padLeft(2, '0');
+  final hour = d.hour.toString().padLeft(2, '0');
+  final minute = d.minute.toString().padLeft(2, '0');
+  return '$day.$month.${d.year}, $hour:$minute';
+}
+
+String siteChatStamp(int ts, String zone) {
+  if (ts <= 0) return '';
+  final d = siteDate(ts, zone);
+  final now = zone.isEmpty ? DateTime.now() : siteDate(DateTime.now().millisecondsSinceEpoch, zone);
+  final hm = '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  if (d.year == now.year && d.month == now.month && d.day == now.day) return hm;
+  return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')} $hm';
+}
+
+
+String siteListTime(int ts, String zone) {
+  if (ts <= 0) return '';
+  final d = siteDate(ts, zone);
+  final now = zone.isEmpty ? DateTime.now() : siteDate(DateTime.now().millisecondsSinceEpoch, zone);
+  final today = DateTime(now.year, now.month, now.day);
+  final day = DateTime(d.year, d.month, d.day);
+  final diff = today.difference(day).inDays;
+  final hm = '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  if (diff == 0) return hm;
+  if (diff == 1) return 'вчера';
+  if (diff > 1 && diff < 6) {
+    const weekdays = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+    return weekdays[d.weekday - 1];
+  }
+  return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${(d.year % 100).toString().padLeft(2, '0')}';
+}
