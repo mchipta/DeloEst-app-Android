@@ -36,9 +36,12 @@ class HomeShell extends StatelessWidget {
               S.i.goTab(S.i.rootTab);
             },
             child: Scaffold(
-              body: IndexedStack(
-                index: S.i.tab,
-                children: const [LandingPage(), FeedPage(), PostScreen(), CabinetPage(), MessagesPage(embedded: true)],
+              body: _TabFade(
+                tab: S.i.tab,
+                child: IndexedStack(
+                  index: S.i.tab,
+                  children: const [LandingPage(), FeedPage(), PostScreen(), CabinetPage(), MessagesPage(embedded: true)],
+                ),
               ),
               bottomNavigationBar: _Tabs(p: p),
             ),
@@ -87,8 +90,13 @@ class _Tabs extends StatelessWidget {
                     onTap: () => S.i.goTab((it[0] as int) == 2 && !S.i.logged ? 3 : (it[0] as int)),
                     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                       Stack(clipBehavior: Clip.none, children: [
-                        Icon(on(it[0] as int) ? it[2] as IconData : it[1] as IconData,
-                            size: 23, color: on(it[0] as int) ? p.ac : p.mu),
+                        AnimatedScale(
+                          scale: on(it[0] as int) ? 1.14 : 1,
+                          duration: const Duration(milliseconds: 180),
+                          curve: Curves.easeOutBack,
+                          child: Icon(on(it[0] as int) ? it[2] as IconData : it[1] as IconData,
+                              size: 23, color: on(it[0] as int) ? p.ac : p.mu),
+                        ),
                         if ((it[4] as int) > 0)
                           Positioned(
                             right: -9,
@@ -118,4 +126,40 @@ class _Tabs extends StatelessWidget {
       ),
     );
   }
+}
+
+
+/// Короткое проявление при смене вкладки (вкладки при этом не пересоздаются)
+class _TabFade extends StatefulWidget {
+  final int tab;
+  final Widget child;
+  const _TabFade({required this.tab, required this.child});
+  @override
+  State<_TabFade> createState() => _TabFadeState();
+}
+
+class _TabFadeState extends State<_TabFade> with SingleTickerProviderStateMixin {
+  late final AnimationController c = AnimationController(vsync: this, duration: const Duration(milliseconds: 200), value: 1);
+  late final Animation<double> a = CurvedAnimation(parent: c, curve: Curves.easeOut);
+
+  @override
+  void didUpdateWidget(covariant _TabFade old) {
+    super.didUpdateWidget(old);
+    if (old.tab != widget.tab) c.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FadeTransition(
+        opacity: Tween<double>(begin: .35, end: 1).animate(a),
+        child: SlideTransition(
+          position: Tween<Offset>(begin: const Offset(0, .012), end: Offset.zero).animate(a),
+          child: widget.child,
+        ),
+      );
 }

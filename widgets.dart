@@ -57,7 +57,7 @@ class Appear extends StatefulWidget {
 
 class _AppearState extends State<Appear> with SingleTickerProviderStateMixin {
   late final AnimationController c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 320));
   late final Animation<double> a = CurvedAnimation(parent: c, curve: Curves.easeOutCubic);
 
   @override
@@ -309,10 +309,16 @@ class AdCard extends StatelessWidget {
                         onTap: () => S.i.toggleFav(ad.id),
                         child: Padding(
                           padding: const EdgeInsets.only(left: 3, top: 1),
-                          child: Icon(
-                            S.i.isFav(ad.id) ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                            color: S.i.isFav(ad.id) ? p.ac : p.mu,
-                            size: 21,
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 220),
+                            switchInCurve: Curves.easeOutBack,
+                            transitionBuilder: (c, a) => ScaleTransition(scale: a, child: c),
+                            child: Icon(
+                              S.i.isFav(ad.id) ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                              key: ValueKey(S.i.isFav(ad.id)),
+                              color: S.i.isFav(ad.id) ? p.ac : p.mu,
+                              size: 21,
+                            ),
                           ),
                         ),
                       ),

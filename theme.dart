@@ -69,7 +69,7 @@ ThemeData buildTheme(Brightness b) {
       titleTextStyle: TextStyle(color: p.tx, fontSize: 20, fontWeight: FontWeight.w800),
     ),
     pageTransitionsTheme: const PageTransitionsTheme(builders: {
-      TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.android: QuickPageTransitions(),
       TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
     }),
     textSelectionTheme: TextSelectionThemeData(cursorColor: p.ac),
@@ -109,4 +109,27 @@ InputDecoration deco(BuildContext c, String? label, {String? hint, Widget? suffi
     border: ob(p.bd),
     focusedBorder: ob(p.ac, 1.6),
   );
+}
+
+
+/// Короткий переход между экранами: лёгкое проявление и сдвиг справа (~0.3 с)
+class QuickPageTransitions extends PageTransitionsBuilder {
+  const QuickPageTransitions();
+  @override
+  Widget buildTransitions<T>(PageRoute<T> route, BuildContext context, Animation<double> animation,
+      Animation<double> secondaryAnimation, Widget child) {
+    final a = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
+    final back = CurvedAnimation(parent: secondaryAnimation, curve: Curves.easeOut);
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0, end: 1).animate(a),
+      child: SlideTransition(
+        position: Tween<Offset>(begin: const Offset(.07, 0), end: Offset.zero).animate(a),
+        // предыдущий экран чуть уходит влево, пока открывается новый
+        child: SlideTransition(
+          position: Tween<Offset>(begin: Offset.zero, end: const Offset(-.03, 0)).animate(back),
+          child: child,
+        ),
+      ),
+    );
+  }
 }

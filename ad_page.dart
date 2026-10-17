@@ -33,6 +33,7 @@ class _AdPageState extends State<AdPage> {
   }
 
   String _phone() {
+    if (!S.i.logged) return ''; // контакты только для вошедших
     if (ad.phone.isNotEmpty) return ad.phone;
     for (final a in S.i.ads) {
       if (a.id == ad.id) return a.phone;
@@ -48,6 +49,10 @@ class _AdPageState extends State<AdPage> {
     } catch (_) {
       if (mounted) toast(context, 'Не удалось открыть набор номера');
     }
+  }
+
+  Future<void> _login() async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
   }
 
   Future<void> _write() async {
@@ -184,8 +189,23 @@ class _AdPageState extends State<AdPage> {
                 decoration: cardDeco(p),
                 child: Text('Объявление закрыто автором', style: TextStyle(color: p.mu)),
               )
+            else if (!S.i.logged)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: cardDeco(p),
+                child: Column(children: [
+                  Icon(Icons.lock_outline_rounded, color: p.ac, size: 30),
+                  const SizedBox(height: 8),
+                  Text('Контакты скрыты', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: p.tx)),
+                  const SizedBox(height: 4),
+                  Text('Войдите, чтобы увидеть телефон автора, написать ему и откликнуться на объявление.',
+                      textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 13.5, height: 1.35)),
+                  const SizedBox(height: 14),
+                  GradBtn('Войти', icon: Icons.login_rounded, onTap: _login),
+                ]),
+              )
             else ...[
-              GradBtn(S.i.logged ? 'Откликнуться' : 'Войти и откликнуться', icon: Icons.send_rounded, onTap: _reply),
+              GradBtn('Откликнуться', icon: Icons.send_rounded, onTap: _reply),
               const SizedBox(height: 10),
               OutBtn('Написать автору', icon: Icons.chat_bubble_outline, onTap: _write),
               if (ph.isNotEmpty) ...[
@@ -197,9 +217,6 @@ class _AdPageState extends State<AdPage> {
                   const SizedBox(width: 8),
                   _contactBtn(p, const BrandIcon('tg', size: 30), 'Telegram', () => _openSocial('tg', ph)),
                 ]),
-              ] else if (!S.i.logged) ...[
-                const SizedBox(height: 8),
-                Text('Телефон автора виден после входа', textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 13)),
               ],
             ],
           ]),
