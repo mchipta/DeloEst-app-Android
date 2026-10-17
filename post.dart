@@ -274,7 +274,7 @@ class _PostScreenState extends State<PostScreen> {
           ePhone = 'Введите номер или выберите «Только чат»';
           return false;
         }
-        if (ph.length < 11) {
+        if (!phoneComplete(ph)) {
           ePhone = 'Проверьте номер телефона';
           return false;
         }

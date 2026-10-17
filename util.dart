@@ -15,23 +15,41 @@ String normPhone(String v) {
 
 // +7 (999) 123-45-67
 String fmtPhone(String v) {
-  final d = digitsOnly(v);
+  var d = digitsOnly(v);
   if (d.isEmpty) return '';
-  var s = d;
-  if (s.startsWith('8')) {
-    s = '7${s.substring(1)}';
-  } else if (!s.startsWith('7')) {
-    s = '7$s';
+  if (d.startsWith('8')) {
+    d = '7${d.substring(1)}';
+  } else if (d.startsWith('9') && d.length <= 10) {
+    d = '7$d';
   }
-  if (s.length > 11) s = s.substring(0, 11);
-  final r = s.substring(1);
-  var out = '+7';
-  if (r.isNotEmpty) out += ' (${r.substring(0, r.length < 3 ? r.length : 3)}';
-  if (r.length >= 3) out += ')';
-  if (r.length > 3) out += ' ${r.substring(3, r.length < 6 ? r.length : 6)}';
-  if (r.length > 6) out += '-${r.substring(6, r.length < 8 ? r.length : 8)}';
-  if (r.length > 8) out += '-${r.substring(8)}';
-  return out;
+  // кусок цифр [a, b) без выхода за границы
+  String part(String s, int a, int b) => s.length <= a ? '' : s.substring(a, s.length < b ? s.length : b);
+  String clip(String s, int n) => s.length > n ? s.substring(0, n) : s;
+  // как на сайте: Россия и Казахстан +7, Беларусь +375, Узбекистан +998
+  if (d.startsWith('7')) {
+    d = clip(d, 11);
+    final a = part(d, 1, 4), b = part(d, 4, 7), c = part(d, 7, 9), e = part(d, 9, 11);
+    return '+7${a.isEmpty ? '' : ' ($a${a.length == 3 ? ')' : ''}'}${b.isEmpty ? '' : ' $b'}${c.isEmpty ? '' : '-$c'}${e.isEmpty ? '' : '-$e'}';
+  }
+  if (d.startsWith('375')) {
+    d = clip(d, 12);
+    final a = part(d, 3, 5), b = part(d, 5, 8), c = part(d, 8, 10), e = part(d, 10, 12);
+    return '+375${a.isEmpty ? '' : ' ($a${a.length == 2 ? ')' : ''}'}${b.isEmpty ? '' : ' $b'}${c.isEmpty ? '' : '-$c'}${e.isEmpty ? '' : '-$e'}';
+  }
+  if (d.startsWith('998')) {
+    d = clip(d, 12);
+    final a = part(d, 3, 5), b = part(d, 5, 8), c = part(d, 8, 10), e = part(d, 10, 12);
+    return '+998${a.isEmpty ? '' : ' $a'}${b.isEmpty ? '' : ' $b'}${c.isEmpty ? '' : '-$c'}${e.isEmpty ? '' : '-$e'}';
+  }
+  return '+${clip(d, 15)}';
+}
+
+/// Номер введён полностью: 11 цифр для +7, 12 для +375 и +998 (в нормализованном виде, без плюса)
+bool phoneComplete(String norm) {
+  final d = digitsOnly(norm);
+  if (d.startsWith('7')) return d.length == 11;
+  if (d.startsWith('375') || d.startsWith('998')) return d.length == 12;
+  return d.length >= 11 && d.length <= 15;
 }
 
 class PhoneFormatter extends TextInputFormatter {

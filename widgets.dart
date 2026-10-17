@@ -861,9 +861,9 @@ Widget appContextMenu(BuildContext context, EditableTextState state) {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: p.card,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: p.ac.withOpacity(.5), width: 1.2),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(.25), blurRadius: 16, offset: const Offset(0, 6))],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: p.bd),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(.22), blurRadius: 14, offset: const Offset(0, 6))],
       ),
       child: Material(
         type: MaterialType.transparency,

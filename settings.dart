@@ -176,7 +176,7 @@ class _SettingsBodyState extends State<SettingsBody> {
     final r = await askFields(context, 'Телефон', [FieldSpec('Номер телефона', initial: fmtPhone(S.i.phone), type: TextInputType.phone)]);
     if (r == null) return;
     await _run(() async {
-      if (normPhone(r[0]).length != 11) throw ApiError('Введите номер телефона полностью');
+      if (!phoneComplete(normPhone(r[0]))) throw ApiError('Введите номер телефона полностью');
       final j = await Api.call('chPhone', {'phone': '+${normPhone(r[0])}'});
       await S.i.patchUser({'phone': j['phone']});
       if (mounted) toast(context, 'Телефон изменён');
