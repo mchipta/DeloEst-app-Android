@@ -744,7 +744,7 @@ class _PostScreenState extends State<PostScreen> {
         ]),
       ],
       _label(p, 'Заголовок'),
-      TextField(
+      TextField(contextMenuBuilder: appContextMenu, 
         controller: title,
         maxLength: 90,
         textCapitalization: TextCapitalization.sentences,
@@ -768,7 +768,7 @@ class _PostScreenState extends State<PostScreen> {
       _label(p, 'Фото', hint: 'до 5 штук, любой размер'),
       _photosRow(p),
       _label(p, 'Описание'),
-      TextField(
+      TextField(contextMenuBuilder: appContextMenu, 
         controller: desc,
         minLines: 5,
         maxLines: 10,
@@ -803,7 +803,7 @@ class _PostScreenState extends State<PostScreen> {
             ? const SizedBox(width: double.infinity)
             : Padding(
                 padding: const EdgeInsets.only(top: 10),
-                child: TextField(
+                child: TextField(contextMenuBuilder: appContextMenu, 
                   controller: payA,
                   keyboardType: TextInputType.number,
                   inputFormatters: [GroupFormatter()],
@@ -983,7 +983,7 @@ class _PostScreenState extends State<PostScreen> {
         child: showPhone
             ? Padding(
                 padding: const EdgeInsets.only(top: 10),
-                child: TextField(
+                child: TextField(contextMenuBuilder: appContextMenu, 
                   controller: phone,
                   keyboardType: TextInputType.phone,
                   inputFormatters: [PhoneFormatter()],

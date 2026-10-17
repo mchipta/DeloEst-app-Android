@@ -629,7 +629,7 @@ class _ChatPageState extends State<ChatPage> {
                         ),
                 ),
                 Expanded(
-                  child: TextField(
+                  child: TextField(contextMenuBuilder: appContextMenu, 
                     controller: _ctl,
                     minLines: 1,
                     maxLines: 5,

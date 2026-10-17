@@ -223,7 +223,7 @@ class _LandingPageState extends State<LandingPage> {
           ]),
         ),
         const SizedBox(height: 12),
-        TextField(
+        TextField(contextMenuBuilder: appContextMenu, 
           controller: _q,
           textInputAction: TextInputAction.search,
           onSubmitted: (_) => _search(),
@@ -263,7 +263,7 @@ class _LandingPageState extends State<LandingPage> {
       optionsBuilder: (value) => citySuggest(value.text),
       displayStringForOption: (option) => option,
       onSelected: (value) { _city.text = value; FocusScope.of(context).unfocus(); },
-      fieldViewBuilder: (context, controller, focusNode, onSubmitted) => TextField(
+      fieldViewBuilder: (context, controller, focusNode, onSubmitted) => TextField(contextMenuBuilder: appContextMenu, 
         controller: controller,
         focusNode: focusNode,
         textCapitalization: TextCapitalization.words,

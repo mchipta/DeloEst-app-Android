@@ -203,7 +203,7 @@ class _AuthPageState extends State<AuthPage> {
     final p = pal(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: TextField(
+      child: TextField(contextMenuBuilder: appContextMenu, 
         controller: c,
         obscureText: secret && !show,
         keyboardType: type,

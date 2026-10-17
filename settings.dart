@@ -60,7 +60,7 @@ class _FieldsDialogState extends State<_FieldsDialog> {
           for (var i = 0; i < widget.fields.length; i++)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: TextField(
+              child: TextField(contextMenuBuilder: appContextMenu, 
                 controller: cs[i],
                 obscureText: widget.fields[i].secret,
                 keyboardType: widget.fields[i].type,

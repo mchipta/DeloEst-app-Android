@@ -805,7 +805,7 @@ class _CityFieldState extends State<CityField> {
   Widget build(BuildContext context) {
     final p = pal(context);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      TextField(
+      TextField(contextMenuBuilder: appContextMenu, 
         controller: widget.controller,
         focusNode: _f,
         textCapitalization: TextCapitalization.words,
@@ -844,4 +844,42 @@ class _CityFieldState extends State<CityField> {
       ),
     ]);
   }
+}
+
+
+/// Меню выделения текста (вырезать, копировать…) в стиле приложения:
+/// карточка с акцентной обводкой вместо стандартной тёмной плашки.
+Widget appContextMenu(BuildContext context, EditableTextState state) {
+  final p = pal(context);
+  final a = state.contextMenuAnchors;
+  final items = state.contextMenuButtonItems;
+  if (items.isEmpty) return const SizedBox.shrink();
+  return TextSelectionToolbar(
+    anchorAbove: a.primaryAnchor,
+    anchorBelow: a.secondaryAnchor ?? a.primaryAnchor,
+    toolbarBuilder: (c, child) => Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: p.ac.withOpacity(.5), width: 1.2),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(.25), blurRadius: 16, offset: const Offset(0, 6))],
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: IconTheme(data: IconThemeData(color: p.tx), child: child),
+      ),
+    ),
+    children: [
+      for (final it in items)
+        TextSelectionToolbarTextButton(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          onPressed: it.onPressed,
+          child: Text(
+            AdaptiveTextSelectionToolbar.getButtonLabel(context, it),
+            style: TextStyle(color: p.tx, fontSize: 14.5, fontWeight: FontWeight.w700),
+          ),
+        ),
+    ],
+  );
 }

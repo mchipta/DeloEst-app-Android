@@ -192,7 +192,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
               ]),
               const SizedBox(height: 8),
-              TextField(
+              TextField(contextMenuBuilder: appContextMenu, 
                 controller: txt,
                 minLines: 2,
                 maxLines: 4,

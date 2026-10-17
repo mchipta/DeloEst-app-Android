@@ -72,7 +72,7 @@ ThemeData buildTheme(Brightness b) {
       TargetPlatform.android: QuickPageTransitions(),
       TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
     }),
-    textSelectionTheme: TextSelectionThemeData(cursorColor: p.ac),
+    textSelectionTheme: TextSelectionThemeData(cursorColor: p.ac, selectionColor: p.ac.withOpacity(.28), selectionHandleColor: p.ac),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       backgroundColor: p.tx,

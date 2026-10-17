@@ -403,7 +403,7 @@ class _ReplySheetState extends State<_ReplySheet> {
         const SizedBox(height: 4),
         Text('Автор увидит ваше имя и номер телефона', style: TextStyle(color: p.mu, fontSize: 13.5)),
         const SizedBox(height: 14),
-        TextField(
+        TextField(contextMenuBuilder: appContextMenu, 
           controller: _msg,
           maxLines: 4,
           minLines: 3,

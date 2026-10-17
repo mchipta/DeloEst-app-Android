@@ -197,7 +197,7 @@ class _FeedPageState extends State<FeedPage> {
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 12, right: 6),
-                      child: TextField(
+                      child: TextField(contextMenuBuilder: appContextMenu, 
                         controller: _minC,
                         keyboardType: TextInputType.number,
                         style: TextStyle(color: p.tx),
@@ -212,7 +212,7 @@ class _FeedPageState extends State<FeedPage> {
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 12, left: 6),
-                      child: TextField(
+                      child: TextField(contextMenuBuilder: appContextMenu, 
                         controller: _maxC,
                         keyboardType: TextInputType.number,
                         style: TextStyle(color: p.tx),
@@ -439,7 +439,7 @@ class _FeedPageState extends State<FeedPage> {
               const SizedBox(width: 14),
               Icon(Icons.search_rounded, color: p.mu),
               Expanded(
-                child: TextField(
+                child: TextField(contextMenuBuilder: appContextMenu, 
                   controller: _q,
                   onChanged: (_) => setState(() {}),
                   textInputAction: TextInputAction.search,
