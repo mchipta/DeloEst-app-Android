@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'package:flutter/scheduler.dart' show SchedulerPhase;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'cities.dart';
 import 'models.dart';
 import 'state.dart';
 import 'theme.dart';
@@ -730,3 +732,116 @@ class PickerField extends StatelessWidget {
 /// Нижний отступ для прокручиваемых списков на вкладках: при прозрачной панели
 /// контент идёт под неё, поэтому последний элемент нужно приподнять над панелью.
 double navPad(BuildContext c) => 80 + MediaQuery.of(c).viewPadding.bottom;
+
+
+/// Поле города с подсказками из списка городов России: «Пер» → Первоуральск, Пермь…
+/// Подсказки раскрываются прямо под полем (не поверх клавиатуры).
+class CityField extends StatefulWidget {
+  final TextEditingController controller;
+  final InputDecoration? decoration;
+  final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onPicked;
+  final ValueChanged<String>? onSubmitted;
+  const CityField({super.key, required this.controller, this.decoration, this.onChanged, this.onPicked, this.onSubmitted});
+  @override
+  State<CityField> createState() => _CityFieldState();
+}
+
+class _CityFieldState extends State<CityField> {
+  final FocusNode _f = FocusNode();
+  List<String> _s = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_upd);
+    _f.addListener(_upd);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_upd);
+    _f.dispose();
+    super.dispose();
+  }
+
+  void _upd() {
+    if (!mounted) return;
+    if (WidgetsBinding.instance.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _upd());
+      return;
+    }
+    final next = _f.hasFocus ? citySuggest(widget.controller.text) : const <String>[];
+    var same = next.length == _s.length;
+    for (var i = 0; same && i < next.length; i++) {
+      if (next[i] != _s[i]) same = false;
+    }
+    if (!same) setState(() => _s = next);
+  }
+
+  void _pick(String c) {
+    widget.controller.value = TextEditingValue(text: c, selection: TextSelection.collapsed(offset: c.length));
+    widget.onChanged?.call(c);
+    widget.onPicked?.call(c);
+    _f.unfocus();
+    setState(() => _s = const []);
+  }
+
+  Widget _name(Pal p, String name) {
+    final q = widget.controller.text.trim();
+    final n = name.toLowerCase().replaceAll('ё', 'е');
+    final qn = q.toLowerCase().replaceAll('ё', 'е');
+    final base = TextStyle(fontSize: 15, color: p.tx);
+    if (qn.isNotEmpty && n.startsWith(qn) && qn.length <= name.length) {
+      return Text.rich(TextSpan(children: [
+        TextSpan(text: name.substring(0, qn.length), style: base.copyWith(fontWeight: FontWeight.w800, color: p.ac)),
+        TextSpan(text: name.substring(qn.length), style: base),
+      ]));
+    }
+    return Text(name, style: base);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      TextField(
+        controller: widget.controller,
+        focusNode: _f,
+        textCapitalization: TextCapitalization.words,
+        style: TextStyle(color: p.tx),
+        decoration: widget.decoration ?? deco(context, null, hint: 'Начните вводить город'),
+        onChanged: widget.onChanged,
+        onSubmitted: widget.onSubmitted,
+      ),
+      AnimatedSize(
+        duration: const Duration(milliseconds: 180),
+        alignment: Alignment.topCenter,
+        child: _s.isEmpty
+            ? const SizedBox(width: double.infinity)
+            : Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 6),
+                decoration: cardDeco(p, r: 16),
+                child: Column(children: [
+                  for (var i = 0; i < _s.length; i++) ...[
+                    if (i > 0) Divider(height: 1, color: p.bd),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _pick(_s[i]),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        child: Row(children: [
+                          Icon(Icons.location_city_rounded, size: 18, color: p.mu),
+                          const SizedBox(width: 10),
+                          Expanded(child: _name(p, _s[i])),
+                        ]),
+                      ),
+                    ),
+                  ],
+                ]),
+              ),
+      ),
+    ]);
+  }
+}

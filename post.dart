@@ -529,12 +529,13 @@ class _PostScreenState extends State<PostScreen> {
         ]),
       );
 
-  Widget _choice(Pal p, {required bool sel, required VoidCallback onTap, required Widget child, EdgeInsets? pad}) {
+  Widget _choice(Pal p, {required bool sel, required VoidCallback onTap, required Widget child, EdgeInsets? pad, Alignment? align}) {
     return Tap(
       onTap: onTap,
       scale: .98,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
+        alignment: align,
         padding: pad ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           color: sel ? p.ac.withOpacity(.12) : p.card,
@@ -703,9 +704,12 @@ class _PostScreenState extends State<PostScreen> {
           for (final k in kCats)
             SizedBox(
               width: w,
+              height: 62,
               child: _choice(
                 p,
                 sel: cat == k.name,
+                align: Alignment.centerLeft,
+                pad: const EdgeInsets.symmetric(horizontal: 12),
                 onTap: () => _set(() => cat = k.name),
                 child: Row(children: [
                   Icon(k.icon, size: 20, color: cat == k.name ? p.ac : p.mu),
@@ -812,7 +816,11 @@ class _PostScreenState extends State<PostScreen> {
               ),
       ),
       _label(p, 'Город'),
-      _cityField(p),
+      CityField(
+        controller: city,
+        decoration: _d(context, hint: 'Начните вводить город'),
+        onChanged: (_) => cityAuto = false,
+      ),
       if (cityAuto && city.text.trim().isNotEmpty) _helper(p, 'Подставили город из вашего прошлого объявления — его можно изменить'),
     ];
   }
@@ -908,66 +916,6 @@ class _PostScreenState extends State<PostScreen> {
     );
   }
 
-  Widget _cityField(Pal p) {
-    const cities = <String>[
-      'Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Казань',
-      'Нижний Новгород', 'Челябинск', 'Самара', 'Омск', 'Ростов-на-Дону',
-      'Уфа', 'Красноярск', 'Пермь', 'Воронеж', 'Волгоград', 'Краснодар',
-      'Тюмень', 'Калининград', 'Саратов', 'Тольятти', 'Ижевск', 'Барнаул',
-      'Ульяновск', 'Иркутск', 'Хабаровск', 'Ярославль', 'Владивосток',
-      'Махачкала', 'Томск', 'Оренбург', 'Кемерово', 'Рязань', 'Пенза',
-      'Липецк', 'Киров', 'Чебоксары', 'Курск', 'Тула', 'Сочи',
-    ];
-    return RawAutocomplete<String>(
-      textEditingController: city,
-      focusNode: _cityFocus,
-      optionsBuilder: (value) {
-        final q = value.text.trim().toLowerCase();
-        if (q.length < 2) return const Iterable<String>.empty();
-        return cities.where((c) => c.toLowerCase().contains(q)).take(6);
-      },
-      displayStringForOption: (option) => option,
-      fieldViewBuilder: (context, controller, focusNode, onSubmitted) => TextField(
-        controller: controller,
-        focusNode: focusNode,
-        textCapitalization: TextCapitalization.words,
-        style: TextStyle(color: p.tx),
-        onChanged: (_) => cityAuto = false,
-        decoration: _d(context, hint: 'Начните вводить город'),
-      ),
-      optionsViewBuilder: (context, onSelected, options) => Align(
-        alignment: Alignment.topLeft,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            constraints: const BoxConstraints(maxHeight: 230),
-            margin: const EdgeInsets.only(top: 5),
-            decoration: BoxDecoration(
-              color: p.card,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: p.bd),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(.12), blurRadius: 16, offset: const Offset(0, 5))],
-            ),
-            child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(5), children: [
-              for (final option in options)
-                ListTile(
-                  dense: true,
-                  leading: Icon(Icons.location_city_rounded, color: p.ac, size: 20),
-                  title: Text(option, style: TextStyle(color: p.tx)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  onTap: () {
-                    cityAuto = false;
-                    onSelected(option);
-                  },
-                ),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
-
-  final FocusNode _cityFocus = FocusNode();
 
   // ----- шаг 3: контакты и предпросмотр -----
 
@@ -975,28 +923,21 @@ class _PostScreenState extends State<PostScreen> {
     Widget seg(int i, String text, IconData ic) {
       final sel = (showPhone ? 0 : 1) == i;
       return Expanded(
-        child: Tap(
-          scale: .98,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTap: () => _set(() {
             showPhone = i == 0;
             ePhone = null;
           }),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            padding: const EdgeInsets.symmetric(vertical: 11),
-            decoration: BoxDecoration(
-              color: sel ? p.card : Colors.transparent,
-              borderRadius: BorderRadius.circular(11),
-              border: sel ? Border.all(color: p.ac, width: 1.4) : null,
-            ),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          child: Center(
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(ic, size: 18, color: sel ? p.ac : p.mu),
-              const SizedBox(width: 6),
+              const SizedBox(width: 7),
               Flexible(
                 child: Text(text,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13.5, fontWeight: sel ? FontWeight.w800 : FontWeight.w600, color: sel ? p.tx : p.mu)),
+                    style: TextStyle(fontSize: 14, fontWeight: sel ? FontWeight.w800 : FontWeight.w600, color: sel ? p.tx : p.mu)),
               ),
             ]),
           ),
@@ -1007,11 +948,33 @@ class _PostScreenState extends State<PostScreen> {
     return [
       _label(p, 'Как с вами связаться'),
       Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(15), border: Border.all(color: p.bd)),
-        child: Row(children: [
-          seg(0, 'Показывать телефон', Icons.phone_outlined),
-          seg(1, 'Только чат', Icons.chat_bubble_outline_rounded),
+        height: 52,
+        decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
+        child: Stack(children: [
+          // подсветка выбранного варианта плавно переезжает
+          AnimatedAlign(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            alignment: showPhone ? Alignment.centerLeft : Alignment.centerRight,
+            child: FractionallySizedBox(
+              widthFactor: .5,
+              heightFactor: 1,
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: p.ac.withOpacity(.14),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: p.ac.withOpacity(.55), width: 1.2),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Row(children: [
+            seg(0, 'Показать номер', Icons.phone_outlined),
+            seg(1, 'Только чат', Icons.chat_bubble_outline_rounded),
+          ]),
         ]),
       ),
       AnimatedSize(

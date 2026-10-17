@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'ad_page.dart';
@@ -352,9 +353,42 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  final GlobalKey _barKey = GlobalKey();
+  double _barH = 80; // высота плавающей панели ввода: список сообщений уходит под неё
+
   Future<void> _attach() async {
+    final p = pal(context);
+    final src = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: p.card,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      builder: (c) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 8),
+          ListTile(
+            leading: Icon(Icons.photo_camera_outlined, color: p.ac),
+            title: const Text('Сделать фото'),
+            onTap: () => Navigator.pop(c, ImageSource.camera),
+          ),
+          ListTile(
+            leading: Icon(Icons.photo_library_outlined, color: p.ac),
+            title: const Text('Выбрать из галереи'),
+            onTap: () => Navigator.pop(c, ImageSource.gallery),
+          ),
+          const SizedBox(height: 6),
+        ]),
+      ),
+    );
+    if (src == null) return;
     try {
-      final xs = await ImagePicker().pickMultiImage(maxWidth: 1280, maxHeight: 1280, imageQuality: 80);
+      final pk = ImagePicker();
+      final List<XFile> xs;
+      if (src == ImageSource.camera) {
+        final x = await pk.pickImage(source: ImageSource.camera, maxWidth: 1280, maxHeight: 1280, imageQuality: 80);
+        xs = x == null ? <XFile>[] : [x];
+      } else {
+        xs = await pk.pickMultiImage(maxWidth: 1280, maxHeight: 1280, imageQuality: 80);
+      }
       if (xs.isEmpty) return;
       setState(() => busy = true);
       final ids = <String>[];
@@ -387,6 +421,10 @@ class _ChatPageState extends State<ChatPage> {
   Widget build(BuildContext context) {
     final p = pal(context);
     final rev = msgs.reversed.toList();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final h = _barKey.currentContext?.size?.height;
+      if (mounted && h != null && (h - _barH).abs() > 1) setState(() => _barH = h);
+    });
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
@@ -422,21 +460,28 @@ class _ChatPageState extends State<ChatPage> {
           ]),
         ),
       ),
-      body: Column(children: [
-        Expanded(
+      body: Stack(children: [
+        Positioned.fill(
           child: !loaded
               ? Center(child: err != null ? Text(err!, style: TextStyle(color: p.mu)) : CircularProgressIndicator(color: p.ac))
               : msgs.isEmpty
                   ? Center(child: Text('Напишите первое сообщение', style: TextStyle(color: p.mu, fontSize: 15)))
                   : ListView.builder(
                       reverse: true,
-                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                      padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + _barH),
                       itemCount: rev.length,
                       itemBuilder: (c, i) => _bubble(p, rev[i]),
                     ),
         ),
-        if (S.i.chatQuickSuggestionsEnabled) _quick(p),
-        _input(p),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Column(key: _barKey, mainAxisSize: MainAxisSize.min, children: [
+            if (S.i.chatQuickSuggestionsEnabled) _quick(p),
+            _input(p),
+          ]),
+        ),
       ]),
     );
   }
@@ -520,7 +565,7 @@ class _ChatPageState extends State<ChatPage> {
 
   Widget _quick(Pal p) {
     return Container(
-      color: p.bg,
+      color: Colors.transparent,
       height: 44,
       child: ListView(
         scrollDirection: Axis.horizontal,
@@ -555,50 +600,69 @@ class _ChatPageState extends State<ChatPage> {
 
   Widget _input(Pal p) {
     final can = _ctl.text.trim().isNotEmpty;
-    return Container(
-      decoration: BoxDecoration(color: p.card, border: Border(top: BorderSide(color: p.bd))),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(6, 6, 8, 6),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            busy
-                ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4)))
-                : IconButton(onPressed: _attach, icon: Icon(Icons.attach_file, color: p.mu)),
-            Expanded(
-              child: TextField(
-                controller: _ctl,
-                minLines: 1,
-                maxLines: 5,
-                maxLength: 1000,
-                onChanged: _onChanged,
-                textCapitalization: TextCapitalization.sentences,
-                style: TextStyle(color: p.tx),
-                decoration: InputDecoration(
-                  counterText: '',
-                  hintText: 'Сообщение',
-                  hintStyle: TextStyle(color: p.mu),
-                  filled: true,
-                  fillColor: p.bg2,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: BorderSide.none),
-                ),
+    // плавающая стеклянная панель: вокруг ничего нет, под ней прокручиваются сообщения
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(4, 5, 5, 5),
+              decoration: BoxDecoration(
+                color: p.card.withOpacity(.74),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: p.bd),
               ),
-            ),
-            const SizedBox(width: 6),
-            GestureDetector(
-              onTap: can ? _send : null,
-              child: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [p.ac, p.ac2]),
-                  shape: BoxShape.circle,
+              child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: busy
+                      ? const Padding(padding: EdgeInsets.all(11), child: CircularProgressIndicator(strokeWidth: 2.4))
+                      : GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _attach,
+                          child: Icon(Icons.attach_file_rounded, color: p.mu),
+                        ),
                 ),
-                child: Opacity(opacity: can ? 1 : .45, child: const Icon(Icons.send_rounded, color: Colors.white, size: 21)),
-              ),
+                Expanded(
+                  child: TextField(
+                    controller: _ctl,
+                    minLines: 1,
+                    maxLines: 5,
+                    maxLength: 1000,
+                    onChanged: _onChanged,
+                    textCapitalization: TextCapitalization.sentences,
+                    style: TextStyle(color: p.tx),
+                    decoration: InputDecoration(
+                      counterText: '',
+                      hintText: 'Сообщение',
+                      hintStyle: TextStyle(color: p.mu),
+                      filled: false,
+                      isDense: true,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                GestureDetector(
+                  onTap: can ? _send : null,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(gradient: LinearGradient(colors: [p.ac, p.ac2]), shape: BoxShape.circle),
+                    child: Opacity(opacity: can ? 1 : .45, child: const Icon(Icons.send_rounded, color: Colors.white, size: 21)),
+                  ),
+                ),
+              ]),
             ),
-          ]),
+          ),
         ),
       ),
     );

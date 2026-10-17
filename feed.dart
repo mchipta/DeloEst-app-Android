@@ -184,10 +184,8 @@ class _FeedPageState extends State<FeedPage> {
                 dd('Категория', _cat, [['', 'Все категории'], for (final k in kCats) [k.name, k.name]], (v) => _cat = v),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: TextField(
+                  child: CityField(
                     controller: _cityC,
-                    style: TextStyle(color: p.tx),
-                    textCapitalization: TextCapitalization.words,
                     decoration: deco(c, 'Город'),
                     onChanged: (v) {
                       setState(() => _city = v);

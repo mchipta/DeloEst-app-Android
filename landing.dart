@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'ad_page.dart';
 import 'auth.dart';
 import 'info.dart';
+import 'cities.dart';
 import 'models.dart';
 import 'site_defaults.dart';
 import 'state.dart';
@@ -256,23 +257,10 @@ class _LandingPageState extends State<LandingPage> {
   }
 
   Widget _cityAutocomplete(Pal p) {
-    const cities = <String>[
-      'Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Казань',
-      'Нижний Новгород', 'Челябинск', 'Самара', 'Омск', 'Ростов-на-Дону',
-      'Уфа', 'Красноярск', 'Пермь', 'Воронеж', 'Волгоград', 'Краснодар',
-      'Тюмень', 'Калининград', 'Саратов', 'Тольятти', 'Ижевск', 'Барнаул',
-      'Ульяновск', 'Иркутск', 'Хабаровск', 'Ярославль', 'Владивосток',
-      'Махачкала', 'Томск', 'Оренбург', 'Кемерово', 'Рязань', 'Пенза',
-      'Липецк', 'Киров', 'Чебоксары', 'Курск', 'Тула', 'Сочи',
-    ];
     return RawAutocomplete<String>(
       textEditingController: _city,
       focusNode: _cityFocus,
-      optionsBuilder: (value) {
-        final q = value.text.trim().toLowerCase();
-        if (q.length < 2) return const Iterable<String>.empty();
-        return cities.where((c) => c.toLowerCase().contains(q)).take(6);
-      },
+      optionsBuilder: (value) => citySuggest(value.text),
       displayStringForOption: (option) => option,
       onSelected: (value) { _city.text = value; FocusScope.of(context).unfocus(); },
       fieldViewBuilder: (context, controller, focusNode, onSubmitted) => TextField(
