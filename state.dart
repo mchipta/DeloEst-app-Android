@@ -57,7 +57,7 @@ class S extends ChangeNotifier {
     }
     i.messageNotificationsEnabled = p.getBool('messages_notifications') ?? true;
     i.navTransparent = p.getBool('nav_transparent') ?? true;
-    applyEdgeToEdge(i.navTransparent);
+    applyEdgeToEdge(true); // панель всегда плавающая, вокруг неё ничего нет
     i.chatQuickSuggestionsEnabled = p.getBool('chat_quick_suggestions') ?? true;
     i.timeZone = p.getString('timezone') ?? '';
     final tm = p.getString('theme');
@@ -249,7 +249,6 @@ class S extends ChangeNotifier {
 
   Future<void> setNavTransparent(bool v) async {
     navTransparent = v;
-    applyEdgeToEdge(v);
     await prefs.setBool('nav_transparent', v);
     notifyListeners();
   }

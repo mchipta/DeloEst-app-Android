@@ -376,7 +376,7 @@ class _SettingsBodyState extends State<SettingsBody> {
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Прозрачная панель', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: p.tx)),
                 const SizedBox(height: 3),
-                Text('Нижнее меню становится стеклянным: экран просвечивает сквозь него с мягким размытием. Если выключить, меню будет на сплошном фоне.', style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.3)),
+                Text('Нижнее меню становится стеклянным: экран просвечивает сквозь него с мягким размытием. Если выключить, меню станет сплошным, без размытия.', style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.3)),
               ])),
               Switch(
                 value: S.i.navTransparent,

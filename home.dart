@@ -26,9 +26,9 @@ class HomeShell extends StatelessWidget {
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(
             statusBarColor: Colors.transparent,
-            systemNavigationBarColor: S.i.navTransparent ? Colors.transparent : p.card,
+            systemNavigationBarColor: Colors.transparent,
             systemNavigationBarDividerColor: Colors.transparent,
-            systemNavigationBarContrastEnforced: !S.i.navTransparent,
+            systemNavigationBarContrastEnforced: false,
             systemNavigationBarIconBrightness: dark ? Brightness.light : Brightness.dark,
           ),
           child: PopScope(
@@ -39,7 +39,7 @@ class HomeShell extends StatelessWidget {
               S.i.goTab(S.i.rootTab);
             },
             child: Scaffold(
-              extendBody: S.i.navTransparent,
+              extendBody: true,
               body: _TabFade(
                 tab: S.i.tab,
                 child: IndexedStack(
@@ -80,21 +80,18 @@ class _Tabs extends StatelessWidget {
     final glass = S.i.navTransparent;
     // плавающая панель: скруглённая «таблетка» с отступами от краёв, подсветка выбранной вкладки едет между пунктами
     final bar = Container(
-      decoration: glass
-          ? BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [p.bg.withOpacity(0), p.bg.withOpacity(.55)]))
-          : BoxDecoration(color: p.bg),
+      // вокруг панели ничего нет ни в стеклянном, ни в сплошном режиме
       child: SafeArea(
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 6, 14, 8),
-          child: Container(
+          child: _glass(glass, child: Container(
             height: 66,
             decoration: BoxDecoration(
-              color: glass ? p.card.withOpacity(.72) : p.card,
+              color: glass ? p.card.withOpacity(.74) : p.card,
               borderRadius: BorderRadius.circular(33),
               border: Border.all(color: p.bd),
-              boxShadow: glass ? null : [BoxShadow(color: Colors.black.withOpacity(.18), blurRadius: 18, offset: const Offset(0, 6))],
-            ),
+                          ),
             child: Stack(children: [
               if (sel >= 0)
                 AnimatedAlign(
@@ -157,13 +154,17 @@ class _Tabs extends StatelessWidget {
                   ),
               ]),
             ]),
-          ),
+          )),
         ),
       ),
     );
-    // стекло: размывается всё, что проходит под нижней областью, включая полосу системной навигации
-    return glass ? ClipRect(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14), child: bar)) : bar;
+    return bar;
   }
+
+  // стекло: размывается только то, что находится прямо под самой панелью
+  Widget _glass(bool on, {required Widget child}) => on
+      ? ClipRRect(borderRadius: BorderRadius.circular(33), child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16), child: child))
+      : child;
 }
 
 
