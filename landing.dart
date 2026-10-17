@@ -116,7 +116,7 @@ class _LandingPageState extends State<LandingPage> {
               },
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.only(bottom: 28),
+                padding: EdgeInsets.only(bottom: 28 + navPad(context)),
                 children: [
                   _topBar(p),
                   _hero(p),

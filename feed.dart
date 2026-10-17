@@ -275,7 +275,7 @@ class _FeedPageState extends State<FeedPage> {
                     SliverFillRemaining(hasScrollBody: false, child: _empty(p))
                   else
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                      padding: EdgeInsets.fromLTRB(16, 4, 16, 16 + navPad(context)),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (c, i) => AdCard(

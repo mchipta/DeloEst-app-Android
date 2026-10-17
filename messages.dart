@@ -127,7 +127,7 @@ class _MessagesPageState extends State<MessagesPage> {
                   onRefresh: _load,
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 20),
+                    padding: EdgeInsets.fromLTRB(16, 6, 16, 20 + (widget.embedded ? navPad(context) : 0)),
                     children: [
                       if (loading && !loaded)
                         Padding(padding: const EdgeInsets.all(40), child: Center(child: CircularProgressIndicator(color: p.ac))),

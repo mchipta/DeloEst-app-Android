@@ -602,7 +602,7 @@ class _PostScreenState extends State<PostScreen> {
     return ListView(
       controller: _scroll,
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+      padding: EdgeInsets.fromLTRB(16, 0, 16, 28 + (widget.embedded ? navPad(context) : 0)),
       children: [
         _stepper(p),
         if (_restored && step == 0 && !_isEdit) _draftBanner(p),

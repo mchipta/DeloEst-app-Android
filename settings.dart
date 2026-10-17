@@ -360,6 +360,31 @@ class _SettingsBodyState extends State<SettingsBody> {
                 ),
               ),
           ]),
+          _label(p, 'НИЖНЯЯ ПАНЕЛЬ'),
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+            decoration: cardDeco(p, r: 16),
+            child: Row(children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12)),
+                child: Icon(Icons.blur_on_rounded, color: p.ac),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Прозрачная панель', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: p.tx)),
+                const SizedBox(height: 3),
+                Text('Содержимое видно сквозь нижнюю панель, как в Telegram. Если выключить, панель будет на сплошном фоне.', style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.3)),
+              ])),
+              Switch(
+                value: S.i.navTransparent,
+                activeColor: p.ac,
+                onChanged: (v) { S.i.setNavTransparent(v); },
+              ),
+            ]),
+          ),
           _label(p, 'ИКОНКА ПРИЛОЖЕНИЯ'),
           Text('Выберите вариант значка на экране телефона.', style: TextStyle(color: p.mu, fontSize: 13)),
           const SizedBox(height: 10),

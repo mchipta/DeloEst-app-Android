@@ -24,6 +24,8 @@ class S extends ChangeNotifier {
   int unread = 0;
   bool messagesOpen = false;
   bool messageNotificationsEnabled = true;
+  // прозрачная плавающая нижняя панель: контент виден сквозь неё, как в Telegram
+  bool navTransparent = true;
   bool chatQuickSuggestionsEnabled = true;
   String timeZone = '';
   VoidCallback? openMessages;
@@ -53,6 +55,7 @@ class S extends ChangeNotifier {
       }
     }
     i.messageNotificationsEnabled = p.getBool('messages_notifications') ?? true;
+    i.navTransparent = p.getBool('nav_transparent') ?? true;
     i.chatQuickSuggestionsEnabled = p.getBool('chat_quick_suggestions') ?? true;
     i.timeZone = p.getString('timezone') ?? '';
     final tm = p.getString('theme');
@@ -231,6 +234,12 @@ class S extends ChangeNotifier {
       return 'Войдите в аккаунт';
     }
     return m;
+  }
+
+  Future<void> setNavTransparent(bool v) async {
+    navTransparent = v;
+    await prefs.setBool('nav_transparent', v);
+    notifyListeners();
   }
 
   Future<void> setMessageNotificationsEnabled(bool enabled) async {

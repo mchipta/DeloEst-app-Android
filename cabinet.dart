@@ -148,7 +148,7 @@ class _CabinetPageState extends State<CabinetPage> {
                   onRefresh: _load,
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                    padding: EdgeInsets.fromLTRB(16, 4, 16, 24 + navPad(context)),
                     children: [
                       _header(p),
                       ..._alerts(p),
@@ -162,7 +162,7 @@ class _CabinetPageState extends State<CabinetPage> {
                     ],
                   ),
                 )
-              : ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), children: [
+              : ListView(padding: EdgeInsets.fromLTRB(16, 0, 16, 24 + navPad(context)), children: [
                   SizedBox(height: 360, child: const NeedAuth(icon: Icons.person_outline, title: 'Ваш кабинет', text: 'Войдите, чтобы видеть свои объявления, отклики и управлять ими.')),
                   const BottomLinks(support: true),
                 ]),

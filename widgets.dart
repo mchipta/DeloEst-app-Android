@@ -725,3 +725,8 @@ class PickerField extends StatelessWidget {
     );
   }
 }
+
+
+/// Нижний отступ для прокручиваемых списков на вкладках: при прозрачной панели
+/// контент идёт под неё, поэтому последний элемент нужно приподнять над панелью.
+double navPad(BuildContext c) => S.i.navTransparent ? 80 + MediaQuery.of(c).viewPadding.bottom : 0;
