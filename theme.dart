@@ -112,24 +112,23 @@ InputDecoration deco(BuildContext c, String? label, {String? hint, Widget? suffi
 }
 
 
-/// Короткий переход между экранами: лёгкое проявление и сдвиг справа (~0.3 с)
+/// Переход между экранами: системный слайд (с жестом «свайп назад» от левого края,
+/// палец ведёт экран) + короткое проявление. Длительность задаёт маршрут, ~0,3 с.
 class QuickPageTransitions extends PageTransitionsBuilder {
   const QuickPageTransitions();
+  static const PageTransitionsBuilder _base = CupertinoPageTransitionsBuilder();
+
   @override
   Widget buildTransitions<T>(PageRoute<T> route, BuildContext context, Animation<double> animation,
       Animation<double> secondaryAnimation, Widget child) {
-    final a = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
-    final back = CurvedAnimation(parent: secondaryAnimation, curve: Curves.easeOut);
+    final fade = CurvedAnimation(
+      parent: animation,
+      curve: const Interval(0, .55, curve: Curves.easeOut),
+      reverseCurve: const Interval(.2, 1, curve: Curves.easeIn),
+    );
     return FadeTransition(
-      opacity: Tween<double>(begin: 0, end: 1).animate(a),
-      child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(.07, 0), end: Offset.zero).animate(a),
-        // предыдущий экран чуть уходит влево, пока открывается новый
-        child: SlideTransition(
-          position: Tween<Offset>(begin: Offset.zero, end: const Offset(-.03, 0)).animate(back),
-          child: child,
-        ),
-      ),
+      opacity: Tween<double>(begin: 0, end: 1).animate(fade),
+      child: _base.buildTransitions<T>(route, context, animation, secondaryAnimation, child),
     );
   }
 }

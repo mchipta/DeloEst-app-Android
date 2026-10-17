@@ -70,58 +70,87 @@ class _Tabs extends StatelessWidget {
     ];
     // у не вошедшего результаты поиска (вкладка 1) открываются из «Главной», подсвечиваем её
     bool on(int i) => S.i.tab == i || (!S.i.logged && i == 0 && S.i.tab == 1);
+    final n = items.length;
+    final sel = items.indexWhere((it) => on(it[0] as int));
+    final idle = Color.lerp(p.mu, p.tx, .5)!;
+    // плавающая панель: скруглённая «таблетка» с отступами от краёв, подсветка выбранной вкладки едет между пунктами
     return Container(
-      decoration: BoxDecoration(
-        color: p.card,
-        border: Border(top: BorderSide(color: p.bd)),
-      ),
+      color: p.bg,
       child: SafeArea(
         top: false,
-        child: SizedBox(
-          height: 60,
-          child: Row(children: [
-            for (final it in items)
-              Expanded(
-                child: Semantics(
-                  button: true,
-                  selected: on(it[0] as int),
-                  label: it[3] as String,
-                  child: InkWell(
-                    onTap: () => S.i.goTab((it[0] as int) == 2 && !S.i.logged ? 3 : (it[0] as int)),
-                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Stack(clipBehavior: Clip.none, children: [
-                        AnimatedScale(
-                          scale: on(it[0] as int) ? 1.14 : 1,
-                          duration: const Duration(milliseconds: 180),
-                          curve: Curves.easeOutBack,
-                          child: Icon(on(it[0] as int) ? it[2] as IconData : it[1] as IconData,
-                              size: 23, color: on(it[0] as int) ? p.ac : p.mu),
-                        ),
-                        if ((it[4] as int) > 0)
-                          Positioned(
-                            right: -9,
-                            top: -5,
-                            child: Container(
-                              constraints: const BoxConstraints(minWidth: 16),
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                              decoration: BoxDecoration(color: p.ac, borderRadius: BorderRadius.circular(99)),
-                              child: Text((it[4] as int) > 99 ? '99+' : '${it[4]}',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
-                            ),
-                          ),
-                      ]),
-                      const SizedBox(height: 3),
-                      Text(it[3] as String,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 10.5, fontWeight: on(it[0] as int) ? FontWeight.w800 : FontWeight.w600,
-                              color: on(it[0] as int) ? p.ac : p.mu)),
-                    ]),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 6, 14, 8),
+          child: Container(
+            height: 66,
+            decoration: BoxDecoration(
+              color: p.card,
+              borderRadius: BorderRadius.circular(33),
+              border: Border.all(color: p.bd),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(.18), blurRadius: 18, offset: const Offset(0, 6))],
+            ),
+            child: Stack(children: [
+              if (sel >= 0)
+                AnimatedAlign(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment(n == 1 ? 0 : -1 + 2 * sel / (n - 1), 0),
+                  child: FractionallySizedBox(
+                    widthFactor: 1 / n,
+                    heightFactor: 1,
+                    child: Padding(
+                      padding: const EdgeInsets.all(5),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(color: p.ac.withOpacity(.16), borderRadius: BorderRadius.circular(28)),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-          ]),
+              Row(children: [
+                for (final it in items)
+                  Expanded(
+                    child: Semantics(
+                      button: true,
+                      selected: on(it[0] as int),
+                      label: it[3] as String,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => S.i.goTab((it[0] as int) == 2 && !S.i.logged ? 3 : (it[0] as int)),
+                        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Stack(clipBehavior: Clip.none, children: [
+                            AnimatedScale(
+                              scale: on(it[0] as int) ? 1.1 : 1,
+                              duration: const Duration(milliseconds: 180),
+                              curve: Curves.easeOutBack,
+                              child: Icon(on(it[0] as int) ? it[2] as IconData : it[1] as IconData,
+                                  size: 24, color: on(it[0] as int) ? p.ac : idle),
+                            ),
+                            if ((it[4] as int) > 0)
+                              Positioned(
+                                right: -10,
+                                top: -6,
+                                child: Container(
+                                  constraints: const BoxConstraints(minWidth: 17),
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(color: p.ac, borderRadius: BorderRadius.circular(99), border: Border.all(color: p.card, width: 1.5)),
+                                  child: Text((it[4] as int) > 99 ? '99+' : '${it[4]}',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w800)),
+                                ),
+                              ),
+                          ]),
+                          const SizedBox(height: 3),
+                          AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 180),
+                            style: TextStyle(fontSize: 11, fontWeight: on(it[0] as int) ? FontWeight.w800 : FontWeight.w600, color: on(it[0] as int) ? p.ac : idle),
+                            child: Text(it[3] as String, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
+                        ]),
+                      ),
+                    ),
+                  ),
+              ]),
+            ]),
+          ),
         ),
       ),
     );
