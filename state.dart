@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'models.dart';
@@ -56,6 +57,7 @@ class S extends ChangeNotifier {
     }
     i.messageNotificationsEnabled = p.getBool('messages_notifications') ?? true;
     i.navTransparent = p.getBool('nav_transparent') ?? true;
+    applyEdgeToEdge(i.navTransparent);
     i.chatQuickSuggestionsEnabled = p.getBool('chat_quick_suggestions') ?? true;
     i.timeZone = p.getString('timezone') ?? '';
     final tm = p.getString('theme');
@@ -236,8 +238,18 @@ class S extends ChangeNotifier {
     return m;
   }
 
+  // стеклянная панель: приложение рисуется под системной полосой навигации
+  static void applyEdgeToEdge(bool on) {
+    if (on) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    } else {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
+    }
+  }
+
   Future<void> setNavTransparent(bool v) async {
     navTransparent = v;
+    applyEdgeToEdge(v);
     await prefs.setBool('nav_transparent', v);
     notifyListeners();
   }

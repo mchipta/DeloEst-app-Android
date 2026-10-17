@@ -282,7 +282,7 @@ class _SettingsBodyState extends State<SettingsBody> {
 
   Widget _label(Pal p, String t) => Padding(
         padding: const EdgeInsets.only(top: 14, bottom: 8),
-        child: Text(t, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: p.mu)),
+        child: Text(t, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: p.tx)),
       );
 
   @override
@@ -321,13 +321,13 @@ class _SettingsBodyState extends State<SettingsBody> {
             ),
           ),
           if (widget.profileOnly) ...[
-            _label(p, 'ДАННЫЕ ПРОФИЛЯ'),
+            _label(p, 'Данные профиля'),
             _tile(p, Icons.person_outline, 'Имя', S.i.name, _name),
             _tile(p, Icons.mail_outline, 'Почта', S.i.login.contains('@') ? S.i.login : '—', _email),
             _tile(p, Icons.call_outlined, 'Телефон', S.i.phone.isEmpty ? '—' : fmtPhone(S.i.phone), _phone),
           ],
           if (!widget.profileOnly) ...[
-          _label(p, 'ВНЕШНИЙ ВИД'),
+          _label(p, 'Внешний вид'),
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Text('Тема применяется ко всему приложению и меняется только здесь.',
@@ -360,7 +360,7 @@ class _SettingsBodyState extends State<SettingsBody> {
                 ),
               ),
           ]),
-          _label(p, 'НИЖНЯЯ ПАНЕЛЬ'),
+          _label(p, 'Нижняя панель'),
           Container(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
@@ -376,7 +376,7 @@ class _SettingsBodyState extends State<SettingsBody> {
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Прозрачная панель', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: p.tx)),
                 const SizedBox(height: 3),
-                Text('Содержимое видно сквозь нижнюю панель, как в Telegram. Если выключить, панель будет на сплошном фоне.', style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.3)),
+                Text('Нижнее меню становится стеклянным: экран просвечивает сквозь него с мягким размытием. Если выключить, меню будет на сплошном фоне.', style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.3)),
               ])),
               Switch(
                 value: S.i.navTransparent,
@@ -385,7 +385,7 @@ class _SettingsBodyState extends State<SettingsBody> {
               ),
             ]),
           ),
-          _label(p, 'ИКОНКА ПРИЛОЖЕНИЯ'),
+          _label(p, 'Иконка приложения'),
           Text('Выберите вариант значка на экране телефона.', style: TextStyle(color: p.mu, fontSize: 13)),
           const SizedBox(height: 10),
           Row(children: [
@@ -394,7 +394,7 @@ class _SettingsBodyState extends State<SettingsBody> {
             Expanded(child: _iconChoice(p, 'purple', 'Фиолет', 'assets/icon_purple.png', const Color(0xFF7C5CFF))),
           ]),
           const SizedBox(height: 4),
-          _label(p, 'УВЕДОМЛЕНИЯ'),
+          _label(p, 'Уведомления'),
           Container(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
@@ -440,7 +440,7 @@ class _SettingsBodyState extends State<SettingsBody> {
                   ),
               ]),
             ),
-          _label(p, 'ЧАСОВОЙ ПОЯС'),
+          _label(p, 'Часовой пояс'),
           Container(
             padding: const EdgeInsets.all(14),
             margin: const EdgeInsets.only(bottom: 10),
@@ -497,7 +497,7 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Настройки')),
-      body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: const [SettingsBody(), BottomLinks(business: true, title: 'ПРОЧЕЕ')]),
+      body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: const [SettingsBody(), BottomLinks(business: true, title: 'Прочее')]),
     );
   }
 }
