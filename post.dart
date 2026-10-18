@@ -450,6 +450,7 @@ class _PostScreenState extends State<PostScreen> {
         'city': city.text.trim(),
         'desc': d,
         'phone': (!showPhone || ph.isEmpty) ? '' : '+$ph',
+        'nophone': !showPhone || ph.isEmpty, // «Только чат»: сервер не подставляет номер из профиля
         'imgs': all,
       };
       if (_isEdit) {

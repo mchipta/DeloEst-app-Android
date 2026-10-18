@@ -29,17 +29,18 @@ class Pal {
     dng: Color(0xFFC0262D),
   );
 
+  // Тёмная тема: тёплый графит и тот же оранжевый акцент, что в светлой
   static const dark = Pal(
-    bg: Color(0xFF0A0E1F),
-    bg2: Color(0xFF0E1429),
-    card: Color(0xFF121833),
-    tx: Color(0xFFEEF1FF),
-    mu: Color(0xFF9AA3C7),
-    bd: Color(0xFF232B52),
-    ac: Color(0xFF7C5CFF),
-    ac2: Color(0xFF22D3EE),
+    bg: Color(0xFF100E0D),
+    bg2: Color(0xFF171412),
+    card: Color(0xFF1C1917),
+    tx: Color(0xFFF6F0EA),
+    mu: Color(0xFFA89E96),
+    bd: Color(0xFF2E2926),
+    ac: Color(0xFFFF6B3D),
+    ac2: Color(0xFFFFA62B),
     ok: Color(0xFF4ADE80),
-    dng: Color(0xFFFF7B84),
+    dng: Color(0xFFFF7A6E),
   );
 }
 
