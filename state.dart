@@ -27,6 +27,8 @@ class S extends ChangeNotifier {
   bool messageNotificationsEnabled = true;
   // прозрачная плавающая нижняя панель: контент виден сквозь неё, как в Telegram
   bool navTransparent = true;
+  // вид списка объявлений: 0 список, 1 плитка, 2 компактно
+  int feedMode = 0;
   bool chatQuickSuggestionsEnabled = true;
   String timeZone = '';
   VoidCallback? openMessages;
@@ -41,6 +43,8 @@ class S extends ChangeNotifier {
   bool _unreadInit = false;
   int chatOpen = 0;
   static final msgKey = GlobalKey<ScaffoldMessengerState>();
+  // аватарки авторов (по pid), чтобы не запрашивать профиль заново
+  static final Map<String, String> avatarCache = {};
 
   static Future<void> init() async {
     final p = await SharedPreferences.getInstance();
@@ -57,6 +61,7 @@ class S extends ChangeNotifier {
     }
     i.messageNotificationsEnabled = p.getBool('messages_notifications') ?? true;
     i.navTransparent = p.getBool('nav_transparent') ?? true;
+    i.feedMode = (p.getInt('feed_mode') ?? 0).clamp(0, 2).toInt();
     applyEdgeToEdge(true); // панель всегда плавающая, вокруг неё ничего нет
     i.chatQuickSuggestionsEnabled = p.getBool('chat_quick_suggestions') ?? true;
     i.timeZone = p.getString('timezone') ?? '';
@@ -245,6 +250,13 @@ class S extends ChangeNotifier {
     } else {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
     }
+  }
+
+  Future<void> setFeedMode(int m) async {
+    if (m == feedMode) return;
+    feedMode = m;
+    notifyListeners();
+    await prefs.setInt('feed_mode', m);
   }
 
   Future<void> setNavTransparent(bool v) async {

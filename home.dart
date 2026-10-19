@@ -118,7 +118,15 @@ class _Tabs extends StatelessWidget {
                       label: it[3] as String,
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onTap: () => S.i.goTab((it[0] as int) == 2 && !S.i.logged ? 3 : (it[0] as int)),
+                        onTap: () {
+                          final t = it[0] as int;
+                          if (t == 2 && !S.i.logged) {
+                            toast(context, 'Войдите, чтобы разместить объявление');
+                            S.i.goTab(3);
+                          } else {
+                            S.i.goTab(t);
+                          }
+                        },
                         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                           Stack(clipBehavior: Clip.none, children: [
                             AnimatedScale(

@@ -205,8 +205,7 @@ class _InfoPageState extends State<InfoPage> {
           padding: const EdgeInsets.all(18),
           decoration: cardDeco(p),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            if (pill.isNotEmpty) Tag(pill, p.ac),
-            if (h1a.isNotEmpty) ...[const SizedBox(height: 10), Text(h1a, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: p.tx, height: 1.15))],
+                  if (h1a.isNotEmpty) ...[const SizedBox(height: 10), Text(h1a, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: p.tx, height: 1.15))],
             if (h1b.isNotEmpty) GradText(h1b, size: 24),
             if (lead.isNotEmpty) ...[const SizedBox(height: 10), Text(lead, style: TextStyle(color: p.mu, fontSize: 15, height: 1.4))],
           ]),
@@ -218,23 +217,6 @@ class _InfoPageState extends State<InfoPage> {
       const SizedBox(height: 16),
       for (final t in sitePars(c['about']))
         Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(t, style: TextStyle(color: p.tx, fontSize: 15.5, height: 1.5))),
-      if (reviews.isNotEmpty) ...[
-        _h(p, 'Отзывы'),
-        for (final r in reviews)
-          Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(14),
-            decoration: cardDeco(p, r: 16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [for (var i = 0; i < 5; i++) const Icon(Icons.star_rounded, size: 18, color: Color(0xFFFFB400))]),
-              const SizedBox(height: 6),
-              Text(r.length > 2 ? r.sublist(2).join('|') : '', style: TextStyle(color: p.tx, height: 1.4)),
-              const SizedBox(height: 6),
-              Text(r.isNotEmpty ? r[0] : '', style: TextStyle(fontWeight: FontWeight.w800, color: p.tx)),
-              if (r.length > 1) Text(r[1], style: TextStyle(color: p.mu, fontSize: 13)),
-            ]),
-          ),
-      ],
     ];
   }
 

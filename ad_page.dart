@@ -24,12 +24,30 @@ class AdPage extends StatefulWidget {
 class _AdPageState extends State<AdPage> {
   int page = 0;
   late Ad ad;
+  String _av = ''; // аватарка автора: в списке объявлений её нет, берём из профиля
 
   @override
   void initState() {
     super.initState();
     ad = widget.ad;
     Api.call('seen', {'id': ad.id, 'cid': S.i.cid}).then((_) {}, onError: (_) {});
+    _loadAvatar();
+  }
+
+  Future<void> _loadAvatar() async {
+    final pid = ad.pid;
+    if (pid.isEmpty) return;
+    final c = S.avatarCache[pid];
+    if (c != null) {
+      _av = c;
+      return;
+    }
+    try {
+      final j = await Api.call('profile', {'pid': pid});
+      final av = (j['avatar'] ?? '').toString();
+      S.avatarCache[pid] = av;
+      if (mounted && av.isNotEmpty) setState(() => _av = av);
+    } catch (_) {}
   }
 
   String _phone() {
@@ -256,7 +274,7 @@ class _AdPageState extends State<AdPage> {
       padding: const EdgeInsets.all(14),
       decoration: cardDeco(p),
       child: Row(children: [
-        Avatar(ad.author),
+        Avatar(ad.author, data: _av),
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

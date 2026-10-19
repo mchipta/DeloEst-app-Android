@@ -274,15 +274,7 @@ class _FeedPageState extends State<FeedPage> {
                   else
                     SliverPadding(
                       padding: EdgeInsets.fromLTRB(16, 4, 16, 16 + navPad(context)),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (c, i) => AdCard(
-                            ad: list[i],
-                            onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => AdPage(ad: list[i]))),
-                          ),
-                          childCount: list.length,
-                        ),
-                      ),
+                      sliver: S.i.feedMode == 1 ? _grid(context, list) : _rows(context, list),
                     ),
                 ],
               ),
@@ -290,6 +282,70 @@ class _FeedPageState extends State<FeedPage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _rows(BuildContext context, List<Ad> list) => SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (c, i) => AdCard(
+            ad: list[i],
+            mode: S.i.feedMode,
+            onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => AdPage(ad: list[i]))),
+          ),
+          childCount: list.length,
+        ),
+      );
+
+  // Плитка: два столбца на телефоне, три на широком экране
+  Widget _grid(BuildContext context, List<Ad> list) {
+    final width = MediaQuery.sizeOf(context).width;
+    final cols = width >= 700 ? 3 : 2;
+    final w = (width - 32 - 10 * (cols - 1)) / cols;
+    return SliverGrid(
+      delegate: SliverChildBuilderDelegate(
+        (c, i) => AdCard(
+          ad: list[i],
+          mode: 1,
+          onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => AdPage(ad: list[i]))),
+        ),
+        childCount: list.length,
+      ),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: cols,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        mainAxisExtent: w / 1.25 + 100,
+      ),
+    );
+  }
+
+  // Переключатель вида: список, плитка, компактно
+  Widget _modeToggle(Pal p) {
+    const icons = [Icons.view_agenda_outlined, Icons.grid_view_rounded, Icons.view_list_rounded];
+    const tips = ['Список', 'Плитка', 'Компактно'];
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        for (var i = 0; i < 3; i++)
+          Tooltip(
+            message: tips[i],
+            child: Tap(
+              onTap: () => S.i.setFeedMode(i),
+              scale: .92,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                width: 36,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: S.i.feedMode == i ? p.ac.withOpacity(.16) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(icons[i], size: 19, color: S.i.feedMode == i ? p.ac : p.mu),
+              ),
+            ),
+          ),
+      ]),
     );
   }
 
@@ -528,22 +584,27 @@ class _FeedPageState extends State<FeedPage> {
         ),
       Padding(
         padding: const EdgeInsets.fromLTRB(18, 12, 16, 8),
-        child: SizedBox(
-          height: 36,
-          child: Row(children: [
-            Expanded(
-              child: Text.rich(TextSpan(children: [
-                TextSpan(text: 'Найдено: ', style: TextStyle(color: p.mu, fontWeight: FontWeight.w600)),
-                TextSpan(text: '$count', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
-              ])),
-            ),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              transitionBuilder: (c, a) => FadeTransition(opacity: a, child: ScaleTransition(scale: Tween<double>(begin: .92, end: 1).animate(a), child: c)),
-              child: !canSave
-                  ? const SizedBox(key: ValueKey('nosave'))
-                  : Tap(
-                      key: ValueKey(saved ? 'saved' : 'save'),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SizedBox(
+            height: 36,
+            child: Row(children: [
+              Expanded(
+                child: Text.rich(TextSpan(children: [
+                  TextSpan(text: 'Найдено: ', style: TextStyle(color: p.mu, fontWeight: FontWeight.w600)),
+                  TextSpan(text: '$count', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
+                ])),
+              ),
+              _modeToggle(p),
+            ]),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            alignment: Alignment.topLeft,
+            child: !canSave
+                ? const SizedBox(width: double.infinity)
+                : Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Tap(
                       onTap: _saveSearch,
                       scale: .96,
                       child: Container(
@@ -561,9 +622,9 @@ class _FeedPageState extends State<FeedPage> {
                         ]),
                       ),
                     ),
-            ),
-          ]),
-        ),
+                  ),
+          ),
+        ]),
       ),
     ]);
   }

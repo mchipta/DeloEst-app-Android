@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/scheduler.dart' show SchedulerPhase;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -238,17 +239,28 @@ class Avatar extends StatelessWidget {
   final String data;
   final double size;
   const Avatar(this.name, {super.key, this.data = '', this.size = 44});
+
+  // Раскодированные байты кэшируем: одинаковый объект байтов -> картинка берётся из кэша без мигания
+  static final Map<String, Uint8List> _bytes = {};
+  static Uint8List? _decode(String data) {
+    if (!data.startsWith('data:image')) return null;
+    final hit = _bytes[data];
+    if (hit != null) return hit;
+    try {
+      final b = base64Decode(data.substring(data.indexOf(',') + 1));
+      if (_bytes.length > 60) _bytes.remove(_bytes.keys.first);
+      _bytes[data] = b;
+      return b;
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
-    ImageProvider? img;
-    if (data.startsWith('data:image')) {
-      try {
-        img = MemoryImage(base64Decode(data.substring(data.indexOf(',') + 1)));
-      } catch (_) {
-        img = null;
-      }
-    }
+    final bytes = _decode(data);
+    final img = bytes == null ? null : MemoryImage(bytes);
     final letter = name.trim().isEmpty ? '?' : name.trim().substring(0, 1).toUpperCase();
     return Container(
       width: size,
@@ -271,11 +283,14 @@ class AdCard extends StatelessWidget {
   final VoidCallback onTap;
   final Widget? footer;
   final bool showFav;
-  const AdCard({super.key, required this.ad, required this.onTap, this.footer, this.showFav = true});
+  final int mode; // 0 список, 1 плитка, 2 компактно
+  const AdCard({super.key, required this.ad, required this.onTap, this.footer, this.showFav = true, this.mode = 0});
 
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
+    if (mode == 1) return _tile(context, p);
+    if (mode == 2) return _compact(context, p);
     final width = MediaQuery.sizeOf(context).width;
     final thumb = width >= 600 ? 112.0 : 92.0;
     return Appear(
@@ -365,6 +380,111 @@ class AdCard extends StatelessWidget {
     );
   }
 
+
+  Widget _heart(Pal p, {bool onPhoto = false}) {
+    final fav = S.i.isFav(ad.id);
+    final icon = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      switchInCurve: Curves.easeOutBack,
+      transitionBuilder: (c, a) => ScaleTransition(scale: a, child: c),
+      child: Icon(fav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+          key: ValueKey(fav), color: fav ? p.ac : p.mu, size: onPhoto ? 19 : 21),
+    );
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => S.i.toggleFav(ad.id),
+      child: onPhoto
+          ? Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(color: p.card.withOpacity(.88), shape: BoxShape.circle),
+              child: Center(child: icon),
+            )
+          : Padding(padding: const EdgeInsets.all(4), child: icon),
+    );
+  }
+
+  String _shortDate() => siteDateTime(ad.ts, S.i.timeZone).split(',').first;
+
+  // Плитка: крупное фото сверху, под ним цена, заголовок и город
+  Widget _tile(BuildContext context, Pal p) {
+    return Appear(
+      child: Tap(
+        onTap: onTap,
+        scale: .98,
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: cardDeco(p, r: 18),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            AspectRatio(
+              aspectRatio: 1.25,
+              child: Stack(fit: StackFit.expand, children: [
+                _coverBody(p, 90, flat: true),
+                Positioned(left: 8, top: 8, child: Container(
+                  decoration: BoxDecoration(color: p.card.withOpacity(.9), borderRadius: BorderRadius.circular(99)),
+                  child: typeTag(context, ad.type),
+                )),
+                if (showFav && S.i.logged) Positioned(right: 6, top: 6, child: _heart(p, onPhoto: true)),
+              ]),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(payF(ad.pay), maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: p.ok)),
+                const SizedBox(height: 2),
+                Text(ad.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, height: 1.2, color: p.tx)),
+                const SizedBox(height: 4),
+                Text('${ad.city.isEmpty ? 'Город не указан' : ad.city} · ${_shortDate()}',
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: p.mu)),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  // Компактно: маленькое фото и три строки текста
+  Widget _compact(BuildContext context, Pal p) {
+    final need = ad.type == kTypes[0];
+    return Appear(
+      child: Tap(
+        onTap: onTap,
+        scale: .99,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.fromLTRB(8, 8, 6, 8),
+          decoration: cardDeco(p, r: 16),
+          child: Row(children: [
+            SizedBox(width: 62, height: 62, child: _cover(p, 62)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(ad.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: p.tx)),
+                const SizedBox(height: 2),
+                Text(payF(ad.pay), maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: p.ok)),
+                const SizedBox(height: 2),
+                Row(children: [
+                  Container(width: 7, height: 7, decoration: BoxDecoration(color: need ? p.ac : p.ok, shape: BoxShape.circle)),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text('${ad.city.isEmpty ? 'Город не указан' : ad.city} · ${_shortDate()}',
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: p.mu)),
+                  ),
+                ]),
+              ]),
+            ),
+            if (showFav && S.i.logged) _heart(p),
+          ]),
+        ),
+      ),
+    );
+  }
+
   Widget _categoryTag(Pal p, String category) {
     return Container(
       constraints: const BoxConstraints(maxWidth: 132),
@@ -383,19 +503,19 @@ class AdCard extends StatelessWidget {
     );
   }
 
-  Widget _cover(Pal p, double size) {
+  Widget _cover(Pal p, double size) => ClipRRect(borderRadius: BorderRadius.circular(14), child: _coverBody(p, size));
+
+  Widget _coverBody(Pal p, double size, {bool flat = false}) {
     Widget ph() => Container(
           decoration: BoxDecoration(
             color: Color.alphaBlend(p.ac.withOpacity(.07), p.bg2),
-            border: Border.all(color: p.bd),
-            borderRadius: BorderRadius.circular(14),
+            border: flat ? null : Border.all(color: p.bd),
+            borderRadius: flat ? null : BorderRadius.circular(14),
           ),
           alignment: Alignment.center,
           child: Icon(catIcon(ad.category), size: size * .35, color: p.ac.withOpacity(.75)),
         );
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: Stack(fit: StackFit.expand, children: [
+    return Stack(fit: StackFit.expand, children: [
         ad.imgs.isEmpty
             ? ph()
             : CachedNetworkImage(
@@ -418,8 +538,7 @@ class AdCard extends StatelessWidget {
               ]),
             ),
           ),
-      ]),
-    );
+    ]);
   }
 }
 
@@ -431,7 +550,7 @@ void showVerifiedInfo(BuildContext context) {
       return AlertDialog(
         backgroundColor: p.card,
         icon: Icon(Icons.verified, color: p.ok, size: 44),
-        title: Text('Проверенный пользователь', textAlign: TextAlign.center, style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
+        title: Text('Документы проверены', textAlign: TextAlign.center, style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
         content: Text(
             'Администрация ДелоЕсть проверила документы этого человека и подтвердила его личность. Это снижает риск мошенничества, но деньги заранее всё равно лучше не переводить.',
             style: TextStyle(color: p.mu, height: 1.4)),
@@ -456,7 +575,7 @@ class VerifiedBadge extends StatelessWidget {
         Icon(Icons.verified, size: size, color: p.ok),
         if (label) ...[
           const SizedBox(width: 5),
-          Text('Проверенный', style: TextStyle(color: p.ok, fontWeight: FontWeight.w700, fontSize: 13)),
+          Text('Документы проверены', style: TextStyle(color: p.ok, fontWeight: FontWeight.w700, fontSize: 13)),
         ],
       ]),
     );

@@ -139,8 +139,6 @@ class _LandingPageState extends State<LandingPage> {
                   if (!S.i.logged) ...[
                     _sectionTitle(p, 'Как это работает', 'Три простых шага — и дело найдено.'),
                     _how(p),
-                    _sectionTitle(p, 'Отзывы', 'Что говорят пользователи ДелоЕсть.'),
-                    _reviews(p, reviews),
                     _business(p),
                   ],
                   if (!S.i.logged) ...[
@@ -185,17 +183,6 @@ class _LandingPageState extends State<LandingPage> {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
         if (!S.i.logged) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(color: p.card.withOpacity(.85), borderRadius: BorderRadius.circular(99), border: Border.all(color: p.bd)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.bolt_rounded, color: p.ac, size: 16),
-              const SizedBox(width: 6),
-              Flexible(child: Text(_site['pill'] ?? '', textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11.5, color: p.tx, fontWeight: FontWeight.w700))),
-            ]),
-          ),
-          const SizedBox(height: 15),
           Text(_site['h1a'] ?? 'Подработка рядом —', textAlign: TextAlign.center,
               style: TextStyle(color: p.tx, fontWeight: FontWeight.w900, fontSize: 30, height: 1.08, letterSpacing: -.7)),
           const SizedBox(height: 2),
@@ -492,8 +479,6 @@ class _LandingPageState extends State<LandingPage> {
               ),
             ),
           ),
-        const SizedBox(height: 3),
-        OutBtn('Все вопросы и контакты', icon: Icons.help_outline_rounded, onTap: () => _openInfo(section: 1, title: 'Частые вопросы')),
       ]),
     );
   }
@@ -531,7 +516,7 @@ class _LandingPageState extends State<LandingPage> {
           const SizedBox(height: 18),
           Text('РАЗДЕЛЫ', style: TextStyle(color: p.mu, fontWeight: FontWeight.w800, fontSize: 11, letterSpacing: .8)),
           const SizedBox(height: 6),
-          Wrap(spacing: 4, runSpacing: 2, children: [
+          Wrap(spacing: 8, runSpacing: 8, children: [
             _footerLink('Все объявления', () => S.i.goTab(1), p),
             _footerLink('Для бизнеса', () => _openInfo(section: 2, title: 'Для бизнеса'), p),
             _footerLink('О нас', () => _openInfo(section: 0, title: 'О нас'), p),
@@ -565,10 +550,18 @@ class _LandingPageState extends State<LandingPage> {
         ]),
       );
 
-  Widget _footerLink(String label, VoidCallback onTap, Pal p) => TextButton(
-        onPressed: onTap,
-        style: TextButton.styleFrom(foregroundColor: p.tx, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6), minimumSize: const Size(0, 34)),
-        child: Text(label, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+  Widget _footerLink(String label, VoidCallback onTap, Pal p) => Tap(
+        onTap: onTap,
+        scale: .96,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: p.card,
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(color: p.bd),
+          ),
+          child: Text(label, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: p.tx)),
+        ),
       );
 
   Widget _contactLine(Pal p, IconData icon, String label, VoidCallback? onTap) => InkWell(
