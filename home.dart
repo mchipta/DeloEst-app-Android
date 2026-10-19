@@ -8,6 +8,7 @@ import 'messages.dart';
 import 'post.dart';
 import 'state.dart';
 import 'theme.dart';
+import 'widgets.dart';
 
 class HomeShell extends StatelessWidget {
   const HomeShell({super.key});
