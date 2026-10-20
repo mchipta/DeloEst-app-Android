@@ -420,10 +420,24 @@ class AdCard extends StatelessWidget {
               aspectRatio: 1.25,
               child: Stack(fit: StackFit.expand, children: [
                 _coverBody(p, 90, flat: true),
-                Positioned(left: 8, top: 8, child: Container(
-                  decoration: BoxDecoration(color: p.card.withOpacity(.9), borderRadius: BorderRadius.circular(99)),
-                  child: typeTag(context, ad.type),
-                )),
+                // справа остаётся место под сердечко; если тег не помещается, он слегка уменьшается, а не заезжает на сердечко
+                Positioned(
+                  left: 8,
+                  top: 8,
+                  right: showFav && S.i.logged ? 44 : 8,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    heightFactor: 1,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        decoration: BoxDecoration(color: p.card.withOpacity(.9), borderRadius: BorderRadius.circular(99)),
+                        child: typeTag(context, ad.type),
+                      ),
+                    ),
+                  ),
+                ),
                 if (showFav && S.i.logged) Positioned(right: 6, top: 6, child: _heart(p, onPhoto: true)),
               ]),
             ),

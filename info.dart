@@ -114,17 +114,6 @@ class _InfoPageState extends State<InfoPage> {
         child: Text(t, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: p.tx)),
       );
 
-  Widget _box(Pal p, String big, String small) => Container(
-        width: (MediaQuery.of(context).size.width - 32 - 20) / 3,
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
-        decoration: cardDeco(p, r: 16),
-        child: Column(children: [
-          GradText(big, size: 22),
-          const SizedBox(height: 2),
-          Text(small, textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 12.5)),
-        ]),
-      );
-
   Widget _contact(Pal p, IconData ic, String text, VoidCallback? f) {
     return GestureDetector(
       onTap: f,
@@ -192,8 +181,6 @@ class _InfoPageState extends State<InfoPage> {
   }
 
   List<Widget> _about(Pal p) {
-    final stats = siteLines(c['stats']);
-    final reviews = siteLines(c['reviews']);
     final pill = (c['pill'] ?? '').trim();
     final h1a = (c['h1a'] ?? '').trim();
     final h1b = (c['h1b'] ?? '').trim();
@@ -210,15 +197,37 @@ class _InfoPageState extends State<InfoPage> {
             if (lead.isNotEmpty) ...[const SizedBox(height: 10), Text(lead, style: TextStyle(color: p.mu, fontSize: 15, height: 1.4))],
           ]),
         ),
-      Wrap(spacing: 10, runSpacing: 10, children: [
-        if ((c['year'] ?? '').isNotEmpty) _box(p, c['year']!, 'год основания'),
-        for (final s in stats) _box(p, s.isNotEmpty ? s[0] : '', s.length > 1 ? s.sublist(1).join('|') : ''),
-      ]),
-      const SizedBox(height: 16),
-      for (final t in sitePars(c['about']))
-        Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(t, style: TextStyle(color: p.tx, fontSize: 15.5, height: 1.5))),
+      for (final e in sitePars(c['about']).asMap().entries) _aboutCard(p, e.value, e.key == 0),
     ];
   }
+
+  // Абзац «О нас» в карточке с цветной полоской слева; первый абзац крупнее
+  Widget _aboutCard(Pal p, String text, bool first) => Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        clipBehavior: Clip.antiAlias,
+        decoration: cardDeco(p, r: 18),
+        child: IntrinsicHeight(
+          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Container(
+              width: 5,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topCenter, end: Alignment.bottomCenter),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                child: Text(text,
+                    style: TextStyle(
+                        color: p.tx,
+                        fontSize: first ? 16.5 : 15.5,
+                        fontWeight: first ? FontWeight.w600 : FontWeight.w400,
+                        height: 1.5)),
+              ),
+            ),
+          ]),
+        ),
+      );
 
   List<Widget> _faq(Pal p) {
     final faq = siteLines(c['faq']);
