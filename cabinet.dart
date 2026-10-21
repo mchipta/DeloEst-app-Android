@@ -175,123 +175,123 @@ class _CabinetPageState extends State<CabinetPage> {
     final av = (S.i.user?['avatar'] ?? '').toString();
     final isMail = S.i.login.contains('@');
     final mail = isMail ? S.i.login : '@${S.i.login}';
-    void edit() => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileEditPage()));
 
-    Widget line(IconData icon, String text) => Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Row(children: [
-            Icon(icon, size: 16, color: p.ac),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(text,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: p.mu, fontSize: 14.5, fontWeight: FontWeight.w600)),
-            ),
-          ]),
-        );
-
-    // Ячейка панели действий: значок над подписью
-    Widget cell(IconData icon, String label, VoidCallback f, {Color? color}) => Expanded(
-          child: InkWell(
-            onTap: f,
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(icon, size: 23, color: color ?? p.ac),
-              const SizedBox(height: 7),
-              Text(label, style: TextStyle(color: p.tx, fontSize: 12.5, fontWeight: FontWeight.w700)),
-            ]),
+    // Контакт в нижней полосе карточки: значок и текст на сплошном фоне, без прозрачности
+    Widget contact(IconData icon, String label) => Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 17, color: Colors.white),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w700)),
           ),
-        );
-
-    final cells = <Widget>[
-      cell(Icons.person_outline_rounded, 'Профиль',
-          () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(pid: S.i.pid, name: S.i.name)))),
-      cell(Icons.edit_outlined, 'Изменить', edit),
-      if (S.i.user?['admin'] == true)
-        cell(Icons.admin_panel_settings_outlined, 'Админ',
-            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPage()))),
-      cell(Icons.logout_rounded, 'Выйти', () => confirmLogout(context), color: p.dng),
-    ];
-    final bar = <Widget>[];
-    for (var i = 0; i < cells.length; i++) {
-      if (i > 0) bar.add(VerticalDivider(width: 1, thickness: 1, indent: 14, endIndent: 14, color: p.bd));
-      bar.add(cells[i]);
-    }
+        ]);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          stops: const [0.0, 0.6],
-          colors: [Color.alphaBlend(p.ac.withOpacity(.15), p.card), p.card],
-        ),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: p.bd),
-        boxShadow: cardDeco(p, r: 30).boxShadow,
+        gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-          GestureDetector(
-            onTap: edit,
-            child: SizedBox(
-              width: 88,
-              height: 88,
-              child: Stack(clipBehavior: Clip.none, children: [
-                // круглый аватар в градиентной рамке
-                Container(
-                  width: 88,
-                  height: 88,
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(shape: BoxShape.circle, color: p.card),
-                    child: Avatar(S.i.name, data: av, size: 76),
-                  ),
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                      border: Border.all(color: p.card, width: 3),
-                    ),
-                    child: const Icon(Icons.photo_camera_outlined, size: 13, color: Colors.white),
-                  ),
-                ),
-              ]),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+            GestureDetector(
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileEditPage())),
+              child: Avatar(S.i.name, data: av, size: 64),
             ),
+            const SizedBox(width: 13),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(S.i.name, maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900, color: Colors.white, height: 1.15)),
+            ])),
+            IconButton(
+              tooltip: 'Изменить профиль',
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileEditPage())),
+              icon: Icon(Icons.edit_outlined, color: p.tx),
+              style: IconButton.styleFrom(
+                backgroundColor: p.card,
+                side: BorderSide(color: p.bd, width: 1),
+                minimumSize: const Size(46, 46),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(pid: S.i.pid, name: S.i.name))),
+                icon: const Icon(Icons.person_outline_rounded, size: 18),
+                label: const Text('Мой профиль'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: p.tx,
+                  backgroundColor: p.card,
+                  side: BorderSide(color: p.bd, width: 1),
+                  minimumSize: const Size(0, 42),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => confirmLogout(context),
+                icon: const Icon(Icons.logout_rounded, size: 17),
+                label: const Text('Выйти'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: p.tx,
+                  backgroundColor: p.card,
+                  side: BorderSide(color: p.bd, width: 1),
+                  minimumSize: const Size(0, 42),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                ),
+              ),
+            ),
+          ]),
+          if (S.i.user?['admin'] == true) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPage())),
+                icon: const Icon(Icons.admin_panel_settings_outlined, size: 18),
+                label: const Text('Админ-панель'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: p.tx,
+                  backgroundColor: p.card,
+                  side: BorderSide(color: p.bd, width: 1),
+                  minimumSize: const Size(0, 40),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                ),
+              ),
+            ),
+          ],
+          ]),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(colors: [Color(0xFFD9451A), Color(0xFFE2701A)]),
+            border: Border(top: BorderSide(color: Color(0x2EFFFFFF))),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(S.i.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: p.tx, height: 1.15)),
-              line(isMail ? Icons.mail_outline : Icons.person_outline, mail),
-              if (S.i.phone.isNotEmpty) line(Icons.call_outlined, fmtPhone(S.i.phone)),
-            ]),
-          ),
-        ]),
-        const SizedBox(height: 18),
-        Material(
-          color: p.bg2,
-          clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: p.bd)),
-          child: SizedBox(
-            height: 72,
-            child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: bar),
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 16,
+            runSpacing: 6,
+            children: [
+              contact(isMail ? Icons.mail_outline : Icons.person_outline, mail),
+              if (S.i.phone.isNotEmpty) contact(Icons.call_outlined, fmtPhone(S.i.phone)),
+            ],
           ),
         ),
       ]),
