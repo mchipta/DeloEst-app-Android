@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'api.dart';
 import 'auth.dart';
+import 'map_page.dart';
 import 'models.dart';
 import 'state.dart';
 import 'theme.dart';
@@ -36,6 +37,8 @@ class _PostScreenState extends State<PostScreen> {
   final title = TextEditingController();
   final payA = TextEditingController();
   final city = TextEditingController();
+  final addr = TextEditingController(); // адрес для карты
+  double? lat, lng;
   final desc = TextEditingController();
   final phone = TextEditingController();
   final _scroll = ScrollController();
@@ -69,13 +72,16 @@ class _PostScreenState extends State<PostScreen> {
       payRaw = pp.raw;
       payA.text = grp(pp.a);
       city.text = e.city;
+      addr.text = e.addr;
+      lat = e.lat;
+      lng = e.lng;
       desc.text = e.desc;
       phone.text = fmtPhone(e.phone);
       showPhone = e.phone.isNotEmpty;
       cat = kCats.any((c) => c.name == e.category) ? e.category : kCats.last.name;
       photos = [for (final id in e.imgs) _Ph.id(id)];
     }
-    for (final c in [title, payA, city, desc, phone]) {
+    for (final c in [title, payA, city, addr, desc, phone]) {
       c.addListener(_touch);
     }
     S.i.addListener(_sync);
@@ -89,7 +95,7 @@ class _PostScreenState extends State<PostScreen> {
     if (widget.embedded && !_isEdit) S.i.postBack = null;
     if (_saveT?.isActive ?? false) _saveNow();
     _saveT?.cancel();
-    for (final c in [title, payA, city, desc, phone]) {
+    for (final c in [title, payA, city, addr, desc, phone]) {
       c.dispose();
     }
     _scroll.dispose();
@@ -149,6 +155,9 @@ class _PostScreenState extends State<PostScreen> {
           'unit': unit,
           'pay': payA.text,
           'city': cityAuto ? '' : city.text,
+          'addr': addr.text,
+          'lat': lat,
+          'lng': lng,
           'desc': desc.text,
           'phone': phone.text,
           'showPhone': showPhone,
@@ -172,6 +181,9 @@ class _PostScreenState extends State<PostScreen> {
         city.text = s('city');
         cityAuto = false;
       }
+      addr.text = s('addr');
+      lat = m['lat'] is num ? (m['lat'] as num).toDouble() : null;
+      lng = m['lng'] is num ? (m['lng'] as num).toDouble() : null;
       if (kCats.any((c) => c.name == s('cat'))) cat = s('cat');
       if (kPayUnits.any((u) => u[0] == s('unit'))) unit = s('unit');
       showPhone = m['showPhone'] != false;
@@ -211,6 +223,8 @@ class _PostScreenState extends State<PostScreen> {
     payA.clear();
     desc.clear();
     city.clear();
+    addr.clear();
+    lat = lng = null;
     _quiet = false;
     type = 0;
     unit = 'h';
@@ -441,6 +455,14 @@ class _PostScreenState extends State<PostScreen> {
           all.add(await _upload(x.file!));
         }
       }
+      if (addr.text.trim().isNotEmpty && lat == null && city.text.trim().isNotEmpty) {
+        // адрес написан, но метку не ставили — пробуем найти сами
+        final g = await Geo.search('${city.text.trim()}, ${addr.text.trim()}', limit: 1);
+        if (g != null && g.isNotEmpty) {
+          lat = double.parse(g.first.lat.toStringAsFixed(5));
+          lng = double.parse(g.first.lng.toStringAsFixed(5));
+        }
+      }
       if (mounted) setState(() => status = 'Публикуем…');
       final data = <String, dynamic>{
         'type': kTypes[type],
@@ -448,6 +470,9 @@ class _PostScreenState extends State<PostScreen> {
         'category': cat,
         'pay': pay,
         'city': city.text.trim(),
+        'addr': addr.text.trim(),
+        'lat': lat,
+        'lng': lng,
         'desc': d,
         'phone': (!showPhone || ph.isEmpty) ? '' : '+$ph',
         'nophone': !showPhone || ph.isEmpty, // «Только чат»: сервер не подставляет номер из профиля
@@ -823,6 +848,16 @@ class _PostScreenState extends State<PostScreen> {
         onChanged: (_) => cityAuto = false,
       ),
       if (cityAuto && city.text.trim().isNotEmpty) _helper(p, 'Подставили город из вашего прошлого объявления — его можно изменить'),
+      AddrField(
+        controller: addr,
+        lat: lat,
+        lng: lng,
+        city: () => city.text,
+        onGeo: (la, ln) => _set(() {
+          lat = la;
+          lng = ln;
+        }),
+      ),
     ];
   }
 

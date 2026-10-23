@@ -28,6 +28,15 @@ IconData catIcon(String name) {
   return Icons.more_horiz;
 }
 
+double? _dbl(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v.toDouble();
+  return double.tryParse(v.toString().replaceAll(',', '.'));
+}
+
+/// «Город, адрес» одной строкой
+String adLoc(Ad a) => [a.city.trim(), a.addr.trim()].where((e) => e.isNotEmpty).join(', ');
+
 int _int(dynamic v) {
   if (v is num) return v.toInt();
   return int.tryParse((v ?? '').toString()) ?? 0;
@@ -35,6 +44,8 @@ int _int(dynamic v) {
 
 class Ad {
   final String id, author, type, title, category, pay, city, desc, status, phone, pid;
+  final String addr; // адрес для карты
+  final double? lat, lng; // координаты метки (если указаны)
   final int ts, views, opens, rc;
   final bool ver;
   final double rt;
@@ -59,6 +70,9 @@ class Ad {
     required this.ver,
     required this.rt,
     required this.imgs,
+    this.addr = '',
+    this.lat,
+    this.lng,
   });
 
   factory Ad.fromJson(Map<String, dynamic> j) {
@@ -83,6 +97,9 @@ class Ad {
       ver: j['ver'] == true,
       rt: j['rt'] is num ? (j['rt'] as num).toDouble() : 0,
       imgs: im is List ? im.map((e) => e.toString()).toList() : <String>[],
+      addr: s('addr'),
+      lat: _dbl(j['lat']),
+      lng: _dbl(j['lng']),
     );
   }
 }

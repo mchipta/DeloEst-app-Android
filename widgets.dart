@@ -358,7 +358,7 @@ class AdCard extends StatelessWidget {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Icon(Icons.place_outlined, size: 13, color: p.mu),
-                      Text(ad.city.isEmpty ? 'Город не указан' : ad.city,
+                      Text(adLoc(ad).isEmpty ? 'Город не указан' : adLoc(ad),
                           style: TextStyle(fontSize: 12, color: p.mu), maxLines: 1, overflow: TextOverflow.ellipsis),
                       Text('· ${siteDateTime(ad.ts, S.i.timeZone)}', style: TextStyle(fontSize: 12, color: p.mu)),
                       Icon(Icons.visibility_outlined, size: 13, color: p.mu),
@@ -450,7 +450,7 @@ class AdCard extends StatelessWidget {
                 Text(ad.title, maxLines: 2, overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, height: 1.2, color: p.tx)),
                 const SizedBox(height: 4),
-                Text('${ad.city.isEmpty ? 'Город не указан' : ad.city} · ${_shortDate()}',
+                Text('${adLoc(ad).isEmpty ? 'Город не указан' : adLoc(ad)} · ${_shortDate()}',
                     maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: p.mu)),
               ]),
             ),
@@ -486,7 +486,7 @@ class AdCard extends StatelessWidget {
                   Container(width: 7, height: 7, decoration: BoxDecoration(color: need ? p.ac : p.ok, shape: BoxShape.circle)),
                   const SizedBox(width: 5),
                   Expanded(
-                    child: Text('${ad.city.isEmpty ? 'Город не указан' : ad.city} · ${_shortDate()}',
+                    child: Text('${adLoc(ad).isEmpty ? 'Город не указан' : adLoc(ad)} · ${_shortDate()}',
                         maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: p.mu)),
                   ),
                 ]),

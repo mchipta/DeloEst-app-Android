@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'ad_page.dart';
 import 'auth.dart';
 import 'favorites.dart';
+import 'map_page.dart';
 import 'models.dart';
 import 'state.dart';
 import 'theme.dart';
@@ -319,6 +320,22 @@ class _FeedPageState extends State<FeedPage> {
     );
   }
 
+  // Кнопка «Карта»: все найденные объявления метками на карте
+  Widget _mapBtn(Pal p) => Tap(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MapPage(ads: _filtered()))),
+        scale: .94,
+        child: Container(
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 11),
+          decoration: BoxDecoration(color: p.ac.withOpacity(.12), borderRadius: BorderRadius.circular(12), border: Border.all(color: p.ac.withOpacity(.45))),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.map_outlined, size: 18, color: p.ac),
+            const SizedBox(width: 5),
+            Text('Карта', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: p.ac)),
+          ]),
+        ),
+      );
+
   // Переключатель вида: список, плитка, компактно
   Widget _modeToggle(Pal p) {
     const icons = [Icons.view_agenda_outlined, Icons.grid_view_rounded, Icons.view_list_rounded];
@@ -594,6 +611,8 @@ class _FeedPageState extends State<FeedPage> {
                   TextSpan(text: '$count', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
                 ])),
               ),
+              _mapBtn(p),
+              const SizedBox(width: 8),
               _modeToggle(p),
             ]),
           ),

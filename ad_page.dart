@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 import 'api.dart';
 import 'auth.dart';
+import 'map_page.dart';
 import 'messages.dart';
 import 'models.dart';
 import 'profile.dart';
@@ -170,7 +171,7 @@ class _AdPageState extends State<AdPage> {
               Icon(Icons.place_outlined, size: 16, color: p.mu),
               const SizedBox(width: 4),
               Expanded(
-                  child: Text(ad.city.isEmpty ? 'Город не указан' : ad.city,
+                  child: Text(adLoc(ad).isEmpty ? 'Город не указан' : adLoc(ad),
                       style: TextStyle(color: p.mu, fontSize: 14))),
             ]),
             const SizedBox(height: 2),
@@ -187,6 +188,7 @@ class _AdPageState extends State<AdPage> {
             Text('Описание', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: p.tx)),
             const SizedBox(height: 6),
             Text(ad.desc, style: TextStyle(fontSize: 15, height: 1.45, color: p.tx)),
+            AdMiniMap(ad: ad),
             const SizedBox(height: 18),
             GestureDetector(
               onTap: () => Navigator.push(
