@@ -35,11 +35,11 @@ jobs:
           for f in lib/*.dart *.dart; do
             if [ -f "$f" ]; then cp "$f" shell/lib/; fi
           done
-          for f in assets/icon.png assets/icon_fg.png assets/icon_orange.png assets/icon_purple.png icon.png icon_fg.png icon_orange.png icon_purple.png; do
+          for f in assets/icon.png assets/icon_fg.png assets/icon_orange.png icon.png icon_fg.png icon_orange.png; do
             if [ -f "$f" ]; then cp "$f" shell/assets/; fi
           done
           test -f shell/lib/main.dart || { echo "::error::Не найден main.dart"; exit 1; }
-          for need in icon.png icon_fg.png icon_orange.png icon_purple.png; do
+          for need in icon.png icon_fg.png icon_orange.png; do
             test -f "shell/assets/$need" || { echo "::error::Не найден файл иконки $need"; exit 1; }
           done
           ls shell/lib shell/assets
