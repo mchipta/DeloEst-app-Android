@@ -121,7 +121,15 @@ LatLng _jit(LatLng c, String id) {
 }
 
 Widget _tiles(bool dark) {
-  final tl = TileLayer(urlTemplate: _tileUrl, userAgentPackageName: _pkg, maxZoom: 19);
+  final tl = TileLayer(
+    urlTemplate: _tileUrl,
+    userAgentPackageName: _pkg,
+    maxZoom: 19,
+    tileProvider: NetworkTileProvider(headers: const {
+      'User-Agent': 'DeloEst-Android/1.0 (ru.deloest.app; michipta@ya.ru)',
+      'Referer': 'https://mchipta.github.io/delo-est/',
+    }),
+  );
   if (!dark) return tl;
   // тёмная тема: инвертируем и обесцвечиваем плитки
   return ColorFiltered(
@@ -397,7 +405,7 @@ class _MapPickPageState extends State<MapPickPage> {
   }
 }
 
-/// Мини-карта на странице объявления + кнопки «Яндекс Карты» и «Маршрут»
+/// Адрес на странице объявления; карта раскрывается по нажатию
 class AdMiniMap extends StatefulWidget {
   final Ad ad;
   const AdMiniMap({super.key, required this.ad});
@@ -409,6 +417,7 @@ class _AdMiniMapState extends State<AdMiniMap> {
   LatLng? _pt;
   bool _approx = false;
   bool _done = false;
+  bool _open = false;
 
   @override
   void initState() {
@@ -429,73 +438,64 @@ class _AdMiniMapState extends State<AdMiniMap> {
     }
   }
 
-  Future<void> _open(String url) async {
-    try {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } catch (_) {
-      if (mounted) toast(context, 'Не удалось открыть карты');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final a = widget.ad;
     final p = pal(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final pt = _pt;
-    if (pt == null && (_done || adLoc(a).isEmpty)) return const SizedBox.shrink();
-    final q = Uri.encodeComponent(adLoc(a));
-    final exact = !_approx && adPoint(a) != null;
-    final ya = exact ? 'https://yandex.ru/maps/?pt=${pt!.longitude},${pt.latitude}&z=16&l=map' : 'https://yandex.ru/maps/?text=$q';
-    final route = exact ? 'https://yandex.ru/maps/?rtext=~${pt!.latitude},${pt.longitude}&rtt=auto' : null;
+    final loc = adLoc(a);
+    if (loc.isEmpty && pt == null) return const SizedBox.shrink();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const SizedBox(height: 18),
-      Text('Где', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx)),
-      const SizedBox(height: 8),
-      if (pt == null)
-        Container(height: 180, decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(16)), alignment: Alignment.center, child: CircularProgressIndicator(color: p.ac))
-      else
-        GestureDetector(
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MapPage(ads: [a]))),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: SizedBox(
-              height: 180,
-              child: FlutterMap(
-                options: MapOptions(initialCenter: pt, initialZoom: _approx ? 11 : 16, interactionOptions: const InteractionOptions(flags: InteractiveFlag.none)),
-                children: [
-                  _tiles(dark),
-                  MarkerLayer(markers: [
-                    Marker(point: pt, width: 44, height: 44, alignment: Alignment.topCenter, child: _pin((a.type == kTypes[1] ? p.ac2 : p.ac).withOpacity(_approx ? .6 : 1))),
-                  ]),
-                  _attribution(),
-                ],
+      const SizedBox(height: 14),
+      // адрес — нажмите, чтобы открыть карту
+      Tap(
+        onTap: () => setState(() => _open = !_open),
+        scale: .98,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
+          child: Row(children: [
+            Icon(Icons.location_on_outlined, size: 20, color: p.ac),
+            const SizedBox(width: 8),
+            Expanded(child: Text(loc.isEmpty ? 'Показать на карте' : loc, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: p.tx))),
+            Icon(_open ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, color: p.mu),
+          ]),
+        ),
+      ),
+      if (_open) ...[
+        const SizedBox(height: 10),
+        if (pt == null)
+          Container(
+            height: 180,
+            decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(16)),
+            alignment: Alignment.center,
+            child: _done ? Text('Не удалось найти место на карте', style: TextStyle(color: p.mu)) : CircularProgressIndicator(color: p.ac),
+          )
+        else
+          GestureDetector(
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MapPage(ads: [a]))),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: SizedBox(
+                height: 180,
+                child: FlutterMap(
+                  options: MapOptions(initialCenter: pt, initialZoom: _approx ? 11 : 16, interactionOptions: const InteractionOptions(flags: InteractiveFlag.none)),
+                  children: [
+                    _tiles(dark),
+                    MarkerLayer(markers: [
+                      Marker(point: pt, width: 44, height: 44, alignment: Alignment.topCenter, child: _pin((a.type == kTypes[1] ? p.ac2 : p.ac).withOpacity(_approx ? .6 : 1))),
+                    ]),
+                    _attribution(),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      if (_approx) Padding(padding: const EdgeInsets.only(top: 6), child: Text('Точный адрес не указан — метка показывает центр города', style: TextStyle(fontSize: 12, color: p.mu))),
-      const SizedBox(height: 10),
-      Wrap(spacing: 8, runSpacing: 8, children: [
-        _btn(p, Icons.map_outlined, 'Яндекс Карты', () => _open(ya)),
-        if (route != null) _btn(p, Icons.directions_rounded, 'Маршрут', () => _open(route)),
-      ]),
+        if (_approx) Padding(padding: const EdgeInsets.only(top: 6), child: Text('Точный адрес не указан — метка показывает центр города', style: TextStyle(fontSize: 12, color: p.mu))),
+      ],
     ]);
   }
-
-  Widget _btn(Pal p, IconData ic, String t, VoidCallback f) => Tap(
-        onTap: f,
-        scale: .96,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(ic, size: 18, color: p.ac),
-            const SizedBox(width: 6),
-            Text(t, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: p.tx)),
-          ]),
-        ),
-      );
 }
 
 /// Поле «Адрес» в форме объявления: найти адрес, увидеть метку, уточнить на карте
