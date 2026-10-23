@@ -3,7 +3,7 @@
 Что делает:
   1. добавляет разрешение INTERNET и запросы для звонков/ссылок;
   2. ставит название приложения «ДелоЕсть»;
-  3. создаёт два алиаса значка (оранжевый и фиолетовый) для выбора иконки в настройках;
+  3. создаёт алиас значка (оранжевый);
   4. пишет MainActivity с MethodChannel 'ru.deloest.delo_est/launcher_icon'.
 Любая ошибка останавливает сборку с понятным сообщением.
 """
@@ -67,8 +67,7 @@ alias = (
     '            </intent-filter>\n'
     '        </activity-alias>\n'
 )
-aliases = '\n' + alias % dict(n='OrangeLauncher', en='true', ic='icon_orange') \
-    + alias % dict(n='PurpleLauncher', en='false', ic='icon_purple')
+aliases = '\n' + alias % dict(n='OrangeLauncher', en='true', ic='icon_orange')
 if '</application>' not in text:
     die('В манифесте нет </application>')
 text = text.replace('</application>', aliases + '    </application>', 1)
@@ -82,7 +81,7 @@ manifest.write_text(text, encoding='utf-8')
 # 4. Картинки значков
 res = Path('android/app/src/main/res/drawable')
 res.mkdir(parents=True, exist_ok=True)
-for name in ('icon_orange', 'icon_purple'):
+for name in ('icon_orange',):
     src = Path('assets/%s.png' % name)
     if not src.exists():
         die('Нет файла %s' % src)
@@ -122,17 +121,10 @@ class MainActivity : FlutterActivity() {
                 val style = call.arguments as? String ?: "orange"
                 val pm = packageManager
                 val orange = ComponentName(this, "%(pkg)s.OrangeLauncher")
-                val purple = ComponentName(this, "%(pkg)s.PurpleLauncher")
                 try {
                     pm.setComponentEnabledSetting(
                         orange,
                         if (style == "orange") PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-                        else PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                        PackageManager.DONT_KILL_APP
-                    )
-                    pm.setComponentEnabledSetting(
-                        purple,
-                        if (style == "purple") PackageManager.COMPONENT_ENABLED_STATE_ENABLED
                         else PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                         PackageManager.DONT_KILL_APP
                     )
