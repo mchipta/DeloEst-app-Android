@@ -15,9 +15,8 @@ import 'widgets.dart';
 
 // Карты — OpenStreetMap (бесплатно, без ключей). Поиск адресов — Nominatim (тоже OSM).
 
-// плитки CARTO на данных OpenStreetMap: светлая и готовая тёмная тема (без цветовых фильтров)
-const _tileLight = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
-const _tileDark = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+// плитки Esri World Street Map (на данных OpenStreetMap и др.) — без ключа
+const _tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
 const _pkg = 'ru.deloest.app';
 const _moscow = LatLng(55.7558, 37.6173);
 
@@ -42,31 +41,63 @@ class Geo {
       final wait = _last.add(const Duration(milliseconds: 1100)).difference(DateTime.now());
       if (wait > Duration.zero) await Future.delayed(wait);
       _last = DateTime.now();
-      try {
-        final r = await http.get(
-          Uri.https('nominatim.openstreetmap.org', '/search', {
-            'format': 'jsonv2',
-            'limit': '$limit',
-            'accept-language': 'ru',
-            'countrycodes': 'ru,by,kz,uz',
-            'q': q,
-          }),
-          headers: {'User-Agent': 'DeloEst-Android/1.0'},
-        ).timeout(const Duration(seconds: 15));
-        if (r.statusCode != 200) {
-          c.complete(null);
-          return;
-        }
-        final j = jsonDecode(utf8.decode(r.bodyBytes)) as List;
-        c.complete([
-          for (final e in j)
-            GeoHit((e['display_name'] ?? '').toString(), double.tryParse('${e['lat']}') ?? 0, double.tryParse('${e['lon']}') ?? 0),
-        ]);
-      } catch (_) {
-        c.complete(null);
-      }
+      var r = await _nominatim(q, limit);
+      r ??= await _photon(q, limit); // запасной геокодер, если Nominatim не ответил
+      c.complete(r);
     });
     return c.future;
+  }
+
+  static Future<List<GeoHit>?> _nominatim(String q, int limit) async {
+    try {
+      final r = await http.get(
+        Uri.https('nominatim.openstreetmap.org', '/search', {
+          'format': 'jsonv2',
+          'limit': '$limit',
+          'accept-language': 'ru',
+          'countrycodes': 'ru,by,kz,uz',
+          'q': q,
+        }),
+        headers: {
+          'User-Agent': 'DeloEst/1.0 (https://mchipta.github.io/delo-est/; michipta@ya.ru)',
+          'Referer': 'https://mchipta.github.io/delo-est/',
+        },
+      ).timeout(const Duration(seconds: 8));
+      if (r.statusCode != 200) return null;
+      final j = jsonDecode(utf8.decode(r.bodyBytes)) as List;
+      return [
+        for (final e in j)
+          GeoHit((e['display_name'] ?? '').toString(), double.tryParse('${e['lat']}') ?? 0, double.tryParse('${e['lon']}') ?? 0),
+      ];
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<List<GeoHit>?> _photon(String q, int limit) async {
+    try {
+      final r = await http.get(
+        Uri.https('photon.komoot.io', '/api/', {'q': q, 'limit': '$limit'}),
+        headers: {'User-Agent': 'DeloEst/1.0 (https://mchipta.github.io/delo-est/)'},
+      ).timeout(const Duration(seconds: 8));
+      if (r.statusCode != 200) return null;
+      final feats = (jsonDecode(utf8.decode(r.bodyBytes))['features'] as List?) ?? [];
+      final out = <GeoHit>[];
+      for (final f in feats) {
+        final co = f['geometry']?['coordinates'] as List?;
+        if (co == null || co.length < 2) continue;
+        final pr = (f['properties'] as Map?) ?? {};
+        final parts = <String>[];
+        for (final k in ['name', 'street', 'housenumber', 'city', 'state', 'country']) {
+          final v = (pr[k] ?? '').toString().trim();
+          if (v.isNotEmpty && !parts.contains(v)) parts.add(v);
+        }
+        out.add(GeoHit(parts.join(', '), (co[1] as num).toDouble(), (co[0] as num).toDouble()));
+      }
+      return out;
+    } catch (_) {
+      return null;
+    }
   }
 
   static void _load() {
@@ -122,17 +153,25 @@ LatLng _jit(LatLng c, String id) {
   return LatLng(c.latitude + ((h % 1000) / 1000 - .5) * .03, c.longitude + (((h ~/ 1000) % 1000) / 1000 - .5) * .04);
 }
 
-Widget _tiles(bool dark) => TileLayer(
-      urlTemplate: dark ? _tileDark : _tileLight,
-      subdomains: const ['a', 'b', 'c', 'd'],
-      userAgentPackageName: _pkg,
-      maxZoom: 19,
-    );
+Widget _tiles(bool dark) {
+  final tl = TileLayer(urlTemplate: _tileUrl, userAgentPackageName: _pkg, maxZoom: 19);
+  if (!dark) return tl;
+  // тёмная тема: инвертируем и обесцвечиваем плитки
+  return ColorFiltered(
+    colorFilter: const ColorFilter.matrix(<double>[
+      -0.30, -0.53, -0.10, 0, 232,
+      -0.30, -0.53, -0.10, 0, 232,
+      -0.30, -0.53, -0.10, 0, 232,
+      0, 0, 0, 1, 0,
+    ]),
+    child: tl,
+  );
+}
 
 Widget _attribution() => RichAttributionWidget(
       alignment: AttributionAlignment.bottomLeft,
       attributions: [
-        TextSourceAttribution('© OpenStreetMap, © CARTO', onTap: () => launchUrl(Uri.parse('https://www.openstreetmap.org/copyright'), mode: LaunchMode.externalApplication)),
+        TextSourceAttribution('© Esri, © OpenStreetMap', onTap: () => launchUrl(Uri.parse('https://www.openstreetmap.org/copyright'), mode: LaunchMode.externalApplication)),
       ],
     );
 
