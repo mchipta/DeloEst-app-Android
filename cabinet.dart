@@ -293,6 +293,17 @@ class _CabinetPageState extends State<CabinetPage> {
     );
   }
 
+  int get _pend {
+    final ads = _list('ads');
+    var n = 0;
+    for (final r in _list('inbox')) {
+      if ((r['st'] ?? '').toString().isNotEmpty) continue;
+      final id = (r['adId'] ?? '').toString();
+      if (ads.any((a) => (a['id'] ?? '').toString() == id && a['status'] == 'open')) n++;
+    }
+    return n;
+  }
+
   List<Widget> _alerts(Pal p) {
     final out = <Widget>[];
     Widget al(int n, String text, VoidCallback f) => GestureDetector(
