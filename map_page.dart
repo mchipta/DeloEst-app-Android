@@ -430,19 +430,59 @@ class _MapPickPageState extends State<MapPickPage> {
   }
 }
 
-/// Адрес на странице объявления; карта раскрывается по нажатию
-class AdMiniMap extends StatefulWidget {
+/// Строка адреса на странице объявления: по нажатию открывается отдельный экран с картой
+class AdMiniMap extends StatelessWidget {
   final Ad ad;
   const AdMiniMap({super.key, required this.ad});
+
   @override
-  State<AdMiniMap> createState() => _AdMiniMapState();
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    final loc = adLoc(ad);
+    if (loc.isEmpty && adPoint(ad) == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Tap(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdLocationPage(ad: ad))),
+        scale: .98,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(18), border: Border.all(color: p.bd)),
+          child: Row(children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(color: p.ac.withOpacity(.12), borderRadius: BorderRadius.circular(13)),
+              child: Icon(Icons.location_on_rounded, size: 22, color: p.ac),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(loc.isEmpty ? 'Место на карте' : loc, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.tx)),
+                const SizedBox(height: 2),
+                Text('Показать на карте', style: TextStyle(fontSize: 12.5, color: p.mu)),
+              ]),
+            ),
+            Icon(Icons.chevron_right_rounded, color: p.mu),
+          ]),
+        ),
+      ),
+    );
+  }
 }
 
-class _AdMiniMapState extends State<AdMiniMap> {
+/// Отдельный экран «Где это находится» — как на Авито: карта на весь экран и адрес внизу
+class AdLocationPage extends StatefulWidget {
+  final Ad ad;
+  const AdLocationPage({super.key, required this.ad});
+  @override
+  State<AdLocationPage> createState() => _AdLocationPageState();
+}
+
+class _AdLocationPageState extends State<AdLocationPage> {
   LatLng? _pt;
   bool _approx = false;
   bool _done = false;
-  bool _open = false;
 
   @override
   void initState() {
@@ -470,56 +510,70 @@ class _AdMiniMapState extends State<AdMiniMap> {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final pt = _pt;
     final loc = adLoc(a);
-    if (loc.isEmpty && pt == null) return const SizedBox.shrink();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const SizedBox(height: 14),
-      // адрес — нажмите, чтобы открыть карту
-      Tap(
-        onTap: () => setState(() => _open = !_open),
-        scale: .98,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
-          child: Row(children: [
-            Icon(Icons.location_on_outlined, size: 20, color: p.ac),
-            const SizedBox(width: 8),
-            Expanded(child: Text(loc.isEmpty ? 'Показать на карте' : loc, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: p.tx))),
-            Icon(_open ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, color: p.mu),
-          ]),
-        ),
+    return Scaffold(
+      backgroundColor: p.bg,
+      appBar: AppBar(
+        backgroundColor: p.bg,
+        foregroundColor: p.tx,
+        elevation: 0,
+        title: const Text('Где это находится', style: TextStyle(fontWeight: FontWeight.w800)),
       ),
-      if (_open) ...[
-        const SizedBox(height: 10),
-        if (pt == null)
-          Container(
-            height: 180,
-            decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(16)),
-            alignment: Alignment.center,
-            child: _done ? Text('Не удалось найти место на карте', style: TextStyle(color: p.mu)) : CircularProgressIndicator(color: p.ac),
+      body: Stack(children: [
+        if (pt != null)
+          FlutterMap(
+            options: MapOptions(
+              initialCenter: pt,
+              initialZoom: _approx ? 11 : 16,
+              minZoom: 3,
+              interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
+            ),
+            children: [
+              _tiles(dark),
+              MarkerLayer(markers: [
+                Marker(point: pt, width: 48, height: 48, alignment: Alignment.topCenter, child: _pin((a.type == kTypes[1] ? p.ac2 : p.ac).withOpacity(_approx ? .7 : 1), size: 44)),
+              ]),
+              _attribution(),
+            ],
           )
         else
-          GestureDetector(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MapPage(ads: [a]))),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: SizedBox(
-                height: 180,
-                child: FlutterMap(
-                  options: MapOptions(initialCenter: pt, initialZoom: _approx ? 11 : 16, interactionOptions: const InteractionOptions(flags: InteractiveFlag.none)),
-                  children: [
-                    _tiles(dark),
-                    MarkerLayer(markers: [
-                      Marker(point: pt, width: 44, height: 44, alignment: Alignment.topCenter, child: _pin((a.type == kTypes[1] ? p.ac2 : p.ac).withOpacity(_approx ? .6 : 1))),
-                    ]),
-                    _attribution(),
-                  ],
-                ),
+          Center(child: _done ? Text('Не удалось найти место на карте', style: TextStyle(color: p.mu)) : CircularProgressIndicator(color: p.ac)),
+        Positioned(
+          left: 12,
+          right: 12,
+          bottom: 12,
+          child: SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: p.card,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: p.bd),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(.18), blurRadius: 18, offset: const Offset(0, 6))],
               ),
+              child: Row(children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(color: p.ac.withOpacity(.12), borderRadius: BorderRadius.circular(13)),
+                  child: Icon(Icons.location_on_rounded, size: 22, color: p.ac),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(loc.isEmpty ? 'Место на карте' : loc, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.tx)),
+                    if (_approx) ...[
+                      const SizedBox(height: 2),
+                      Text('Точный адрес не указан — метка в центре города', style: TextStyle(fontSize: 12.5, color: p.mu)),
+                    ],
+                  ]),
+                ),
+              ]),
             ),
           ),
-        if (_approx) Padding(padding: const EdgeInsets.only(top: 6), child: Text('Точный адрес не указан — метка показывает центр города', style: TextStyle(fontSize: 12, color: p.mu))),
-      ],
-    ]);
+        ),
+      ]),
+    );
   }
 }
 

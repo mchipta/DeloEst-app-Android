@@ -326,12 +326,12 @@ class _FeedPageState extends State<FeedPage> {
         scale: .94,
         child: Container(
           height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 11),
-          decoration: BoxDecoration(color: p.ac.withOpacity(.12), borderRadius: BorderRadius.circular(12), border: Border.all(color: p.ac.withOpacity(.45))),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.map_outlined, size: 18, color: p.ac),
-            const SizedBox(width: 5),
-            Text('Карта', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: p.ac)),
+            Icon(Icons.location_on_outlined, size: 18, color: p.ac),
+            const SizedBox(width: 6),
+            Text('Карта', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: p.tx)),
           ]),
         ),
       );

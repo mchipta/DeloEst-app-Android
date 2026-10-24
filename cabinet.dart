@@ -176,137 +176,121 @@ class _CabinetPageState extends State<CabinetPage> {
     final isMail = S.i.login.contains('@');
     final mail = isMail ? S.i.login : '@${S.i.login}';
 
-    // Контакт в нижней полосе карточки: значок и текст на сплошном фоне, без прозрачности
     Widget contact(IconData icon, String label) => Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 17, color: Colors.white),
-          const SizedBox(width: 8),
+          Icon(icon, size: 16, color: p.ac),
+          const SizedBox(width: 7),
           Flexible(
-            child: Text(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w700)),
+            child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.tx, fontSize: 13.5, fontWeight: FontWeight.w600)),
           ),
         ]);
 
+    void openProfile() => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(pid: S.i.pid, name: S.i.name)));
+    void openEdit() => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileEditPage()));
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
-      clipBehavior: Clip.antiAlias,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        color: p.card,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: p.bd),
+        boxShadow: [BoxShadow(color: p.ac.withOpacity(.10), blurRadius: 24, offset: const Offset(0, 8))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-            GestureDetector(
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileEditPage())),
-              child: Avatar(S.i.name, data: av, size: 64),
-            ),
-            const SizedBox(width: 13),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(S.i.name, maxLines: 2, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900, color: Colors.white, height: 1.15)),
-            ])),
-            IconButton(
-              tooltip: 'Изменить профиль',
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileEditPage())),
-              icon: Icon(Icons.edit_outlined, color: p.tx),
-              style: IconButton.styleFrom(
-                backgroundColor: p.card,
-                side: BorderSide(color: p.bd, width: 1),
-                minimumSize: const Size(46, 46),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+          GestureDetector(
+            onTap: openEdit,
+            child: Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(shape: BoxShape.circle, color: p.card),
+                child: Avatar(S.i.name, data: av, size: 62),
               ),
             ),
-          ]),
-          const SizedBox(height: 14),
-          Row(children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(pid: S.i.pid, name: S.i.name))),
-                icon: const Icon(Icons.person_outline_rounded, size: 18),
-                label: const Text('Мой профиль'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: p.tx,
-                  backgroundColor: p.card,
-                  side: BorderSide(color: p.bd, width: 1),
-                  minimumSize: const Size(0, 42),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => confirmLogout(context),
-                icon: const Icon(Icons.logout_rounded, size: 17),
-                label: const Text('Выйти'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: p.tx,
-                  backgroundColor: p.card,
-                  side: BorderSide(color: p.bd, width: 1),
-                  minimumSize: const Size(0, 42),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-                ),
-              ),
-            ),
-          ]),
-          if (S.i.user?['admin'] == true) ...[
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPage())),
-                icon: const Icon(Icons.admin_panel_settings_outlined, size: 18),
-                label: const Text('Админ-панель'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: p.tx,
-                  backgroundColor: p.card,
-                  side: BorderSide(color: p.bd, width: 1),
-                  minimumSize: const Size(0, 40),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-                ),
-              ),
-            ),
-          ],
-          ]),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(colors: [Color(0xFFD9451A), Color(0xFFE2701A)]),
-            border: Border(top: BorderSide(color: Color(0x2EFFFFFF))),
           ),
-          child: Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            spacing: 16,
-            runSpacing: 6,
-            children: [
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(S.i.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900, color: p.tx, height: 1.15)),
+              const SizedBox(height: 6),
               contact(isMail ? Icons.mail_outline : Icons.person_outline, mail),
-              if (S.i.phone.isNotEmpty) contact(Icons.call_outlined, fmtPhone(S.i.phone)),
-            ],
+              if (S.i.phone.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                contact(Icons.call_outlined, fmtPhone(S.i.phone)),
+              ],
+            ]),
           ),
-        ),
+          IconButton(
+            tooltip: 'Изменить профиль',
+            onPressed: openEdit,
+            icon: Icon(Icons.edit_outlined, color: p.tx),
+            style: IconButton.styleFrom(
+              backgroundColor: p.bg2,
+              minimumSize: const Size(44, 44),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 16),
+        Row(children: [
+          Expanded(
+            child: Tap(
+              onTap: openProfile,
+              scale: .97,
+              child: Container(
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [BoxShadow(color: p.ac.withOpacity(.30), blurRadius: 12, offset: const Offset(0, 4))],
+                ),
+                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.person_outline_rounded, size: 18, color: Colors.white),
+                  SizedBox(width: 6),
+                  Text('Мой профиль', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13.5)),
+                ]),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => confirmLogout(context),
+              icon: const Icon(Icons.logout_rounded, size: 17),
+              label: const Text('Выйти'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: p.tx,
+                backgroundColor: p.bg2,
+                side: BorderSide(color: p.bd, width: 1),
+                minimumSize: const Size(0, 44),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+              ),
+            ),
+          ),
+        ]),
+        if (S.i.user?['admin'] == true) ...[
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPage())),
+            icon: const Icon(Icons.admin_panel_settings_outlined, size: 18),
+            label: const Text('Админ-панель'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: p.tx,
+              backgroundColor: p.bg2,
+              side: BorderSide(color: p.bd, width: 1),
+              minimumSize: const Size(0, 42),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+            ),
+          ),
+        ],
       ]),
     );
-  }
-
-  int get _pend {
-    final ads = _list('ads');
-    var n = 0;
-    for (final r in _list('inbox')) {
-      if ((r['st'] ?? '').toString().isNotEmpty) continue;
-      final id = (r['adId'] ?? '').toString();
-      if (ads.any((a) => (a['id'] ?? '').toString() == id && a['status'] == 'open')) n++;
-    }
-    return n;
   }
 
   List<Widget> _alerts(Pal p) {
@@ -351,8 +335,8 @@ class _CabinetPageState extends State<CabinetPage> {
       ['out', 'Мои отклики', Icons.send_outlined],
     ];
     return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(18), border: Border.all(color: p.bd)),
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(20), border: Border.all(color: p.bd)),
       child: Row(children: [
         for (final t in tabs)
           Expanded(
@@ -366,25 +350,24 @@ class _CabinetPageState extends State<CabinetPage> {
                 constraints: const BoxConstraints(minHeight: 66),
                 padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
                 decoration: BoxDecoration(
-                  color: ct == t[0] ? p.card : Colors.transparent,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: ct == t[0] ? p.bd : Colors.transparent),
-                  boxShadow: ct == t[0] ? [BoxShadow(color: p.tx.withOpacity(.05), blurRadius: 8, offset: const Offset(0, 2))] : null,
+                  gradient: ct == t[0] ? LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight) : null,
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: ct == t[0] ? [BoxShadow(color: p.ac.withOpacity(.32), blurRadius: 12, offset: const Offset(0, 4))] : null,
                 ),
                 child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Stack(clipBehavior: Clip.none, children: [
-                    Icon(t[2] as IconData, size: 21, color: ct == t[0] ? p.ac : p.mu),
+                    Icon(t[2] as IconData, size: 21, color: ct == t[0] ? Colors.white : p.mu),
                     if (t[0] == 'in' && pend > 0)
                       Positioned(right: -10, top: -7, child: Container(
                         constraints: const BoxConstraints(minWidth: 16),
                         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                        decoration: BoxDecoration(color: p.ac, borderRadius: BorderRadius.circular(99)),
-                        child: Text('$pend', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                        decoration: BoxDecoration(color: ct == t[0] ? Colors.white : p.ac, borderRadius: BorderRadius.circular(99)),
+                        child: Text('$pend', style: TextStyle(color: ct == t[0] ? p.ac : Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
                       )),
                   ]),
                   const SizedBox(height: 5),
                   Text(t[1] as String, maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 10.5, height: 1.05, color: ct == t[0] ? p.tx : p.mu)),
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 10.5, height: 1.05, color: ct == t[0] ? Colors.white : p.mu)),
                 ]),
               ),
             ),
