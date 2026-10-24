@@ -15,7 +15,9 @@ import 'widgets.dart';
 
 // Карты — OpenStreetMap (бесплатно, без ключей). Поиск адресов — Nominatim (тоже OSM).
 
-const _tileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+// плитки CARTO на данных OpenStreetMap: светлая и готовая тёмная тема (без цветовых фильтров)
+const _tileLight = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
+const _tileDark = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
 const _pkg = 'ru.deloest.app';
 const _moscow = LatLng(55.7558, 37.6173);
 
@@ -120,33 +122,17 @@ LatLng _jit(LatLng c, String id) {
   return LatLng(c.latitude + ((h % 1000) / 1000 - .5) * .03, c.longitude + (((h ~/ 1000) % 1000) / 1000 - .5) * .04);
 }
 
-Widget _tiles(bool dark) {
-  final tl = TileLayer(
-    urlTemplate: _tileUrl,
-    userAgentPackageName: _pkg,
-    maxZoom: 19,
-    tileProvider: NetworkTileProvider(headers: const {
-      'User-Agent': 'DeloEst-Android/1.0 (ru.deloest.app; michipta@ya.ru)',
-      'Referer': 'https://mchipta.github.io/delo-est/',
-    }),
-  );
-  if (!dark) return tl;
-  // тёмная тема: инвертируем и обесцвечиваем плитки
-  return ColorFiltered(
-    colorFilter: const ColorFilter.matrix(<double>[
-      -0.30, -0.53, -0.10, 0, 232,
-      -0.30, -0.53, -0.10, 0, 232,
-      -0.30, -0.53, -0.10, 0, 232,
-      0, 0, 0, 1, 0,
-    ]),
-    child: tl,
-  );
-}
+Widget _tiles(bool dark) => TileLayer(
+      urlTemplate: dark ? _tileDark : _tileLight,
+      subdomains: const ['a', 'b', 'c', 'd'],
+      userAgentPackageName: _pkg,
+      maxZoom: 19,
+    );
 
 Widget _attribution() => RichAttributionWidget(
       alignment: AttributionAlignment.bottomLeft,
       attributions: [
-        TextSourceAttribution('OpenStreetMap', onTap: () => launchUrl(Uri.parse('https://www.openstreetmap.org/copyright'), mode: LaunchMode.externalApplication)),
+        TextSourceAttribution('© OpenStreetMap, © CARTO', onTap: () => launchUrl(Uri.parse('https://www.openstreetmap.org/copyright'), mode: LaunchMode.externalApplication)),
       ],
     );
 
