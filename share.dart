@@ -6,7 +6,7 @@ import 'theme.dart';
 import 'util.dart';
 import 'widgets.dart';
 
-// Поделиться объявлением: Telegram, WhatsApp, ВКонтакте, копировать ссылку (как на сайте)
+// Поделиться объявлением: Telegram, WhatsApp, ВКонтакте, Макс, копировать ссылку (как на сайте)
 Future<void> showShare(BuildContext context, Ad ad) async {
   final p = pal(context);
   final url = '$kSiteUrl#/ad/${ad.id}';
@@ -27,6 +27,7 @@ Future<void> showShare(BuildContext context, Ad ad) async {
 
   await showModalBottomSheet<void>(
     context: context,
+    isScrollControlled: true,
     backgroundColor: p.card,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
     builder: (c) => SafeArea(
@@ -60,6 +61,14 @@ Future<void> showShare(BuildContext context, Ad ad) async {
           onTap: () {
             Navigator.pop(c);
             open('https://vk.com/share.php?url=${enc(url)}&title=${enc(ad.title)}');
+          },
+        ),
+        ListTile(
+          leading: const BrandIcon('max', size: 36),
+          title: const Text('Макс'),
+          onTap: () {
+            Navigator.pop(c);
+            open('https://max.ru/:share?text=${enc('$text\n$url')}');
           },
         ),
         ListTile(

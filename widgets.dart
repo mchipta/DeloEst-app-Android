@@ -605,7 +605,7 @@ class VerifiedBadge extends StatelessWidget {
 }
 
 class BrandIcon extends StatelessWidget {
-  final String kind; // tg, wa или vk
+  final String kind; // tg, wa, vk или max
   final double size;
   const BrandIcon(this.kind, {super.key, this.size = 40});
   @override
@@ -614,7 +614,9 @@ class BrandIcon extends StatelessWidget {
         ? const Color(0xFF229ED9)
         : kind == 'wa'
             ? const Color(0xFF25D366)
-            : const Color(0xFF0077FF);
+            : kind == 'max'
+                ? const Color(0xFF5B5BF0)
+                : const Color(0xFF0077FF);
     final Widget glyph;
     if (kind == 'tg') {
       glyph = CustomPaint(size: Size.square(size * .64), painter: const _TgPainter());
@@ -630,6 +632,8 @@ class BrandIcon extends StatelessWidget {
           ),
         ]),
       );
+    } else if (kind == 'max') {
+      glyph = Text('MAX', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: size * .27, letterSpacing: -.3));
     } else {
       glyph = Text('VK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: size * .4));
     }

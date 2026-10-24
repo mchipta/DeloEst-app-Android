@@ -38,20 +38,11 @@ class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? d;
   bool loading = true;
   String? err;
-  int stars = 0;
-  final txt = TextEditingController();
-  bool busy = false;
 
   @override
   void initState() {
     super.initState();
     _load();
-  }
-
-  @override
-  void dispose() {
-    txt.dispose();
-    super.dispose();
   }
 
   Future<void> _load() async {
@@ -68,23 +59,6 @@ class _ProfilePageState extends State<ProfilePage> {
       if (mounted) setState(() => err = m);
     }
     if (mounted) setState(() => loading = false);
-  }
-
-  Future<void> _rate() async {
-    if (stars < 1) {
-      toast(context, 'Поставьте оценку от 1 до 5');
-      return;
-    }
-    setState(() => busy = true);
-    try {
-      await Api.call('rate', {'pid': widget.pid, 'rating': stars, 'text': txt.text.trim()});
-      if (mounted) toast(context, 'Спасибо за отзыв!');
-      txt.clear();
-      await _load();
-    } catch (e) {
-      if (mounted) toast(context, S.i.fail(e));
-    }
-    if (mounted) setState(() => busy = false);
   }
 
   Future<void> _write() async {
@@ -127,7 +101,6 @@ class _ProfilePageState extends State<ProfilePage> {
     final created = (d['created'] as num?)?.toInt() ?? 0;
     final dn = (d['dn'] as num?)?.toInt() ?? 0;
     final ads = (d['ads'] is List ? d['ads'] as List : <dynamic>[]).map((e) => Ad.fromJson(Map<String, dynamic>.from(e as Map))).toList();
-    final reviews = (d['reviews'] is List ? d['reviews'] as List : <dynamic>[]).map((e) => Map<String, dynamic>.from(e as Map)).toList();
     String since = '';
     if (created > 0) {
       final t = DateTime.fromMillisecondsSinceEpoch(created);
@@ -162,14 +135,22 @@ class _ProfilePageState extends State<ProfilePage> {
                   Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900, color: p.tx, height: 1.15)),
                   if (d['ver'] == true) const Padding(padding: EdgeInsets.only(top: 6), child: VerifiedBadge(size: 18, label: true)),
                   const SizedBox(height: 6),
-                  if (rc > 0)
-                    Row(children: [
-                      StarsRow(rt),
-                      const SizedBox(width: 6),
-                      Flexible(child: Text('$rt · $rc ${plural(rc, 'отзыв', 'отзыва', 'отзывов')}', style: TextStyle(color: p.mu, fontSize: 13))),
-                    ])
-                  else
-                    Text('Пока нет отзывов', style: TextStyle(color: p.mu, fontSize: 13)),
+                  Tap(
+                    onTap: () async {
+                      await Navigator.push(context, MaterialPageRoute(builder: (_) => ReviewsPage(pid: widget.pid, name: name)));
+                      if (mounted) _load();
+                    },
+                    scale: .97,
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      if (rc > 0) ...[
+                        StarsRow(rt),
+                        const SizedBox(width: 6),
+                        Flexible(child: Text('$rt · $rc ${plural(rc, 'отзыв', 'отзыва', 'отзывов')}', style: TextStyle(color: p.mu, fontSize: 13))),
+                      ] else
+                        Flexible(child: Text('Пока нет отзывов', style: TextStyle(color: p.mu, fontSize: 13))),
+                      Icon(Icons.chevron_right_rounded, size: 20, color: p.mu),
+                    ]),
+                  ),
                 ]),
               ),
             ]),
@@ -194,6 +175,134 @@ class _ProfilePageState extends State<ProfilePage> {
           ]),
         ),
         const SizedBox(height: 18),
+        Text('Объявления', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: p.tx)),
+        const SizedBox(height: 8),
+        if (ads.isEmpty) Text('Активных объявлений нет', style: TextStyle(color: p.mu)),
+        for (final a in ads)
+          AdCard(ad: a, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: a)))),
+      ]),
+    );
+  }
+}
+
+// Блок «ответ автора» под отзывом
+Widget replyBox(Pal p, String label, String text, {int ts = 0}) => Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 10),
+      decoration: BoxDecoration(
+        color: p.bg2,
+        borderRadius: const BorderRadius.only(topRight: Radius.circular(12), bottomRight: Radius.circular(12)),
+        border: Border(left: BorderSide(color: p.ac, width: 3)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: Text(label, style: TextStyle(color: p.ac, fontWeight: FontWeight.w800, fontSize: 12.5))),
+          if (ts > 0) Text(ago(ts), style: TextStyle(color: p.mu, fontSize: 12)),
+        ]),
+        const SizedBox(height: 3),
+        Text(text, style: TextStyle(color: p.tx, height: 1.35)),
+      ]),
+    );
+
+// Отзывы о человеке: список, ответы автора и форма «Оставить отзыв»
+class ReviewsPage extends StatefulWidget {
+  final String pid, name;
+  const ReviewsPage({super.key, required this.pid, this.name = ''});
+  @override
+  State<ReviewsPage> createState() => _ReviewsPageState();
+}
+
+class _ReviewsPageState extends State<ReviewsPage> {
+  Map<String, dynamic>? d;
+  bool loading = true;
+  String? err;
+  int stars = 0;
+  final txt = TextEditingController();
+  bool busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    txt.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final j = await Api.call('profile', {'pid': widget.pid});
+      if (mounted) {
+        setState(() {
+          d = j;
+          err = null;
+        });
+      }
+    } catch (e) {
+      final m = S.i.fail(e);
+      if (mounted) setState(() => err = m);
+    }
+    if (mounted) setState(() => loading = false);
+  }
+
+  Future<void> _rate() async {
+    if (stars < 1) {
+      toast(context, 'Поставьте оценку от 1 до 5');
+      return;
+    }
+    setState(() => busy = true);
+    try {
+      await Api.call('rate', {'pid': widget.pid, 'rating': stars, 'text': txt.text.trim()});
+      if (mounted) toast(context, 'Спасибо за отзыв!');
+      txt.clear();
+      stars = 0;
+      await _load();
+    } catch (e) {
+      if (mounted) toast(context, S.i.fail(e));
+    }
+    if (mounted) setState(() => busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Отзывы')),
+      body: loading
+          ? Center(child: CircularProgressIndicator(color: p.ac))
+          : d == null
+              ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(err ?? 'Не удалось загрузить отзывы', style: TextStyle(color: p.mu))))
+              : _body(p, d!),
+    );
+  }
+
+  Widget _body(Pal p, Map<String, dynamic> d) {
+    final name = (d['name'] ?? widget.name).toString();
+    final rc = (d['rc'] as num?)?.toInt() ?? 0;
+    final rt = (d['rt'] as num?)?.toDouble() ?? 0;
+    final reviews = (d['reviews'] is List ? d['reviews'] as List : <dynamic>[]).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    return RefreshIndicator(
+      color: p.ac,
+      onRefresh: _load,
+      child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: cardDeco(p),
+          child: Row(children: [
+            Icon(Icons.star_rounded, size: 34, color: const Color(0xFFFFB400)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(rc > 0 ? '$rt из 5' : 'Пока нет отзывов', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 19, color: p.tx)),
+                Text(rc > 0 ? '$rc ${plural(rc, 'отзыв', 'отзыва', 'отзывов')} о $name' : name, style: TextStyle(color: p.mu, fontSize: 13)),
+              ]),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 14),
         if (d['can'] == true) ...[
           Container(
             padding: const EdgeInsets.all(14),
@@ -212,7 +321,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
               ]),
               const SizedBox(height: 8),
-              TextField(contextMenuBuilder: appContextMenu, 
+              TextField(
+                contextMenuBuilder: appContextMenu,
                 controller: txt,
                 minLines: 2,
                 maxLines: 4,
@@ -223,11 +333,9 @@ class _ProfilePageState extends State<ProfilePage> {
               GradBtn('Отправить отзыв', busy: busy, onTap: _rate),
             ]),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
         ],
-        Text('Отзывы', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: p.tx)),
-        const SizedBox(height: 8),
-        if (reviews.isEmpty) Text('Отзывов пока нет', style: TextStyle(color: p.mu)),
+        if (reviews.isEmpty) Padding(padding: const EdgeInsets.all(20), child: Center(child: Text('Отзывов пока нет', style: TextStyle(color: p.mu)))),
         for (final r in reviews)
           Container(
             margin: const EdgeInsets.only(bottom: 10),
@@ -244,14 +352,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 6),
                 Text((r['text']).toString(), style: TextStyle(color: p.tx, height: 1.35)),
               ],
+              if ((r['reply'] ?? '').toString().isNotEmpty) replyBox(p, 'Ответ: $name', (r['reply']).toString(), ts: (r['rts'] as num?)?.toInt() ?? 0),
             ]),
           ),
-        const SizedBox(height: 14),
-        Text('Объявления', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: p.tx)),
-        const SizedBox(height: 8),
-        if (ads.isEmpty) Text('Активных объявлений нет', style: TextStyle(color: p.mu)),
-        for (final a in ads)
-          AdCard(ad: a, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: a)))),
       ]),
     );
   }

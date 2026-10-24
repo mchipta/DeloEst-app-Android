@@ -140,7 +140,16 @@ class _AdPageState extends State<AdPage> {
           appBar: AppBar(title: const Text('Объявление'), actions: [
             if (S.i.logged)
               IconButton(
-                icon: Icon(S.i.isFav(ad.id) ? Icons.favorite : Icons.favorite_border, color: S.i.isFav(ad.id) ? p.ac : null),
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 260),
+                  switchInCurve: Curves.easeOutBack,
+                  transitionBuilder: (c, a) => ScaleTransition(scale: a, child: c),
+                  child: Icon(
+                    S.i.isFav(ad.id) ? Icons.favorite : Icons.favorite_border,
+                    key: ValueKey(S.i.isFav(ad.id)),
+                    color: S.i.isFav(ad.id) ? p.ac : null,
+                  ),
+                ),
                 onPressed: () => S.i.toggleFav(ad.id),
               ),
             PopupMenuButton<String>(

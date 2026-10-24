@@ -27,7 +27,7 @@ class _CabinetPageState extends State<CabinetPage> {
   bool loading = false;
   String? err;
   int _tick = -1;
-  String ct = 'ads'; // ads, in, out, set
+  String ct = 'ads'; // ads, in, out, rev, set
   String caf = 'all'; // all, open, closed
   final Set<String> _fresh = {};
 
@@ -304,6 +304,60 @@ class _CabinetPageState extends State<CabinetPage> {
     return n;
   }
 
+  int get _unans => _list('reviews').where((r) => (r['reply'] ?? '').toString().isEmpty).length;
+
+  Future<void> _answer(Map<String, dynamic> r) async {
+    final res = await askFields(
+      context,
+      'Ответ на отзыв',
+      [FieldSpec('Ваш ответ', initial: (r['reply'] ?? '').toString(), multi: true)],
+      ok: 'Опубликовать',
+      hint: 'Ответ увидят все, кто откроет ваш профиль.',
+    );
+    if (res == null || !mounted) return;
+    final v = res[0].trim();
+    if (v.isEmpty) {
+      toast(context, 'Напишите ответ');
+      return;
+    }
+    await _act('rrep', {'id': r['id'], 'text': v}, 'Ответ опубликован');
+  }
+
+  List<Widget> _reviews(Pal p) {
+    final list = _list('reviews');
+    if (list.isEmpty) return [_empty(p, 'Отзывов о вас пока нет. Они появятся здесь после выполненной работы.')];
+    return [
+      for (final r in list)
+        Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(18), border: Border.all(color: p.bd)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(child: Text((r['name'] ?? '').toString(), style: TextStyle(fontWeight: FontWeight.w800, color: p.tx))),
+              Text(ago((r['ts'] as num?)?.toInt() ?? 0), style: TextStyle(color: p.mu, fontSize: 12)),
+            ]),
+            const SizedBox(height: 3),
+            StarsRow(((r['rating'] as num?) ?? 0).toDouble(), size: 16),
+            if ((r['text'] ?? '').toString().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text((r['text']).toString(), style: TextStyle(color: p.tx, height: 1.35)),
+            ],
+            if ((r['reply'] ?? '').toString().isNotEmpty) replyBox(p, 'Ваш ответ', (r['reply']).toString(), ts: (r['rts'] as num?)?.toInt() ?? 0),
+            const SizedBox(height: 10),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              if ((r['reply'] ?? '').toString().isEmpty)
+                _small(p, 'Ответить', () => _answer(r), fill: true, icon: Icons.reply_rounded)
+              else ...[
+                _small(p, 'Изменить', () => _answer(r), icon: Icons.edit_outlined),
+                _small(p, 'Удалить ответ', () => _act('rrep', {'id': r['id'], 'text': ''}, 'Ответ удалён'), color: p.dng, icon: Icons.delete_outline_rounded),
+              ],
+            ]),
+          ]),
+        ),
+    ];
+  }
+
   List<Widget> _alerts(Pal p) {
     final out = <Widget>[];
     Widget al(int n, String text, VoidCallback f) => GestureDetector(
@@ -344,6 +398,7 @@ class _CabinetPageState extends State<CabinetPage> {
       ['ads', 'Мои объявления', Icons.work_outline_rounded],
       ['in', 'Отклики мне', Icons.bolt_rounded],
       ['out', 'Мои отклики', Icons.send_outlined],
+      ['rev', 'Отзывы', Icons.star_outline_rounded],
     ];
     return Container(
       padding: const EdgeInsets.all(5),
@@ -368,12 +423,12 @@ class _CabinetPageState extends State<CabinetPage> {
                 child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Stack(clipBehavior: Clip.none, children: [
                     Icon(t[2] as IconData, size: 21, color: ct == t[0] ? Colors.white : p.mu),
-                    if (t[0] == 'in' && pend > 0)
+                    if ((t[0] == 'in' ? pend : (t[0] == 'rev' ? _unans : 0)) > 0)
                       Positioned(right: -10, top: -7, child: Container(
                         constraints: const BoxConstraints(minWidth: 16),
                         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                         decoration: BoxDecoration(color: ct == t[0] ? Colors.white : p.ac, borderRadius: BorderRadius.circular(99)),
-                        child: Text('$pend', style: TextStyle(color: ct == t[0] ? p.ac : Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                        child: Text('${t[0] == 'in' ? pend : _unans}', style: TextStyle(color: ct == t[0] ? p.ac : Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
                       )),
                   ]),
                   const SizedBox(height: 5),
@@ -393,6 +448,8 @@ class _CabinetPageState extends State<CabinetPage> {
         return _inbox(p);
       case 'out':
         return _sent(p);
+      case 'rev':
+        return _reviews(p);
       case 'set':
         return [];
       default:

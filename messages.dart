@@ -235,6 +235,7 @@ class _ChatPageState extends State<ChatPage> {
   String name = '', avatar = '';
   bool ver = false;
   bool _muted = false;
+  bool _emoji = false;
   String? err;
   DateTime _lastTyping = DateTime.fromMillisecondsSinceEpoch(0);
 
@@ -355,6 +356,39 @@ class _ChatPageState extends State<ChatPage> {
 
   final GlobalKey _barKey = GlobalKey();
   double _barH = 80; // высота плавающей панели ввода: список сообщений уходит под неё
+
+  void _addEmoji(String e) {
+    final text = _ctl.text;
+    final sel = _ctl.selection;
+    final s = sel.isValid && sel.start >= 0 ? sel.start : text.length;
+    final en = sel.isValid && sel.end >= 0 ? sel.end : text.length;
+    _ctl.value = TextEditingValue(
+      text: text.replaceRange(s, en, e),
+      selection: TextSelection.collapsed(offset: s + e.length),
+    );
+    _onChanged(_ctl.text);
+  }
+
+  Widget _emojiPanel(Pal p) => Container(
+        height: 236,
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+        decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(22), border: Border.all(color: p.bd)),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: GridView.count(
+            crossAxisCount: 8,
+            padding: const EdgeInsets.all(8),
+            children: [
+              for (final e in kEmoji)
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _addEmoji(e),
+                  child: Center(child: Text(e, style: const TextStyle(fontSize: 26))),
+                ),
+            ],
+          ),
+        ),
+      );
 
   Future<void> _attach() async {
     final p = pal(context);
@@ -480,6 +514,7 @@ class _ChatPageState extends State<ChatPage> {
           child: Column(key: _barKey, mainAxisSize: MainAxisSize.min, children: [
             if (S.i.chatQuickSuggestionsEnabled) _quick(p),
             _input(p),
+            if (_emoji) _emojiPanel(p),
           ]),
         ),
       ]),
@@ -628,9 +663,24 @@ class _ChatPageState extends State<ChatPage> {
                           child: Icon(Icons.attach_file_rounded, color: p.mu),
                         ),
                 ),
+                SizedBox(
+                  width: 40,
+                  height: 44,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                      setState(() => _emoji = !_emoji);
+                    },
+                    child: Icon(_emoji ? Icons.keyboard_alt_outlined : Icons.emoji_emotions_outlined, color: _emoji ? p.ac : p.mu),
+                  ),
+                ),
                 Expanded(
                   child: TextField(contextMenuBuilder: appContextMenu, 
                     controller: _ctl,
+                    onTap: () {
+                      if (_emoji) setState(() => _emoji = false);
+                    },
                     minLines: 1,
                     maxLines: 5,
                     maxLength: 1000,
@@ -668,3 +718,13 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 }
+
+// Набор смайликов для чата
+const List<String> kEmoji = [
+  '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '😉', '😍', '🥰', '😘', '😋',
+  '😎', '🤩', '🥳', '🤗', '🤔', '😏', '😌', '😴', '😢', '😭', '😤', '😡', '🙄', '😬', '😱', '🤝',
+  '👍', '👎', '👌', '✌️', '🤞', '👏', '🙌', '🙏', '💪', '👋', '🤙', '👀', '❤️', '🧡', '💛', '💚',
+  '💙', '💜', '🖤', '💔', '🔥', '✨', '⭐', '🎉', '💯', '✅', '❌', '⚠️', '❓', '❗', '💰', '💵',
+  '💳', '📞', '📍', '🕒', '📅', '🚗', '🚚', '🏠', '🔧', '🛠️', '🔨', '🧹', '🧰', '📦', '🎁', '🍕',
+  '☕', '🌞', '🌧️', '🐶', '🐱',
+];
