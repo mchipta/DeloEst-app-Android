@@ -150,9 +150,9 @@ class _CabinetPageState extends State<CabinetPage> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: EdgeInsets.fromLTRB(16, 4, 16, 24 + navPad(context)),
                     children: [
-                      _header(p),
+                      Appear(child: _header(p)),
                       ..._alerts(p),
-                      _chips(p),
+                      Appear(delay: 70, child: _chips(p)),
                       const SizedBox(height: 12),
                       if (ct != 'set' && loading && data == null)
                         Padding(padding: const EdgeInsets.all(40), child: Center(child: CircularProgressIndicator(color: p.ac))),

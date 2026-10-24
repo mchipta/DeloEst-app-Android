@@ -188,7 +188,7 @@ class _AdPageState extends State<AdPage> {
             Text('Описание', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: p.tx)),
             const SizedBox(height: 6),
             Text(ad.desc, style: TextStyle(fontSize: 15, height: 1.45, color: p.tx)),
-            AdMiniMap(ad: ad),
+            Appear(delay: 120, child: AdMiniMap(ad: ad)),
             const SizedBox(height: 18),
             GestureDetector(
               onTap: () => Navigator.push(

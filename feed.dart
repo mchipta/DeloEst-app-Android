@@ -320,48 +320,35 @@ class _FeedPageState extends State<FeedPage> {
     );
   }
 
-  // Кнопка «Карта»: все найденные объявления метками на карте
-  Widget _mapBtn(Pal p) => Tap(
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MapPage(ads: _filtered()))),
-        scale: .94,
-        child: Container(
-          height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.location_on_outlined, size: 18, color: p.ac),
-            const SizedBox(width: 6),
-            Text('Карта', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: p.tx)),
-          ]),
-        ),
-      );
-
-  // Переключатель вида: список, плитка, компактно
+  // Единый переключатель: список, плитка, компактно | карта (все найденные объявления метками)
   Widget _modeToggle(Pal p) {
     const icons = [Icons.view_agenda_outlined, Icons.grid_view_rounded, Icons.view_list_rounded];
     const tips = ['Список', 'Плитка', 'Компактно'];
+    Widget seg(IconData icon, String tip, bool on, VoidCallback f, {Color? tint}) => Tooltip(
+          message: tip,
+          child: Tap(
+            onTap: f,
+            scale: .9,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              width: 36,
+              height: 30,
+              decoration: BoxDecoration(
+                color: on ? p.ac.withOpacity(.16) : Colors.transparent,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(icon, size: 19, color: on ? p.ac : (tint ?? p.mu)),
+            ),
+          ),
+        );
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        for (var i = 0; i < 3; i++)
-          Tooltip(
-            message: tips[i],
-            child: Tap(
-              onTap: () => S.i.setFeedMode(i),
-              scale: .92,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                width: 36,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: S.i.feedMode == i ? p.ac.withOpacity(.16) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Icon(icons[i], size: 19, color: S.i.feedMode == i ? p.ac : p.mu),
-              ),
-            ),
-          ),
+        for (var i = 0; i < 3; i++) seg(icons[i], tips[i], S.i.feedMode == i, () => S.i.setFeedMode(i)),
+        Container(width: 1, height: 18, margin: const EdgeInsets.symmetric(horizontal: 3), color: p.bd),
+        seg(Icons.location_on_outlined, 'Карта', false, () => Navigator.push(context, MaterialPageRoute(builder: (_) => MapPage(ads: _filtered()))), tint: p.ac),
       ]),
     );
   }
@@ -611,8 +598,6 @@ class _FeedPageState extends State<FeedPage> {
                   TextSpan(text: '$count', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
                 ])),
               ),
-              _mapBtn(p),
-              const SizedBox(width: 8),
               _modeToggle(p),
             ]),
           ),
