@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'home.dart';
+import 'shortcuts.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -29,7 +30,7 @@ class _SplashGateState extends State<SplashGate> {
         opacity: anim,
         child: ScaleTransition(scale: Tween<double>(begin: .96, end: 1.0).animate(anim), child: child),
       ),
-      child: done ? const HomeShell(key: ValueKey('home')) : const _Splash(key: ValueKey('splash')),
+      child: done ? const ShortcutHost(key: ValueKey('home'), child: HomeShell()) : const _Splash(key: ValueKey('splash')),
     );
   }
 }

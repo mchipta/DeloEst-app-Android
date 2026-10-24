@@ -131,7 +131,7 @@ class _ProfilePageState extends State<ProfilePage> {
     String since = '';
     if (created > 0) {
       final t = DateTime.fromMillisecondsSinceEpoch(created);
-      since = 'На сайте с ${_months[t.month - 1]} ${t.year}';
+      since = 'На сайте с ${t.day} ${_months[t.month - 1]} ${t.year}';
     }
     return RefreshIndicator(
       color: p.ac,
@@ -139,34 +139,54 @@ class _ProfilePageState extends State<ProfilePage> {
       child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: [
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: cardDeco(p),
-          child: Column(children: [
+          decoration: BoxDecoration(
+            color: p.card,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: p.bd),
+            boxShadow: [BoxShadow(color: p.ac.withOpacity(.10), blurRadius: 24, offset: const Offset(0, 8))],
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Row(children: [
-              Avatar(name, data: (d['avatar'] ?? '').toString(), size: 72),
+              Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: p.card),
+                  child: Avatar(name, data: (d['avatar'] ?? '').toString(), size: 62),
+                ),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Flexible(child: Text(name, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: p.tx))),
-                  ]),
-                  if (d['ver'] == true) const Padding(padding: EdgeInsets.only(top: 3), child: VerifiedBadge(size: 18, label: true)),
-                  const SizedBox(height: 4),
+                  Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900, color: p.tx, height: 1.15)),
+                  if (d['ver'] == true) const Padding(padding: EdgeInsets.only(top: 6), child: VerifiedBadge(size: 18, label: true)),
+                  const SizedBox(height: 6),
                   if (rc > 0)
                     Row(children: [
                       StarsRow(rt),
                       const SizedBox(width: 6),
-                      Text('$rt · $rc ${plural(rc, 'отзыв', 'отзыва', 'отзывов')}', style: TextStyle(color: p.mu, fontSize: 13)),
+                      Flexible(child: Text('$rt · $rc ${plural(rc, 'отзыв', 'отзыва', 'отзывов')}', style: TextStyle(color: p.mu, fontSize: 13))),
                     ])
                   else
                     Text('Пока нет отзывов', style: TextStyle(color: p.mu, fontSize: 13)),
                 ]),
               ),
             ]),
-            const SizedBox(height: 12),
-            Row(children: [
-              if (since.isNotEmpty) Expanded(child: Text(since, style: TextStyle(color: p.mu, fontSize: 13.5))),
-              if (dn > 0) Text('Выполнено: $dn', style: TextStyle(color: p.ok, fontWeight: FontWeight.w700, fontSize: 13.5)),
-            ]),
+            if (since.isNotEmpty || dn > 0) ...[
+              const SizedBox(height: 14),
+              Container(height: 1, color: p.bd),
+              const SizedBox(height: 12),
+              Row(children: [
+                if (since.isNotEmpty) ...[
+                  Icon(Icons.calendar_today_outlined, size: 15, color: p.ac),
+                  const SizedBox(width: 6),
+                  Expanded(child: Text(since, style: TextStyle(color: p.mu, fontSize: 13.5))),
+                ] else
+                  const Spacer(),
+                if (dn > 0) Text('Выполнено: $dn', style: TextStyle(color: p.ok, fontWeight: FontWeight.w800, fontSize: 13.5)),
+              ]),
+            ],
             if (!me) ...[
               const SizedBox(height: 14),
               GradBtn('Написать', icon: Icons.chat_bubble_outline, onTap: _write),

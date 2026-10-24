@@ -564,7 +564,7 @@ void showVerifiedInfo(BuildContext context) {
       return AlertDialog(
         backgroundColor: p.card,
         icon: Icon(Icons.verified, color: p.ok, size: 44),
-        title: Text('Документы проверены', textAlign: TextAlign.center, style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
+        title: Text('Подтверждённый профиль', textAlign: TextAlign.center, style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
         content: Text(
             'Администрация ДелоЕсть проверила документы этого человека и подтвердила его личность. Это снижает риск мошенничества, но деньги заранее всё равно лучше не переводить.',
             style: TextStyle(color: p.mu, height: 1.4)),
@@ -574,7 +574,7 @@ void showVerifiedInfo(BuildContext context) {
   );
 }
 
-// Значок «проверенный»: по нажатию объясняет, что это значит (в профиле и в объявлении)
+// Значок «Подтверждённый»: по нажатию объясняет, что это значит (в профиле и в объявлении)
 class VerifiedBadge extends StatelessWidget {
   final double size;
   final bool label;
@@ -585,13 +585,21 @@ class VerifiedBadge extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => showVerifiedInfo(context),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.verified, size: size, color: p.ok),
-        if (label) ...[
-          const SizedBox(width: 5),
-          Text('Документы проверены', style: TextStyle(color: p.ok, fontWeight: FontWeight.w700, fontSize: 13)),
-        ],
-      ]),
+      child: label
+          ? Container(
+              padding: const EdgeInsets.fromLTRB(7, 3, 11, 3),
+              decoration: BoxDecoration(
+                color: p.ok.withOpacity(.12),
+                borderRadius: BorderRadius.circular(99),
+                border: Border.all(color: p.ok.withOpacity(.5)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.verified, size: size - 1, color: p.ok),
+                const SizedBox(width: 5),
+                Text('Подтверждённый', style: TextStyle(color: p.ok, fontWeight: FontWeight.w800, fontSize: 12.5)),
+              ]),
+            )
+          : Icon(Icons.verified, size: size, color: p.ok),
     );
   }
 }

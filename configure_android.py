@@ -4,7 +4,7 @@
   1. добавляет разрешение INTERNET и запросы для звонков/ссылок;
   2. ставит название приложения «ДелоЕсть»;
   3. создаёт алиас значка (оранжевый);
-  4. пишет MainActivity с MethodChannel 'ru.deloest.delo_est/launcher_icon'.
+  4. пишет MainActivity с MethodChannel 'ru.deloest.delo_est/launcher_icon' и ярлыками значка.
 Любая ошибка останавливает сборку с понятным сообщением.
 """
 import re
@@ -65,6 +65,7 @@ alias = (
     '                <action android:name="android.intent.action.MAIN"/>\n'
     '                <category android:name="android.intent.category.LAUNCHER"/>\n'
     '            </intent-filter>\n'
+    '            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts"/>\n'
     '        </activity-alias>\n'
 )
 aliases = '\n' + alias % dict(n='OrangeLauncher', en='true', ic='icon_orange')
@@ -104,37 +105,99 @@ if old.suffix == '.java':
 kt.write_text('''package %(pkg)s
 
 import android.content.ComponentName
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    private var pendingShortcut: String? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        pendingShortcut = intent?.getStringExtra("shortcut")
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val s = intent.getStringExtra("shortcut")
+        if (s != null) pendingShortcut = s
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "ru.deloest.delo_est/launcher_icon")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, \"ru.deloest.delo_est/shortcut\")
             .setMethodCallHandler { call, result ->
-                if (call.method != "setLauncherIcon") {
+                if (call.method == \"take\") {
+                    val s = pendingShortcut
+                    pendingShortcut = null
+                    result.success(s)
+                } else {
+                    result.notImplemented()
+                }
+            }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, \"ru.deloest.delo_est/launcher_icon\")
+            .setMethodCallHandler { call, result ->
+                if (call.method != \"setLauncherIcon\") {
                     result.notImplemented()
                     return@setMethodCallHandler
                 }
-                val style = call.arguments as? String ?: "orange"
+                val style = call.arguments as? String ?: \"orange\"
                 val pm = packageManager
-                val orange = ComponentName(this, "%(pkg)s.OrangeLauncher")
+                val orange = ComponentName(this, \"%(pkg)s.OrangeLauncher\")
                 try {
                     pm.setComponentEnabledSetting(
                         orange,
-                        if (style == "orange") PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                        if (style == \"orange\") PackageManager.COMPONENT_ENABLED_STATE_ENABLED
                         else PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                         PackageManager.DONT_KILL_APP
                     )
                     result.success(true)
                 } catch (e: Exception) {
-                    result.error("ICON_CHANGE_FAILED", e.message, null)
+                    result.error(\"ICON_CHANGE_FAILED\", e.message, null)
                 }
             }
     }
 }
 ''' % dict(pkg=pkg), encoding='utf-8')
 
-print('Android настроен: пакет %s, алиасы значков, MainActivity' % pkg)
+# 6. Ярлыки при долгом нажатии на значок
+res_dir = Path('android/app/src/main/res')
+(res_dir / 'xml').mkdir(parents=True, exist_ok=True)
+(res_dir / 'values').mkdir(parents=True, exist_ok=True)
+
+shortcuts = [
+    ('post', 'Разместить', 'Разместить объявление',
+     'M19,13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'),
+    ('search', 'Поиск', 'Найти подработку',
+     'M15.5,14h-0.79l-0.28,-0.27C15.41,12.59 16,11.11 16,9.5 16,5.91 13.09,3 9.5,3S3,5.91 3,9.5 5.91,16 9.5,16c1.61,0 3.09,-0.59 4.23,-1.57l0.27,0.28v0.79l5,4.99L20.49,19l-4.99,-5zM9.5,14C7.01,14 5,11.99 5,9.5S7.01,5 9.5,5 14,7.01 14,9.5 11.99,14 9.5,14z'),
+    ('messages', 'Сообщения', 'Сообщения',
+     'M20,2H4c-1.1,0 -2,0.9 -2,2v18l4,-4h14c1.1,0 2,-0.9 2,-2V4c0,-1.1 -0.9,-2 -2,-2zM20,16H5.17L4,17.17V4h16v12z'),
+]
+strings = ['<?xml version="1.0" encoding="utf-8"?>', '<resources>']
+sc_xml = ['<?xml version="1.0" encoding="utf-8"?>',
+          '<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">']
+for key, short, long_, path in shortcuts:
+    (res / ('sc_%s.xml' % key)).write_text(
+        '<vector xmlns:android="http://schemas.android.com/apk/res/android" '
+        'android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">'
+        '<path android:fillColor="#FFFF6B3D" android:pathData="%s"/></vector>' % path, encoding='utf-8')
+    strings.append('    <string name="sc_%s_s">%s</string>' % (key, short))
+    strings.append('    <string name="sc_%s_l">%s</string>' % (key, long_))
+    sc_xml += [
+        '    <shortcut android:shortcutId="%s" android:enabled="true" android:icon="@drawable/sc_%s"' % (key, key),
+        '        android:shortcutShortLabel="@string/sc_%s_s" android:shortcutLongLabel="@string/sc_%s_l">' % (key, key),
+        '        <intent android:action="android.intent.action.VIEW" android:targetPackage="%s" android:targetClass="%s.MainActivity">' % (pkg, pkg),
+        '            <extra android:name="shortcut" android:value="%s"/>' % key,
+        '        </intent>',
+        '    </shortcut>',
+    ]
+strings.append('</resources>')
+sc_xml.append('</shortcuts>')
+(res_dir / 'values' / 'shortcut_strings.xml').write_text('\n'.join(strings) + '\n', encoding='utf-8')
+(res_dir / 'xml' / 'shortcuts.xml').write_text('\n'.join(sc_xml) + '\n', encoding='utf-8')
+
+print('Android настроен: пакет %s, значок, ярлыки, MainActivity' % pkg)
