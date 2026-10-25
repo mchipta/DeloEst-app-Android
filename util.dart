@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 
 const kAppVersion = '1.3';
-const kSiteUrl = 'https://mchipta.github.io/delo-est/';
+const kSiteUrl = 'https://mchipta.github.io/DeloEst-website/';
 
 String digitsOnly(String s) => s.replaceAll(RegExp(r'\D'), '');
 
