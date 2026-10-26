@@ -4,7 +4,7 @@
   1. добавляет разрешение INTERNET и запросы для звонков/ссылок;
   2. ставит название приложения «ДелоЕсть»;
   3. создаёт алиас значка (оранжевый);
-  4. пишет MainActivity с MethodChannel 'ru.deloest.delo_est/launcher_icon' и ярлыками значка.
+  4. пишет MainActivity с MethodChannel 'ru.deloest.delo_est/launcher_icon', ярлыками значка и записью/воспроизведением голоса.
 Любая ошибка останавливает сборку с понятным сообщением.
 """
 import re
@@ -31,6 +31,7 @@ if 'OrangeLauncher' in text:
 # 1. Разрешения и запросы
 perm = (
     '<uses-permission android:name="android.permission.INTERNET"/>\n'
+    '<uses-permission android:name="android.permission.RECORD_AUDIO"/>\n'
     '    <queries>\n'
     '        <intent><action android:name="android.intent.action.DIAL"/><data android:scheme="tel"/></intent>\n'
     '        <intent><action android:name="android.intent.action.SENDTO"/><data android:scheme="mailto"/></intent>\n'
@@ -104,31 +105,186 @@ if old.suffix == '.java':
 
 kt.write_text('''package %(pkg)s
 
+import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
+import android.media.MediaRecorder
+import android.os.Build
 import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
 
 class MainActivity : FlutterActivity() {
     private var pendingShortcut: String? = null
 
+    // --- голосовые сообщения ---
+    private var rec: MediaRecorder? = null
+    private var recFile: File? = null
+    private var recStart = 0L
+    private var pendingPerm: MethodChannel.Result? = null
+    private val reqAudio = 4711
+    private var player: MediaPlayer? = null
+    private var playDone = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        pendingShortcut = intent?.getStringExtra("shortcut")
+        pendingShortcut = intent?.getStringExtra(\"shortcut\")
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        val s = intent.getStringExtra("shortcut")
+        val s = intent.getStringExtra(\"shortcut\")
         if (s != null) pendingShortcut = s
+    }
+
+    override fun onDestroy() {
+        releaseRec()
+        releasePlayer()
+        super.onDestroy()
+    }
+
+    private fun releaseRec() {
+        try { rec?.release() } catch (e: Exception) { }
+        rec = null
+    }
+
+    private fun releasePlayer() {
+        try { player?.release() } catch (e: Exception) { }
+        player = null
+        playDone = false
+    }
+
+    private fun startRec(result: MethodChannel.Result) {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            pendingPerm = result
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), reqAudio)
+            return
+        }
+        doStartRec(result)
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == reqAudio) {
+            val r = pendingPerm
+            pendingPerm = null
+            if (r != null) {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) doStartRec(r)
+                else r.success(\"denied\")
+            }
+        }
+    }
+
+    private fun doStartRec(result: MethodChannel.Result) {
+        try {
+            releaseRec()
+            val f = File(cacheDir, \"rec_\" + System.currentTimeMillis() + \".m4a\")
+            val r = if (Build.VERSION.SDK_INT >= 31) MediaRecorder(this) else MediaRecorder()
+            r.setAudioSource(MediaRecorder.AudioSource.MIC)
+            r.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            r.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+            r.setAudioChannels(1)
+            r.setAudioSamplingRate(22050)
+            r.setAudioEncodingBitRate(32000)
+            r.setOutputFile(f.absolutePath)
+            r.prepare()
+            r.start()
+            rec = r
+            recFile = f
+            recStart = System.currentTimeMillis()
+            result.success(\"ok\")
+        } catch (e: Exception) {
+            releaseRec()
+            result.error(\"REC_FAILED\", e.message, null)
+        }
+    }
+
+    private fun stopRec(result: MethodChannel.Result) {
+        val r = rec
+        val f = recFile
+        if (r == null || f == null) {
+            result.success(null)
+            return
+        }
+        val ms = System.currentTimeMillis() - recStart
+        try {
+            r.stop()
+            releaseRec()
+            result.success(mapOf(\"path\" to f.absolutePath, \"ms\" to ms))
+        } catch (e: Exception) {
+            releaseRec()
+            try { f.delete() } catch (x: Exception) { }
+            result.success(null)
+        }
+    }
+
+    private fun cancelRec(result: MethodChannel.Result) {
+        val f = recFile
+        try { rec?.stop() } catch (e: Exception) { }
+        releaseRec()
+        try { f?.delete() } catch (e: Exception) { }
+        recFile = null
+        result.success(true)
+    }
+
+    private fun play(path: String, result: MethodChannel.Result) {
+        try {
+            releasePlayer()
+            val mp = MediaPlayer()
+            mp.setDataSource(path)
+            mp.setOnCompletionListener { playDone = true }
+            mp.prepare()
+            mp.start()
+            player = mp
+            playDone = false
+            result.success(true)
+        } catch (e: Exception) {
+            releasePlayer()
+            result.error(\"PLAY_FAILED\", e.message, null)
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, \"ru.deloest.delo_est/voice\")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    \"start\" -> startRec(result)
+                    \"stop\" -> stopRec(result)
+                    \"cancel\" -> cancelRec(result)
+                    \"play\" -> play((call.arguments as? String) ?: \"\", result)
+                    \"pause\" -> {
+                        try { player?.pause() } catch (e: Exception) { }
+                        result.success(true)
+                    }
+                    \"resume\" -> {
+                        try { player?.start() } catch (e: Exception) { }
+                        result.success(true)
+                    }
+                    \"stopPlay\" -> {
+                        releasePlayer()
+                        result.success(true)
+                    }
+                    \"state\" -> {
+                        val mp = player
+                        if (mp == null) {
+                            result.success(mapOf(\"playing\" to false, \"pos\" to 0, \"dur\" to 0, \"done\" to true))
+                        } else {
+                            try {
+                                result.success(mapOf(\"playing\" to mp.isPlaying, \"pos\" to mp.currentPosition, \"dur\" to mp.duration, \"done\" to playDone))
+                            } catch (e: Exception) {
+                                result.success(mapOf(\"playing\" to false, \"pos\" to 0, \"dur\" to 0, \"done\" to true))
+                            }
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, \"ru.deloest.delo_est/shortcut\")
             .setMethodCallHandler { call, result ->
                 if (call.method == \"take\") {
@@ -163,6 +319,7 @@ class MainActivity : FlutterActivity() {
     }
 }
 ''' % dict(pkg=pkg), encoding='utf-8')
+
 
 # 6. Ярлыки при долгом нажатии на значок
 res_dir = Path('android/app/src/main/res')

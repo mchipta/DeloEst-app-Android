@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import 'profile.dart';
 import 'state.dart';
 import 'theme.dart';
 import 'util.dart';
+import 'voice.dart';
 import 'widgets.dart';
 
 const kQuick = [
@@ -236,6 +238,10 @@ class _ChatPageState extends State<ChatPage> {
   bool ver = false;
   bool _muted = false;
   bool _emoji = false;
+  bool _rec = false;
+  int _recMs = 0;
+  DateTime? _recAt;
+  Timer? _recT;
   String? err;
   DateTime _lastTyping = DateTime.fromMillisecondsSinceEpoch(0);
 
@@ -255,6 +261,9 @@ class _ChatPageState extends State<ChatPage> {
   void dispose() {
     S.i.chatOpen--;
     _timer?.cancel();
+    _recT?.cancel();
+    if (_rec) Voice.cancel();
+    VoicePlayer.i.stop();
     _ctl.dispose();
     super.dispose();
   }
@@ -389,6 +398,113 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ),
       );
+
+  Future<void> _startVoice() async {
+    if (_rec || busy) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    await VoicePlayer.i.stop();
+    final r = await Voice.start();
+    if (!mounted) return;
+    if (r == 'denied') {
+      toast(context, 'Разрешите доступ к микрофону в настройках телефона');
+      return;
+    }
+    if (r != 'ok') {
+      toast(context, 'Не удалось начать запись');
+      return;
+    }
+    _recAt = DateTime.now();
+    setState(() {
+      _rec = true;
+      _emoji = false;
+      _recMs = 0;
+    });
+    _recT?.cancel();
+    _recT = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      if (!mounted || !_rec) return;
+      final ms = DateTime.now().difference(_recAt!).inMilliseconds;
+      setState(() => _recMs = ms);
+      if (ms >= 120000) _finishVoice(true);
+    });
+  }
+
+  Future<void> _finishVoice(bool send) async {
+    if (!_rec) return;
+    _recT?.cancel();
+    setState(() => _rec = false);
+    if (!send) {
+      await Voice.cancel();
+      return;
+    }
+    final r = await Voice.stop();
+    if (!mounted) return;
+    final ms = (r?['ms'] as num?)?.toInt() ?? 0;
+    final path = (r?['path'] ?? '').toString();
+    if (r == null || path.isEmpty || ms < 700) {
+      if (path.isNotEmpty) {
+        try {
+          File(path).deleteSync();
+        } catch (_) {}
+      }
+      toast(context, 'Слишком короткое сообщение');
+      return;
+    }
+    await _sendVoice(path, (ms / 1000).round().clamp(1, 180));
+  }
+
+  Future<void> _sendVoice(String path, int dur) async {
+    setState(() => busy = true);
+    try {
+      final bytes = await File(path).readAsBytes();
+      final up = await Api.call('upaud', {'data': base64Encode(bytes), 'mime': 'audio/mp4', 'dur': dur});
+      final id = (up['id'] ?? '').toString();
+      final withAd = widget.adId.isNotEmpty && !msgs.any((x) => x['ad'] == widget.adId);
+      final j = await Api.call('send', {
+        'with': widget.pid,
+        'text': '',
+        'imgs': <String>[],
+        'aud': {'id': id, 'dur': dur},
+        if (withAd) 'adId': widget.adId,
+      });
+      VoicePlayer.i.cache[id] = path;
+      final sid = (j['id'] ?? '').toString();
+      if (!mounted) return;
+      setState(() {
+        if (!msgs.any((x) => x['id'] == sid)) {
+          msgs.add({'id': sid, 'ts': _n(j['ts']), 'mine': true, 'text': '', 'st': '', 'img': <String>[], 'aud': '$id|$dur', 'ad': withAd ? widget.adId : '', 'adt': ''});
+        }
+        msgs.sort((a, b) => _n(a['ts']).compareTo(_n(b['ts'])));
+      });
+    } catch (e) {
+      if (mounted) toast(context, S.i.fail(e));
+    }
+    if (mounted) setState(() => busy = false);
+  }
+
+  Widget _recRow(Pal p) => Row(key: const ValueKey('rec'), children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _finishVoice(false),
+          child: SizedBox(width: 44, height: 44, child: Icon(Icons.delete_outline_rounded, color: p.dng)),
+        ),
+        const SizedBox(width: 2),
+        RecDot(color: p.dng),
+        const SizedBox(width: 8),
+        Text(voiceTime(_recMs), style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 17)),
+        const SizedBox(width: 12),
+        RecEq(color: p.ac),
+        const SizedBox(width: 8),
+        Expanded(child: Text('Идёт запись…', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13))),
+        GestureDetector(
+          onTap: () => _finishVoice(true),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(gradient: LinearGradient(colors: [p.ac, p.ac2]), shape: BoxShape.circle),
+            child: const Icon(Icons.send_rounded, color: Colors.white, size: 21),
+          ),
+        ),
+      ]);
 
   Future<void> _attach() async {
     final p = pal(context);
@@ -533,6 +649,7 @@ class _ChatPageState extends State<ChatPage> {
     final text = (m['text'] ?? '').toString();
     final imgs = m['img'] is List ? (m['img'] as List).map((e) => e.toString()).toList() : <String>[];
     final adt = (m['adt'] ?? '').toString();
+    final aud = (m['aud'] ?? '').toString();
     final fg = mine ? Colors.white : p.tx;
     return Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
@@ -586,6 +703,7 @@ class _ChatPageState extends State<ChatPage> {
                   ),
               ]),
             ),
+          if (aud.isNotEmpty) Padding(padding: const EdgeInsets.only(bottom: 2), child: VoiceBubble(aud: aud, mine: mine, fg: fg)),
           if (text.isNotEmpty)
             Align(alignment: Alignment.centerLeft, child: Text(text, style: TextStyle(color: fg, fontSize: 15.5, height: 1.3))),
           const SizedBox(height: 2),
@@ -651,7 +769,10 @@ class _ChatPageState extends State<ChatPage> {
                 borderRadius: BorderRadius.circular(30),
                 border: Border.all(color: p.bd),
               ),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                switchInCurve: Curves.easeOut,
+                child: _rec ? _recRow(p) : Row(key: const ValueKey('in'), crossAxisAlignment: CrossAxisAlignment.end, children: [
                 SizedBox(
                   width: 44,
                   height: 44,
@@ -702,15 +823,20 @@ class _ChatPageState extends State<ChatPage> {
                 ),
                 const SizedBox(width: 4),
                 GestureDetector(
-                  onTap: can ? _send : null,
+                  onTap: can ? _send : _startVoice,
                   child: Container(
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(gradient: LinearGradient(colors: [p.ac, p.ac2]), shape: BoxShape.circle),
-                    child: Opacity(opacity: can ? 1 : .45, child: const Icon(Icons.send_rounded, color: Colors.white, size: 21)),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      transitionBuilder: (c, a) => ScaleTransition(scale: a, child: c),
+                      child: Icon(can ? Icons.send_rounded : Icons.mic_rounded, key: ValueKey(can), color: Colors.white, size: 22),
+                    ),
                   ),
                 ),
               ]),
+              ),
             ),
           ),
         ),
