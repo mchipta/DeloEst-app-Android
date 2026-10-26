@@ -403,6 +403,10 @@ class _SettingsBodyState extends State<SettingsBody> {
                   ),
               ]),
             ),
+          if (S.i.logged) ...[
+            _label(p, 'Устройства и сеансы'),
+            const _DevicesCard(),
+          ],
           if (S.i.blockedUsers.isNotEmpty) ...[
             _label(p, 'Чёрный список'),
             Container(
@@ -449,6 +453,159 @@ class _SettingsBodyState extends State<SettingsBody> {
           ],
         ]);
       },
+    );
+  }
+}
+
+class _DevicesCard extends StatefulWidget {
+  const _DevicesCard();
+  @override
+  State<_DevicesCard> createState() => _DevicesCardState();
+}
+
+class _DevicesCardState extends State<_DevicesCard> {
+  List<Map<String, dynamic>> _list = [];
+  bool _loading = true;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final j = await Api.call('devices');
+      final raw = j['list'];
+      if (mounted && raw is List) {
+        setState(() {
+          _list = raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+          _loading = false;
+        });
+      } else if (mounted) {
+        setState(() => _loading = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _kill({String? id, bool allOther = false}) async {
+    setState(() => _busy = true);
+    try {
+      final j = await Api.call('killDevice', {
+        if (id != null) 'id': id,
+        if (allOther) 'allOther': true,
+      });
+      final raw = j['list'];
+      if (mounted && raw is List) {
+        setState(() {
+          _list = raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        });
+      }
+      if (mounted) {
+        toast(context, allOther ? 'Остальные сеансы завершены' : 'Сеанс на устройстве завершён');
+      }
+    } catch (e) {
+      if (mounted) toast(context, S.i.fail(e));
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    final hasOthers = _list.any((d) => d['cur'] != true);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: cardDeco(p, r: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(
+          'Активные устройства, на которых выполнен вход в ваш аккаунт.',
+          style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.35),
+        ),
+        const SizedBox(height: 10),
+        if (_loading)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: p.ac))),
+          )
+        else if (_list.isEmpty)
+          Text('Текущее устройство активно', style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 13.5))
+        else
+          for (var i = 0; i < _list.length; i++) ...[
+            if (i > 0) Divider(height: 14, color: p.bd),
+            Row(children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(11)),
+                child: Icon(
+                  (_list[i]['dev'] ?? '').toString().toLowerCase().contains('android') ||
+                          (_list[i]['dev'] ?? '').toString().toLowerCase().contains('iphone')
+                      ? Icons.smartphone_rounded
+                      : Icons.laptop_mac_rounded,
+                  color: _list[i]['cur'] == true ? p.ok : p.ac,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Flexible(
+                      child: Text(
+                        (_list[i]['dev'] ?? 'Устройство').toString(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 14),
+                      ),
+                    ),
+                    if (_list[i]['cur'] == true) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: p.ok.withOpacity(.14),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Text('Это устройство', style: TextStyle(color: p.ok, fontWeight: FontWeight.w800, fontSize: 10.5)),
+                      ),
+                    ],
+                  ]),
+                  const SizedBox(height: 2),
+                  Text(
+                    _list[i]['cur'] == true
+                        ? 'В сети сейчас'
+                        : 'Активность: ${ago((_list[i]['ts'] as num?)?.toInt() ?? 0)}',
+                    style: TextStyle(color: p.mu, fontSize: 12),
+                  ),
+                ]),
+              ),
+              if (_list[i]['cur'] != true)
+                TextButton(
+                  onPressed: _busy ? null : () => _kill(id: (_list[i]['id'] ?? '').toString()),
+                  child: Text('Завершить', style: TextStyle(color: p.dng, fontWeight: FontWeight.w800, fontSize: 13)),
+                ),
+            ]),
+          ],
+        if (hasOthers) ...[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _busy ? null : () => _kill(allOther: true),
+              icon: Icon(Icons.logout_rounded, size: 17, color: p.dng),
+              label: Text(
+                'Завершить все остальные сеансы',
+                style: TextStyle(color: p.dng, fontWeight: FontWeight.w800, fontSize: 13),
+              ),
+            ),
+          ),
+        ],
+      ]),
     );
   }
 }

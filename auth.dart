@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
 import 'state.dart';
 import 'theme.dart';
 import 'util.dart';
 import 'widgets.dart';
 
-enum AMode { login, codeEmail, codePin, reg, regCode, reset, resetCode }
+enum AMode { login, reg, regCode, reset, resetCode }
 
 /// Страна для номера телефона: флаг, код, длина номера без кода и разбивка на группы
 class Country {
@@ -87,15 +86,13 @@ class _AuthPageState extends State<AuthPage> {
   bool show = false;
   String? err;
   String? info;
-  String _socialProvider = ''; // если быстрый вход запущен через VK / Яндекс / Telegram
 
   static final _emailRe = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$');
 
   String get _em => email.text.trim().toLowerCase();
 
-  void _mode(AMode x, {String social = ''}) => setState(() {
+  void _mode(AMode x) => setState(() {
         m = x;
-        _socialProvider = social;
         err = null;
         info = null;
       });
@@ -133,30 +130,6 @@ class _AuthPageState extends State<AuthPage> {
             // вход по номеру: сервер сам находит аккаунт и считает хеш
             j = await Api.call('login', {'login': normPhone(id), 'pw': pass.text, 'hash': ''});
           }
-          await _finish(j);
-        });
-        break;
-      case AMode.codeEmail:
-        if (!_check(_emailRe.hasMatch(_em), 'Укажите почту для получения кода')) return;
-        await _run(() async {
-          await Api.call('sendCode', {'email': _em, 'kind': 'login'});
-          code.clear();
-          setState(() {
-            m = AMode.codePin;
-            info = 'Одноразовый код отправлен на $_em';
-          });
-        });
-        break;
-      case AMode.codePin:
-        if (!_check(code.text.trim().length >= 4, 'Введите код из письма')) return;
-        await _run(() async {
-          final nat = _nat(phone.text, country);
-          final j = await Api.call('loginCode', {
-            'email': _em,
-            'code': code.text.trim(),
-            if (name.text.trim().isNotEmpty) 'name': name.text.trim(),
-            if (nat.length == country.len) 'phone': '+${country.code} $nat',
-          });
           await _finish(j);
         });
         break;
@@ -219,175 +192,6 @@ class _AuthPageState extends State<AuthPage> {
     }
   }
 
-  Future<void> _openSocialLogin(String provider, String title) async {
-    final p = pal(context);
-    final emCtl = TextEditingController(
-      text: email.text.contains('@')
-          ? email.text.trim()
-          : provider == 'yandex'
-              ? ''
-              : '',
-    );
-    final nameCtl = TextEditingController(text: name.text.trim());
-    final codeCtl = TextEditingController();
-    final tokenCtl = TextEditingController();
-    bool codeSent = false;
-    bool sheetBusy = false;
-    String? sheetErr;
-    String? sheetInfo;
-
-    final res = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: p.card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (c) => StatefulBuilder(
-        builder: (c, setS) {
-          final hintMail = provider == 'yandex'
-              ? 'vasha-pochta@yandex.ru'
-              : provider == 'vk'
-                  ? 'Почта от аккаунта VK ID'
-                  : 'Почта для привязки Telegram';
-          return Padding(
-            padding: EdgeInsets.fromLTRB(18, 18, 18, 18 + MediaQuery.of(c).viewInsets.bottom),
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  BrandIcon(provider == 'yandex' ? 'ya' : provider, size: 38),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Вход через $title', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: p.tx)),
-                      Text('Без пароля — мгновенный вход в 1 шаг', style: TextStyle(fontSize: 13, color: p.mu)),
-                    ]),
-                  ),
-                ]),
-                const SizedBox(height: 14),
-                TextField(
-                  contextMenuBuilder: appContextMenu,
-                  controller: emCtl,
-                  keyboardType: TextInputType.emailAddress,
-                  enabled: !codeSent,
-                  style: TextStyle(color: p.tx),
-                  decoration: deco(c, 'Ваша почта ($title)', hint: hintMail, prefix: Icon(Icons.mail_outline, color: p.mu)),
-                ),
-                const SizedBox(height: 10),
-                if (!codeSent)
-                  TextField(
-                    contextMenuBuilder: appContextMenu,
-                    controller: nameCtl,
-                    textCapitalization: TextCapitalization.words,
-                    style: TextStyle(color: p.tx),
-                    decoration: deco(c, 'Имя (если входите впервые)', hint: 'Как к вам обращаться', prefix: Icon(Icons.person_outline, color: p.mu)),
-                  ),
-                if (codeSent) ...[
-                  const SizedBox(height: 2),
-                  TextField(
-                    contextMenuBuilder: appContextMenu,
-                    controller: codeCtl,
-                    keyboardType: TextInputType.number,
-                    style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, letterSpacing: 2),
-                    decoration: deco(c, '6-значный код из письма', prefix: Icon(Icons.pin_outlined, color: p.ac)),
-                  ),
-                ],
-                if (provider == 'yandex' && !codeSent) ...[
-                  const SizedBox(height: 4),
-                  ExpansionTile(
-                    tilePadding: EdgeInsets.zero,
-                    childrenPadding: const EdgeInsets.only(bottom: 8),
-                    title: Text('У меня есть OAuth-токен Яндекс ID', style: TextStyle(fontSize: 13, color: p.mu, fontWeight: FontWeight.w600)),
-                    children: [
-                      TextField(
-                        contextMenuBuilder: appContextMenu,
-                        controller: tokenCtl,
-                        style: TextStyle(color: p.tx, fontSize: 13.5),
-                        decoration: deco(c, 'OAuth-токен Яндекс ID'),
-                      ),
-                    ],
-                  ),
-                ],
-                if (sheetInfo != null)
-                  Padding(padding: const EdgeInsets.only(top: 6, bottom: 8), child: Text(sheetInfo!, style: TextStyle(color: p.ok, fontWeight: FontWeight.w700))),
-                if (sheetErr != null)
-                  Padding(padding: const EdgeInsets.only(top: 6, bottom: 8), child: Text(sheetErr!, style: TextStyle(color: p.dng, fontWeight: FontWeight.w700))),
-                const SizedBox(height: 10),
-                GradBtn(
-                  codeSent ? 'Подтвердить и войти' : 'Продолжить через $title',
-                  busy: sheetBusy,
-                  onTap: () async {
-                    final em = emCtl.text.trim().toLowerCase();
-                    if (tokenCtl.text.trim().isNotEmpty && !codeSent) {
-                      setS(() {
-                        sheetBusy = true;
-                        sheetErr = null;
-                      });
-                      try {
-                        final j = await Api.call('oauthLogin', {'provider': 'yandex', 'token': tokenCtl.text.trim()});
-                        if (c.mounted) Navigator.pop(c, j);
-                      } catch (e) {
-                        setS(() => sheetErr = S.i.fail(e));
-                      }
-                      setS(() => sheetBusy = false);
-                      return;
-                    }
-                    if (!_emailRe.hasMatch(em)) {
-                      setS(() => sheetErr = 'Введите корректный адрес почты');
-                      return;
-                    }
-                    setS(() {
-                      sheetBusy = true;
-                      sheetErr = null;
-                    });
-                    try {
-                      if (!codeSent) {
-                        await Api.call('sendCode', {'email': em, 'kind': 'login'});
-                        setS(() {
-                          codeSent = true;
-                          sheetInfo = 'Код подтверждения отправлен на $em';
-                        });
-                      } else {
-                        if (codeCtl.text.trim().length < 4) {
-                          setS(() {
-                            sheetErr = 'Введите код из письма';
-                            sheetBusy = false;
-                          });
-                          return;
-                        }
-                        final j = await Api.call('oauthLogin', {
-                          'provider': provider,
-                          'email': em,
-                          'code': codeCtl.text.trim(),
-                          if (nameCtl.text.trim().isNotEmpty) 'name': nameCtl.text.trim(),
-                        });
-                        if (c.mounted) Navigator.pop(c, j);
-                      }
-                    } catch (e) {
-                      setS(() => sheetErr = S.i.fail(e));
-                    }
-                    setS(() => sheetBusy = false);
-                  },
-                ),
-                if (provider == 'tg' && !codeSent) ...[
-                  const SizedBox(height: 8),
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: () => launchUrl(Uri.parse('https://t.me/mchipta'), mode: LaunchMode.externalApplication),
-                      icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                      label: Text('Открыть Telegram ДелоЕсть', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                ],
-              ]),
-            ),
-          );
-        },
-      ),
-    );
-    if (res != null && mounted) {
-      await _finish(res);
-    }
-  }
-
   Future<void> _finish(Map<String, dynamic> j) async {
     await S.i.setUser(j);
     S.i.loadAds();
@@ -397,38 +201,11 @@ class _AuthPageState extends State<AuthPage> {
     }
   }
 
-  Widget _socialBtn(Pal p, String kind, String label, VoidCallback onTap) {
-    return Expanded(
-      child: Tap(
-        onTap: onTap,
-        scale: .96,
-        child: Container(
-          height: 52,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: p.card,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: p.bd),
-          ),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            BrandIcon(kind, size: 28),
-            const SizedBox(width: 7),
-            Flexible(
-              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 13.5)),
-            ),
-          ]),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
     final titles = {
       AMode.login: 'Вход',
-      AMode.codeEmail: 'Вход по коду',
-      AMode.codePin: 'Код из письма',
       AMode.reg: 'Регистрация',
       AMode.regCode: 'Подтверждение почты',
       AMode.reset: 'Сброс пароля',
@@ -436,14 +213,12 @@ class _AuthPageState extends State<AuthPage> {
     };
     final btn = {
       AMode.login: 'Войти',
-      AMode.codeEmail: 'Получить код на почту',
-      AMode.codePin: 'Войти в аккаунт',
       AMode.reg: 'Получить код',
       AMode.regCode: 'Создать аккаунт',
       AMode.reset: 'Получить код',
       AMode.resetCode: 'Сохранить пароль',
     };
-    final isCode = m == AMode.regCode || m == AMode.resetCode || m == AMode.codePin;
+    final isCode = m == AMode.regCode || m == AMode.resetCode;
     return Scaffold(
       appBar: AppBar(),
       body: SafeArea(
@@ -454,14 +229,12 @@ class _AuthPageState extends State<AuthPage> {
           const SizedBox(height: 6),
           Text(
               m == AMode.login
-                  ? 'Войдите по паролю, коду с почты или через соцсети'
-                  : m == AMode.codeEmail
-                      ? 'Пришлём одноразовый код на почту — пароль не нужен (если аккаунта ещё нет, он создастся автоматически)'
-                      : m == AMode.reg
-                          ? 'Создайте аккаунт — это займёт минуту'
-                          : m == AMode.reset
-                              ? 'Пришлём код на вашу почту'
-                              : 'Введите 6-значный код из письма',
+                  ? 'Войдите, чтобы откликаться и размещать объявления'
+                  : m == AMode.reg
+                      ? 'Создайте аккаунт — это займёт минуту'
+                      : m == AMode.reset
+                          ? 'Пришлём код на вашу почту'
+                          : 'Введите код из письма',
               style: TextStyle(color: p.mu, fontSize: 15)),
           const SizedBox(height: 20),
           if (m == AMode.reg) ...[
@@ -469,43 +242,19 @@ class _AuthPageState extends State<AuthPage> {
             _phoneRow(p),
           ],
           if (!isCode)
-            _field(email, m == AMode.login ? 'Почта или телефон' : 'Почта', icon: Icons.mail_outline, type: TextInputType.emailAddress),
+            _field(email, m == AMode.login ? 'Почта или телефон' : 'Почта', icon: Icons.mail_outline, type: m == AMode.login ? TextInputType.emailAddress : TextInputType.emailAddress),
           if (isCode) _field(code, 'Код из письма', icon: Icons.pin_outlined, type: TextInputType.number),
-          if (m == AMode.codePin) ...[
-            _field(name, 'Имя (если входите впервые)', icon: Icons.person_outline, cap: TextCapitalization.words),
-          ],
           if (m == AMode.login || m == AMode.reg || m == AMode.resetCode)
             _field(pass, m == AMode.resetCode ? 'Новый пароль' : 'Пароль', icon: Icons.lock_outline, secret: true),
           if (info != null) Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(info!, style: TextStyle(color: p.ok, fontWeight: FontWeight.w600))),
           if (err != null) Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(err!, style: TextStyle(color: p.dng, fontWeight: FontWeight.w600))),
           GradBtn(btn[m]!, busy: busy, onTap: _submit),
-          if (m == AMode.login) ...[
-            const SizedBox(height: 10),
-            OutBtn('Войти по коду с почты (без пароля)', icon: Icons.mark_email_read_outlined, color: p.ac, onTap: () => _mode(AMode.codeEmail)),
-            const SizedBox(height: 18),
-            Row(children: [
-              Expanded(child: Divider(color: p.bd)),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Text('или быстрый вход через', style: TextStyle(color: p.mu, fontSize: 12.5, fontWeight: FontWeight.w600)),
-              ),
-              Expanded(child: Divider(color: p.bd)),
-            ]),
-            const SizedBox(height: 12),
-            Row(children: [
-              _socialBtn(p, 'vk', 'VK ID', () => _openSocialLogin('vk', 'ВКонтакте')),
-              const SizedBox(width: 8),
-              _socialBtn(p, 'ya', 'Яндекс', () => _openSocialLogin('yandex', 'Яндекс ID')),
-              const SizedBox(width: 8),
-              _socialBtn(p, 'tg', 'Telegram', () => _openSocialLogin('tg', 'Telegram')),
-            ]),
-          ],
           const SizedBox(height: 10),
           if (m == AMode.login) ...[
             Center(child: TextButton(onPressed: () => _mode(AMode.reset), child: Text('Забыли пароль?', style: TextStyle(color: p.mu)))),
             Center(child: TextButton(onPressed: () => _mode(AMode.reg), child: Text('Нет аккаунта? Зарегистрироваться', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700)))),
           ] else
-            Center(child: TextButton(onPressed: () => _mode(AMode.login), child: Text('Назад ко входу по паролю', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700)))),
+            Center(child: TextButton(onPressed: () => _mode(AMode.login), child: Text('Назад ко входу', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700)))),
         ]),
       ),
     );
@@ -585,8 +334,7 @@ class _AuthPageState extends State<AuthPage> {
     final p = pal(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: TextField(
-        contextMenuBuilder: appContextMenu,
+      child: TextField(contextMenuBuilder: appContextMenu, 
         controller: c,
         obscureText: secret && !show,
         keyboardType: type,

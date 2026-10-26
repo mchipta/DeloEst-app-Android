@@ -208,18 +208,77 @@ bool smartMatchAd(
   return matchOne(q1) || (q2 != q1 && matchOne(q2));
 }
 
-const kSmartHints = <String>[
-  'Грузчики',
-  'Уборка квартиры',
+const _kPopularQueries = <String>[
+  'Грузчик на склад',
+  'Грузчики на переезд',
   'Сантехник',
+  'Починить кран / смеситель',
   'Электрик',
+  'Установить розетку / люстру',
+  'Уборка квартиры',
+  'Генеральная уборка',
+  'Помыть окна',
   'Курьер на день',
-  'Покос травы',
+  'Пеший курьер',
+  'Водитель с личным авто',
+  'Покос травы триммером',
+  'Вскопать огород',
   'Сборка мебели',
-  'Репетитор',
+  'Мастер на час',
   'Вывоз мусора',
-  'Настройка ПК',
+  'Разнорабочий на день',
+  'Репетитор по математике',
+  'Репетитор по английскому',
+  'Поклейка обоев',
+  'Укладка плитки',
+  'Ремонт стиральной машины',
+  'Ремонт холодильника',
+  'Настройка компьютера / ноутбука',
+  'Няня на час',
+  'Выгул собак',
+  'Уборка снега',
+  'Спил деревьев',
 ];
+
+/// Выпадающие подсказки при вводе поискового запроса (учитывают раскладку и синонимы)
+List<String> smartSuggest(String rawQuery, [Iterable<String> extraTitles = const []]) {
+  final raw = rawQuery.trim();
+  if (raw.isEmpty) return const [];
+  final q1 = _normText(raw);
+  final q2 = _normText(_fixLayout(raw));
+  if (q1.isEmpty && q2.isEmpty) return const [];
+
+  final pool = <String>[
+    ...extraTitles,
+    ..._kPopularQueries,
+    for (final t in kTpls) t.name,
+    for (final t in kTpls) t.title,
+    for (final c in kCats) c.name,
+  ];
+
+  final seen = <String>{};
+  final prefixMatches = <String>[];
+  final synMatches = <String>[];
+
+  for (final item in pool) {
+    final clean = item.trim();
+    if (clean.isEmpty) continue;
+    final low = clean.toLowerCase();
+    if (low == q1 || low == q2 || !seen.add(low)) continue;
+
+    final normItem = _normText(clean);
+    if (normItem.startsWith(q1) ||
+        (q2 != q1 && normItem.startsWith(q2)) ||
+        normItem.contains(' $q1') ||
+        (q2 != q1 && normItem.contains(' $q2'))) {
+      prefixMatches.add(clean);
+    } else if (smartMatchAd(raw, clean, '', '', '')) {
+      synMatches.add(clean);
+    }
+  }
+
+  return [...prefixMatches, ...synMatches].take(6).toList();
+}
 
 class Tpl {
   final String name;

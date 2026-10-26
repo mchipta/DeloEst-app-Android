@@ -108,11 +108,11 @@ class _ProfilePageState extends State<ProfilePage> {
                     }
                   },
                   itemBuilder: (c) => [
-                    const PopupMenuItem(value: 'report', child: Text('Пожаловаться на профиль')),
                     PopupMenuItem(
                       value: 'block',
-                      child: Text(blocked ? 'Разблокировать пользователя' : 'Заблокировать пользователя'),
+                      child: Text(blocked ? 'Разблокировать' : 'Заблокировать'),
                     ),
+                    const PopupMenuItem(value: 'report', child: Text('Пожаловаться')),
                   ],
                 ),
             ],
@@ -203,42 +203,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 if (dn > 0) Text('Выполнено: $dn', style: TextStyle(color: p.ok, fontWeight: FontWeight.w800, fontSize: 13.5)),
               ]),
             ],
-            if (!me) ...[
+            if (!me && !blocked) ...[
               const SizedBox(height: 14),
-              if (!blocked)
-                GradBtn('Написать', icon: Icons.chat_bubble_outline, onTap: _write),
-              const SizedBox(height: 10),
-              Row(children: [
-                Expanded(
-                  child: OutBtn(
-                    'Пожаловаться',
-                    icon: Icons.flag_outlined,
-                    color: p.mu,
-                    onTap: () async {
-                      if (!S.i.logged) {
-                        await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
-                        if (!mounted || !S.i.logged) return;
-                      }
-                      if (mounted) await showReportSheet(context, id: 'user:${widget.pid}', label: 'пользователя');
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutBtn(
-                    blocked ? 'Разблокировать' : 'Заблокировать',
-                    icon: blocked ? Icons.lock_open_rounded : Icons.block_rounded,
-                    color: blocked ? p.ac : p.dng,
-                    onTap: () async {
-                      if (!S.i.logged) {
-                        await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
-                        if (!mounted || !S.i.logged) return;
-                      }
-                      if (mounted) await toggleUserBlock(context, pid: widget.pid, name: name);
-                    },
-                  ),
-                ),
-              ]),
+              GradBtn('Написать', icon: Icons.chat_bubble_outline, onTap: _write),
             ],
           ]),
         ),

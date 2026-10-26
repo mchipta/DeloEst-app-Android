@@ -7,6 +7,7 @@ import 'models.dart';
 import 'site_defaults.dart';
 import 'state.dart';
 import 'theme.dart';
+import 'util.dart';
 import 'widgets.dart';
 
 /// Native Flutter version of the public website's landing page.
@@ -20,6 +21,7 @@ class LandingPage extends StatefulWidget {
 
 class _LandingPageState extends State<LandingPage> {
   final _q = TextEditingController();
+  final _qFocus = FocusNode();
   final _city = TextEditingController();
   final _cityFocus = FocusNode();
   int _mode = 0;
@@ -41,6 +43,7 @@ class _LandingPageState extends State<LandingPage> {
   @override
   void dispose() {
     _q.dispose();
+    _qFocus.dispose();
     _city.dispose();
     _cityFocus.dispose();
     super.dispose();
@@ -210,13 +213,7 @@ class _LandingPageState extends State<LandingPage> {
           ]),
         ),
         const SizedBox(height: 12),
-        TextField(contextMenuBuilder: appContextMenu, 
-          controller: _q,
-          textInputAction: TextInputAction.search,
-          onSubmitted: (_) => _search(),
-          style: TextStyle(color: p.tx),
-          decoration: deco(context, null, hint: _mode == 0 ? 'Например: ищу подработку грузчиком…' : 'Например: нужен грузчик на сегодня…', prefix: Icon(Icons.search_rounded, color: p.mu)),
-        ),
+        _queryAutocomplete(p),
         const SizedBox(height: 8),
         _cityAutocomplete(p),
         const SizedBox(height: 10),
@@ -240,6 +237,65 @@ class _LandingPageState extends State<LandingPage> {
           ]),
         ),
       ]),
+    );
+  }
+
+  Widget _queryAutocomplete(Pal p) {
+    return RawAutocomplete<String>(
+      textEditingController: _q,
+      focusNode: _qFocus,
+      optionsBuilder: (value) => smartSuggest(value.text, S.i.ads.map((a) => a.title)),
+      displayStringForOption: (option) => option,
+      onSelected: (value) {
+        _q.text = value;
+        FocusScope.of(context).unfocus();
+        _search();
+      },
+      fieldViewBuilder: (context, controller, focusNode, onSubmitted) => TextField(
+        contextMenuBuilder: appContextMenu,
+        controller: controller,
+        focusNode: focusNode,
+        textInputAction: TextInputAction.search,
+        onSubmitted: (_) => _search(),
+        style: TextStyle(color: p.tx),
+        decoration: deco(
+          context,
+          null,
+          hint: _mode == 0 ? 'Например: ищу подработку грузчиком…' : 'Например: нужен грузчик на сегодня…',
+          prefix: Icon(Icons.search_rounded, color: p.mu),
+        ),
+      ),
+      optionsViewBuilder: (context, onSelected, options) => Align(
+        alignment: Alignment.topLeft,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            margin: const EdgeInsets.only(top: 5),
+            constraints: const BoxConstraints(maxHeight: 240),
+            width: MediaQuery.of(context).size.width - 64,
+            decoration: BoxDecoration(
+              color: p.card,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: p.bd),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(.14), blurRadius: 18, offset: const Offset(0, 6))],
+            ),
+            child: ListView(
+              padding: const EdgeInsets.all(6),
+              shrinkWrap: true,
+              children: [
+                for (final option in options)
+                  ListTile(
+                    dense: true,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    leading: Icon(Icons.search_rounded, color: p.ac, size: 20),
+                    title: Text(option, style: TextStyle(color: p.tx, fontWeight: FontWeight.w600)),
+                    onTap: () => onSelected(option),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

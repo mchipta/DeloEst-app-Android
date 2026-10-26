@@ -109,14 +109,6 @@ class _AdPageState extends State<AdPage> {
     await showReportSheet(context, id: ad.id, label: 'объявление');
   }
 
-  Future<void> _blockAuthor() async {
-    if (!S.i.logged) {
-      await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
-      if (!mounted || !S.i.logged) return;
-    }
-    await toggleUserBlock(context, pid: ad.pid, name: ad.author);
-  }
-
   Future<void> _reply() async {
     if (!S.i.logged) {
       await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
@@ -139,7 +131,6 @@ class _AdPageState extends State<AdPage> {
       builder: (context, _) {
         final p = pal(context);
         final mine = S.i.logged && S.i.pid.isNotEmpty && S.i.pid == ad.pid;
-        final blocked = S.i.isBlocked(ad.pid);
         final ph = _phone();
         return Scaffold(
           appBar: AppBar(title: const Text('Объявление'), actions: [
@@ -160,17 +151,11 @@ class _AdPageState extends State<AdPage> {
             PopupMenuButton<String>(
               onSelected: (v) {
                 if (v == 'report') _report();
-                if (v == 'block') _blockAuthor();
                 if (v == 'share') showShare(context, ad);
               },
               itemBuilder: (c) => [
                 const PopupMenuItem(value: 'share', child: Text('Поделиться')),
-                if (!mine) const PopupMenuItem(value: 'report', child: Text('Пожаловаться на объявление')),
-                if (!mine && ad.pid.isNotEmpty)
-                  PopupMenuItem(
-                    value: 'block',
-                    child: Text(blocked ? 'Разблокировать автора' : 'Заблокировать автора'),
-                  ),
+                if (!mine) const PopupMenuItem(value: 'report', child: Text('Пожаловаться')),
               ],
             ),
           ]),
@@ -258,30 +243,6 @@ class _AdPageState extends State<AdPage> {
                   _contactBtn(p, const BrandIcon('tg', size: 30), 'Telegram', () => _openSocial('tg', ph)),
                 ]),
               ],
-            ],
-            if (!mine) ...[
-              const SizedBox(height: 16),
-              Row(children: [
-                Expanded(
-                  child: OutBtn(
-                    'Пожаловаться',
-                    icon: Icons.flag_outlined,
-                    color: p.mu,
-                    onTap: _report,
-                  ),
-                ),
-                if (ad.pid.isNotEmpty) ...[
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutBtn(
-                      blocked ? 'Разблокировать' : 'Заблокировать',
-                      icon: blocked ? Icons.lock_open_rounded : Icons.block_rounded,
-                      color: blocked ? p.ac : p.dng,
-                      onTap: _blockAuthor,
-                    ),
-                  ),
-                ],
-              ]),
             ],
           ]),
         );

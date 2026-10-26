@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
 import 'models.dart';
 import 'util.dart';
+import 'widgets.dart';
 
 class S extends ChangeNotifier {
   static final S i = S._();
@@ -120,7 +121,8 @@ class S extends ChangeNotifier {
             .toList();
       } catch (_) {}
     }
-    requestPushPermission();
+    await requestPushPermission();
+    await i.syncBgPushState();
     i._timer = Timer.periodic(const Duration(seconds: 20), (_) => i.refreshUnread());
     i.refreshUnread();
     if (i.logged) i.syncBlocks();
@@ -129,7 +131,22 @@ class S extends ChangeNotifier {
 
   static Future<void> requestPushPermission() async {
     try {
-      await _notifyCh.invokeMethod('request');
+      final dev = await _notifyCh.invokeMethod('request');
+      if (dev is String && dev.trim().isNotEmpty) {
+        Api.deviceName = 'Android · ${dev.trim()}';
+      }
+    } catch (_) {}
+  }
+
+  Future<void> syncBgPushState() async {
+    try {
+      await _notifyCh.invokeMethod('syncBg', {
+        'url': Api.url,
+        'token': Api.token ?? '',
+        'enabled': messageNotificationsEnabled,
+        'lastPushTs': lastPushTs,
+        'lastUnread': unread,
+      });
     } catch (_) {}
   }
 
@@ -166,6 +183,7 @@ class S extends ChangeNotifier {
       tab = 1; // вошли: «Главная» скрыта, открываем поиск
     }
     notifyListeners();
+    await syncBgPushState();
     if (j != null) {
       refreshUnread();
       syncBlocks();
@@ -272,16 +290,13 @@ class S extends ChangeNotifier {
           if (ts > maxTs) maxTs = ts;
           if (messageNotificationsEnabled && body.isNotEmpty) {
             await showSystemPush(title, body);
-            final sm = msgKey.currentState;
-            if (sm != null) {
-              sm.hideCurrentSnackBar();
-              sm.showSnackBar(SnackBar(content: Text('$title: $body')));
-            }
+            TopToastHost.show(body, title: title, seconds: 5);
           }
         }
         if (maxTs > lastPushTs) {
           lastPushTs = maxTs;
           await prefs.setInt('last_push_ts', lastPushTs);
+          await syncBgPushState();
         }
       }
     } catch (_) {}
@@ -290,6 +305,7 @@ class S extends ChangeNotifier {
       if (unread != 0) {
         unread = 0;
         notifyListeners();
+        await syncBgPushState();
       }
       return;
     }
@@ -315,14 +331,13 @@ class S extends ChangeNotifier {
       }
       if (_unreadInit && n > unread && messageNotificationsEnabled && !messagesOpen && chatOpen == 0) {
         await showSystemPush('Новое сообщение', 'Откройте ДелоЕсть, чтобы прочитать сообщение');
-        final sm = msgKey.currentState;
-        if (sm != null) {
-          sm.hideCurrentSnackBar();
-          sm.showSnackBar(SnackBar(
-            content: const Text('Новое сообщение'),
-            action: SnackBarAction(label: 'Открыть', onPressed: () => openMessages?.call()),
-          ));
-        }
+        TopToastHost.show(
+          'Откройте чаты, чтобы прочитать сообщение',
+          title: 'Новое сообщение',
+          actionLabel: 'Открыть',
+          onAction: () => openMessages?.call(),
+          seconds: 5,
+        );
       }
       _unreadInit = true;
       if (n != unread) {
@@ -330,6 +345,7 @@ class S extends ChangeNotifier {
         msgTick++;
         notifyListeners();
       }
+      await syncBgPushState();
     } catch (e) {
       if (e is ApiError && e.message == 'auth') fail(e);
     }
@@ -373,21 +389,16 @@ class S extends ChangeNotifier {
       updateName = name;
       notifyListeners();
       if (tag != seenTag) {
-        final sm = msgKey.currentState;
-        if (sm != null) {
-          sm.hideCurrentSnackBar();
-          sm.showSnackBar(SnackBar(
-            duration: const Duration(seconds: 8),
-            content: Text('Доступно обновление приложения ($name)'),
-            action: SnackBarAction(
-              label: 'Скачать APK',
-              onPressed: () {
-                prefs.setString('seen_release_tag', tag);
-                launchUrl(Uri.parse(dl), mode: LaunchMode.externalApplication);
-              },
-            ),
-          ));
-        }
+        TopToastHost.show(
+          'Доступна новая версия $name',
+          title: 'Обновление приложения',
+          actionLabel: 'Скачать APK',
+          seconds: 8,
+          onAction: () {
+            prefs.setString('seen_release_tag', tag);
+            launchUrl(Uri.parse(dl), mode: LaunchMode.externalApplication);
+          },
+        );
         return true;
       }
       return false;
@@ -447,7 +458,8 @@ class S extends ChangeNotifier {
   Future<void> setMessageNotificationsEnabled(bool enabled) async {
     messageNotificationsEnabled = enabled;
     await prefs.setBool('messages_notifications', enabled);
-    if (enabled) requestPushPermission();
+    if (enabled) await requestPushPermission();
+    await syncBgPushState();
     notifyListeners();
   }
 

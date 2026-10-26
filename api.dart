@@ -17,9 +17,10 @@ String sha256Hex(String s) => sha256.convert(utf8.encode(s)).toString();
 
 class Api {
   static String? token;
+  static String deviceName = 'Android · Приложение ДелоЕсть';
 
   static Future<Map<String, dynamic>> call(String a, [Map<String, dynamic>? data]) async {
-    final body = jsonEncode(<String, dynamic>{'a': a, 't': token, ...?data});
+    final body = jsonEncode(<String, dynamic>{'a': a, 't': token, 'dev': deviceName, ...?data});
     late http.Response res;
     try {
       res = await http

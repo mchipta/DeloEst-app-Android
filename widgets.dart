@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/scheduler.dart' show SchedulerPhase;
@@ -12,10 +13,242 @@ import 'util.dart';
 String imgUrl(String id, int w) => 'https://lh3.googleusercontent.com/d/$id=w$w';
 
 void toast(BuildContext c, String m) {
-  final sm = ScaffoldMessenger.maybeOf(c);
-  if (sm == null) return;
-  sm.hideCurrentSnackBar();
-  sm.showSnackBar(SnackBar(content: Text(m)));
+  TopToastHost.show(m);
+}
+
+class _ToastEntry {
+  final String message;
+  final String? title;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final int seconds;
+  final int id;
+  const _ToastEntry({
+    required this.message,
+    this.title,
+    this.actionLabel,
+    this.onAction,
+    this.seconds = 4,
+    required this.id,
+  });
+}
+
+/// Верхнее всплывающее уведомление в фирменном дизайне ДелоЕсть (как на сайте)
+class TopToastHost extends StatefulWidget {
+  final Widget child;
+  const TopToastHost({super.key, required this.child});
+
+  static _TopToastHostState? _state;
+
+  static void show(
+    String message, {
+    String? title,
+    String? actionLabel,
+    VoidCallback? onAction,
+    int seconds = 4,
+  }) {
+    _state?._push(_ToastEntry(
+      message: message,
+      title: title,
+      actionLabel: actionLabel,
+      onAction: onAction,
+      seconds: seconds,
+      id: DateTime.now().microsecondsSinceEpoch,
+    ));
+  }
+
+  @override
+  State<TopToastHost> createState() => _TopToastHostState();
+}
+
+class _TopToastHostState extends State<TopToastHost> {
+  _ToastEntry? _cur;
+  bool _vis = false;
+  Timer? _t;
+
+  @override
+  void initState() {
+    super.initState();
+    TopToastHost._state = this;
+  }
+
+  @override
+  void dispose() {
+    if (TopToastHost._state == this) TopToastHost._state = null;
+    _t?.cancel();
+    super.dispose();
+  }
+
+  void _push(_ToastEntry e) {
+    _t?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _cur = e;
+      _vis = true;
+    });
+    _t = Timer(Duration(seconds: e.seconds), _hide);
+  }
+
+  void _hide() {
+    _t?.cancel();
+    if (!mounted) return;
+    setState(() => _vis = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    final e = _cur;
+    final topPad = MediaQuery.paddingOf(context).top;
+    return Stack(
+      children: [
+        widget.child,
+        if (e != null)
+          Positioned(
+            top: topPad + 10,
+            left: 14,
+            right: 14,
+            child: IgnorePointer(
+              ignoring: !_vis,
+              child: AnimatedSlide(
+                offset: _vis ? Offset.zero : const Offset(0, -1.2),
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                child: AnimatedOpacity(
+                  opacity: _vis ? 1 : 0,
+                  duration: const Duration(milliseconds: 220),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 460),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: GestureDetector(
+                          onVerticalDragEnd: (d) {
+                            if ((d.primaryVelocity ?? 0) < 0) _hide();
+                          },
+                          onTap: () {
+                            if (e.onAction != null) {
+                              final fn = e.onAction!;
+                              _hide();
+                              fn();
+                            } else {
+                              _hide();
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: p.card,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: p.ac.withOpacity(.45), width: 1.2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(.28),
+                                  blurRadius: 24,
+                                  offset: const Offset(0, 8),
+                                ),
+                                BoxShadow(
+                                  color: p.ac.withOpacity(.14),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 34,
+                                  height: 34,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [p.ac, p.ac2],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(11),
+                                  ),
+                                  child: Icon(
+                                    e.title != null ? Icons.notifications_active_rounded : Icons.check_rounded,
+                                    color: Colors.white,
+                                    size: 19,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: e.title != null && e.title!.isNotEmpty
+                                      ? Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              e.title!,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: p.tx,
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 14,
+                                                height: 1.15,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              e.message,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: p.mu,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 13,
+                                                height: 1.25,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Text(
+                                          e.message,
+                                          maxLines: 3,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: p.tx,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14,
+                                            height: 1.25,
+                                          ),
+                                        ),
+                                ),
+                                if (e.actionLabel != null && e.onAction != null) ...[
+                                  const SizedBox(width: 10),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(colors: [p.ac, p.ac2]),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      e.actionLabel!,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 /// Нажатие с лёгким «вдавливанием» (для кнопок и карточек)

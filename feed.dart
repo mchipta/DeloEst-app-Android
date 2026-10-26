@@ -17,6 +17,7 @@ class FeedPage extends StatefulWidget {
 
 class _FeedPageState extends State<FeedPage> {
   final _q = TextEditingController();
+  final _qFocus = FocusNode();
   final _cityC = TextEditingController();
   final _minC = TextEditingController();
   final _maxC = TextEditingController();
@@ -25,12 +26,16 @@ class _FeedPageState extends State<FeedPage> {
   @override
   void initState() {
     super.initState();
+    _qFocus.addListener(() {
+      if (mounted) setState(() {});
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => S.i.loadAds());
   }
 
   @override
   void dispose() {
     _q.dispose();
+    _qFocus.dispose();
     _cityC.dispose();
     _minC.dispose();
     _maxC.dispose();
@@ -417,12 +422,28 @@ class _FeedPageState extends State<FeedPage> {
     );
   }
 
+  Widget _sugText(Pal p, String s) {
+    final q = _q.text.trim().toLowerCase().replaceAll('ё', 'е');
+    final sl = s.toLowerCase().replaceAll('ё', 'е');
+    final base = TextStyle(fontSize: 15, color: p.tx, fontWeight: FontWeight.w600);
+    if (q.isNotEmpty && sl.startsWith(q) && q.length <= s.length) {
+      return Text.rich(TextSpan(children: [
+        TextSpan(text: s.substring(0, q.length), style: base.copyWith(fontWeight: FontWeight.w800, color: p.ac)),
+        TextSpan(text: s.substring(q.length), style: base),
+      ]));
+    }
+    return Text(s, style: base);
+  }
+
   Widget _header(BuildContext context, Pal p, int count) {
     final af = _activeFilters;
     final lab = _ssLabel(_curSS());
     // «Сохранить поиск» только когда пользователь что-то искал: текст, категория или фильтр
     final canSave = S.i.logged && lab.isNotEmpty;
     final saved = canSave && S.i.ss.any((x) => _ssLabel(x) == lab);
+    final sugs = _qFocus.hasFocus
+        ? smartSuggest(_q.text, S.i.ads.map((a) => a.title))
+        : const <String>[];
     final tags = <List<Object>>[
       if (_type.isNotEmpty) [_type, () => setState(() => _type = '')],
       if (_city.trim().isNotEmpty)
@@ -502,6 +523,7 @@ class _FeedPageState extends State<FeedPage> {
               Expanded(
                 child: TextField(contextMenuBuilder: appContextMenu, 
                   controller: _q,
+                  focusNode: _qFocus,
                   onChanged: (_) => setState(() {}),
                   textInputAction: TextInputAction.search,
                   onSubmitted: (_) => FocusScope.of(context).unfocus(),
@@ -558,45 +580,44 @@ class _FeedPageState extends State<FeedPage> {
               ),
             ]),
           ),
-        ]),
-      ),
-      const SizedBox(height: 10),
-      // умные подсказки поиска (синонимы, частые запросы)
-      SizedBox(
-        height: 30,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.auto_awesome_rounded, size: 14, color: p.ac),
-                const SizedBox(width: 4),
-                Text('Умный поиск:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: p.mu)),
-              ]),
-            ),
-            for (final h in kSmartHints)
-              Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: Tap(
-                  onTap: () => setState(() {
-                    _q.text = _q.text.trim().toLowerCase() == h ? '' : h;
-                  }),
-                  scale: .95,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _q.text.trim().toLowerCase() == h ? p.ac.withOpacity(.16) : p.bg2,
-                      borderRadius: BorderRadius.circular(99),
-                      border: Border.all(color: _q.text.trim().toLowerCase() == h ? p.ac : p.bd),
-                    ),
-                    child: Text(h, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _q.text.trim().toLowerCase() == h ? p.ac : p.tx)),
+          // Выпадающие подсказки умного поиска при вводе
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            alignment: Alignment.topCenter,
+            child: sugs.isEmpty
+                ? const SizedBox(width: double.infinity)
+                : Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(top: 6),
+                    decoration: cardDeco(p, r: 16),
+                    child: Column(children: [
+                      for (var i = 0; i < sugs.length; i++) ...[
+                        if (i > 0) Divider(height: 1, color: p.bd),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            _q.value = TextEditingValue(
+                              text: sugs[i],
+                              selection: TextSelection.collapsed(offset: sugs[i].length),
+                            );
+                            _qFocus.unfocus();
+                            setState(() {});
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                            child: Row(children: [
+                              Icon(Icons.search_rounded, size: 18, color: p.ac),
+                              const SizedBox(width: 10),
+                              Expanded(child: _sugText(p, sugs[i])),
+                              Icon(Icons.north_west_rounded, size: 16, color: p.mu),
+                            ]),
+                          ),
+                        ),
+                      ],
+                    ]),
                   ),
-                ),
-              ),
-          ],
-        ),
+          ),
+        ]),
       ),
       const SizedBox(height: 10),
       // быстрые категории

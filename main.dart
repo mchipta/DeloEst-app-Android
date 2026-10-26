@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'splash.dart';
 import 'state.dart';
 import 'theme.dart';
+import 'widgets.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,6 +41,7 @@ class DeloApp extends StatelessWidget {
         ],
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),
+        builder: (context, child) => TopToastHost(child: child ?? const SizedBox.shrink()),
         home: const SplashGate(),
       ),
     );

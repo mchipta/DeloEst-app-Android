@@ -594,23 +594,13 @@ class _ChatPageState extends State<ChatPage> {
             icon: Icon(_muted ? Icons.notifications_off_outlined : Icons.notifications_active_outlined, color: _muted ? p.mu : p.ac),
           ),
           PopupMenuButton<String>(
-            onSelected: (v) async {
+            onSelected: (v) {
               if (v == 'profile') {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(pid: widget.pid, name: name)));
-              } else if (v == 'report') {
-                await showReportSheet(context, id: 'user:${widget.pid}', label: 'собеседника');
-              } else if (v == 'block') {
-                await toggleUserBlock(context, pid: widget.pid, name: name);
-                if (mounted) setState(() {});
               }
             },
-            itemBuilder: (c) => [
-              const PopupMenuItem(value: 'profile', child: Text('Открыть профиль')),
-              const PopupMenuItem(value: 'report', child: Text('Пожаловаться')),
-              PopupMenuItem(
-                value: 'block',
-                child: Text(S.i.isBlocked(widget.pid) ? 'Разблокировать' : 'Заблокировать'),
-              ),
+            itemBuilder: (c) => const [
+              PopupMenuItem(value: 'profile', child: Text('Открыть профиль')),
             ],
           ),
         ],

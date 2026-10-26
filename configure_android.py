@@ -1,10 +1,11 @@
 """Настройка сгенерированного Android-проекта (запускается из папки shell).
 
 Что делает:
-  1. добавляет разрешения INTERNET, RECORD_AUDIO, POST_NOTIFICATIONS и запросы для звонков/ссылок;
+  1. добавляет разрешения INTERNET, RECORD_AUDIO, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED, WAKE_LOCK и запросы для звонков/ссылок;
   2. ставит название приложения «ДелоЕсть»;
-  3. создаёт алиас значка (оранжевый);
-  4. пишет MainActivity с MethodChannel 'ru.deloest.delo_est/launcher_icon', 'ru.deloest.delo_est/notify' (системные Push-уведомления), ярлыками значка и записью/воспроизведением голоса.
+  3. создаёт алиас значка (оранжевый) и векторную иконку уведомлений ic_stat_deloest (галочка ДелоЕсть + цветная крупная иконка приложения);
+  4. регистрирует фоновый ресивер DeloEstPushReceiver, который проверяет новые сообщения и пуши даже когда приложение полностью закрыто;
+  5. пишет MainActivity с MethodChannel 'ru.deloest.delo_est/launcher_icon', 'ru.deloest.delo_est/notify', ярлыками значка и записью/воспроизведением голоса.
 Любая ошибка останавливает сборку с понятным сообщением.
 """
 import re
@@ -33,6 +34,9 @@ perm = (
     '<uses-permission android:name="android.permission.INTERNET"/>\n'
     '<uses-permission android:name="android.permission.RECORD_AUDIO"/>\n'
     '<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n'
+    '<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>\n'
+    '<uses-permission android:name="android.permission.WAKE_LOCK"/>\n'
+    '<uses-permission android:name="android.permission.VIBRATE"/>\n'
     '    <queries>\n'
     '        <intent><action android:name="android.intent.action.DIAL"/><data android:scheme="tel"/></intent>\n'
     '        <intent><action android:name="android.intent.action.SENDTO"/><data android:scheme="mailto"/></intent>\n'
@@ -69,6 +73,13 @@ alias = (
     '            </intent-filter>\n'
     '            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts"/>\n'
     '        </activity-alias>\n'
+    '        <receiver android:name=".DeloEstPushReceiver" android:enabled="true" android:exported="true">\n'
+    '            <intent-filter>\n'
+    '                <action android:name="android.intent.action.BOOT_COMPLETED"/>\n'
+    '                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>\n'
+    '                <action android:name="ru.deloest.delo_est.BG_POLL"/>\n'
+    '            </intent-filter>\n'
+    '        </receiver>\n'
 )
 aliases = '\n' + alias % dict(n='OrangeLauncher', en='true', ic='icon_orange')
 if '</application>' not in text:
@@ -81,7 +92,7 @@ except Exception as e:
     die('Получился некорректный AndroidManifest.xml: %s' % e)
 manifest.write_text(text, encoding='utf-8')
 
-# 4. Картинки значков
+# 4. Картинки значков + прозрачный векторный значок статус-бара ic_stat_deloest.xml
 res = Path('android/app/src/main/res/drawable')
 res.mkdir(parents=True, exist_ok=True)
 for name in ('icon_orange',):
@@ -90,7 +101,22 @@ for name in ('icon_orange',):
         die('Нет файла %s' % src)
     shutil.copy(src, res / (name + '.png'))
 
-# 5. MainActivity (берём пакет из того, что создал flutter create)
+# Векторный силуэт логотипа «ДелоЕсть» (галочка в контуре) для статус-бара Android, чтобы не было белого квадрата
+(res / 'ic_stat_deloest.xml').write_text(
+    '<?xml version="1.0" encoding="utf-8"?>\n'
+    '<vector xmlns:android="http://schemas.android.com/apk/res/android"\n'
+    '    android:width="24dp"\n'
+    '    android:height="24dp"\n'
+    '    android:viewportWidth="24"\n'
+    '    android:viewportHeight="24">\n'
+    '    <path\n'
+    '        android:fillColor="#FFFFFFFF"\n'
+    '        android:pathData="M19,3H5C3.34,3 2,4.34 2,6v12c0,1.66 1.34,3 3,3h14c1.66,0 3,-1.34 3,-3V6C22,4.34 20.66,3 19,3zM10.2,16.6L5.8,12.2l1.7,-1.7l2.7,2.7l6.3,-6.3l1.7,1.7L10.2,16.6z"/>\n'
+    '</vector>\n',
+    encoding='utf-8'
+)
+
+# 5. MainActivity + DeloEstPushReceiver (фоновая проверка сообщений и пушей при закрытом приложении)
 main_dir = Path('android/app/src/main')
 found = list(main_dir.rglob('MainActivity.kt')) + list(main_dir.rglob('MainActivity.java'))
 if not found:
@@ -107,23 +133,225 @@ if old.suffix == '.java':
 kt.write_text('''package %(pkg)s
 
 import android.Manifest
+import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import org.json.JSONObject
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
+
+object DeloEstNotif {
+    const val CHANNEL_ID = "deloest_push_v2"
+    const val PREFS = "deloest_bg_prefs"
+    private var seq = 200
+
+    fun ensureChannel(ctx: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val ch = NotificationChannel(
+                CHANNEL_ID,
+                "Уведомления ДелоЕсть",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Сообщения, отклики и важные оповещения сервиса ДелоЕсть"
+                enableVibration(true)
+            }
+            val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.createNotificationChannel(ch)
+        }
+    }
+
+    fun show(ctx: Context, title: String, body: String, shortcut: String?) {
+        if (Build.VERSION.SDK_INT >= 33) {
+            if (ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                return
+            }
+        }
+        ensureChannel(ctx)
+        val intent = Intent(ctx, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            if (!shortcut.isNullOrEmpty()) putExtra("shortcut", shortcut)
+        }
+        val id = seq++
+        val piFlags = if (Build.VERSION.SDK_INT >= 23)
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        else PendingIntent.FLAG_UPDATE_CURRENT
+        val pi = PendingIntent.getActivity(ctx, id, intent, piFlags)
+
+        val largeBmp = try {
+            BitmapFactory.decodeResource(ctx.resources, R.drawable.icon_orange)
+        } catch (e: Exception) {
+            null
+        }
+
+        val builder = NotificationCompat.Builder(ctx, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_deloest)
+            .setColor(0xFFFF5A36.toInt())
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setAutoCancel(true)
+            .setContentIntent(pi)
+
+        if (largeBmp != null) {
+            builder.setLargeIcon(largeBmp)
+        }
+
+        try {
+            NotificationManagerCompat.from(ctx).notify(id, builder.build())
+        } catch (e: Exception) { }
+    }
+
+    fun scheduleBgPoll(ctx: Context, delayMs: Long = 45000L) {
+        try {
+            val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val i = Intent(ctx, DeloEstPushReceiver::class.java).apply {
+                action = "ru.deloest.delo_est.BG_POLL"
+            }
+            val flags = if (Build.VERSION.SDK_INT >= 23)
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            else PendingIntent.FLAG_UPDATE_CURRENT
+            val pi = PendingIntent.getBroadcast(ctx, 7701, i, flags)
+            val triggerAt = SystemClock.elapsedRealtime() + delayMs
+            if (Build.VERSION.SDK_INT >= 23) {
+                am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pi)
+            } else {
+                am.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pi)
+            }
+        } catch (e: Exception) { }
+    }
+}
+
+class DeloEstPushReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent?) {
+        DeloEstNotif.scheduleBgPoll(context, 45000L)
+        val p = context.getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
+        if (!p.getBoolean("enabled", true)) return
+        val appFg = p.getBoolean("fg", false)
+        if (appFg) return
+
+        val apiUrl = p.getString("apiUrl", "") ?: ""
+        if (apiUrl.isEmpty()) return
+        val token = p.getString("token", "") ?: ""
+        val lastPushTs = p.getLong("lastPushTs", System.currentTimeMillis())
+        val prevUnread = p.getInt("unread", 0)
+
+        val pending = goAsync()
+        Thread {
+            try {
+                val payload = JSONObject()
+                if (token.isNotEmpty()) {
+                    payload.put("a", "unread")
+                    payload.put("t", token)
+                    payload.put("pAfter", lastPushTs)
+                } else {
+                    payload.put("a", "pushes")
+                    payload.put("after", lastPushTs)
+                }
+                val respText = postJsonFollowRedirects(apiUrl, payload.toString())
+                if (respText != null) {
+                    val j = JSONObject(respText)
+                    if (j.optBoolean("ok", false)) {
+                        val ed = p.edit()
+                        val list = if (j.has("pushes")) j.optJSONArray("pushes") else j.optJSONArray("list")
+                        if (list != null && list.length() > 0) {
+                            var maxTs = lastPushTs
+                            for (k in 0 until list.length()) {
+                                val item = list.optJSONObject(k) ?: continue
+                                val ts = item.optLong("ts", 0L)
+                                val title = item.optString("title", "ДелоЕсть")
+                                val body = item.optString("body", "")
+                                if (ts > maxTs) maxTs = ts
+                                if (body.isNotEmpty()) {
+                                    DeloEstNotif.show(context, title, body, "messages")
+                                }
+                            }
+                            if (maxTs > lastPushTs) {
+                                ed.putLong("lastPushTs", maxTs)
+                            }
+                        }
+                        if (token.isNotEmpty() && j.has("n")) {
+                            val n = j.optInt("n", 0)
+                            if (n > prevUnread) {
+                                DeloEstNotif.show(
+                                    context,
+                                    "Новое сообщение",
+                                    "У вас новое непрочитанное сообщение в ДелоЕсть",
+                                    "messages"
+                                )
+                            }
+                            ed.putInt("unread", n)
+                        }
+                        ed.apply()
+                    }
+                }
+            } catch (e: Exception) {
+            } finally {
+                try { pending.finish() } catch (e: Exception) { }
+            }
+        }.start()
+    }
+
+    private fun postJsonFollowRedirects(urlStr: String, body: String): String? {
+        var conn: HttpURLConnection? = null
+        try {
+            val u = URL(urlStr)
+            conn = (u.openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                instanceFollowRedirects = false
+                connectTimeout = 15000
+                readTimeout = 15000
+                doOutput = true
+                setRequestProperty("Content-Type", "text/plain;charset=utf-8")
+            }
+            conn.outputStream.use { os ->
+                os.write(body.toByteArray(Charsets.UTF_8))
+            }
+            var code = conn.responseCode
+            var loc = conn.getHeaderField("Location")
+            var hops = 0
+            while ((code == 301 || code == 302 || code == 303 || code == 307 || code == 308) && !loc.isNullOrEmpty() && hops < 5) {
+                conn?.disconnect()
+                conn = (URL(loc).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    instanceFollowRedirects = true
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+                code = conn.responseCode
+                loc = conn.getHeaderField("Location")
+                hops++
+            }
+            if (code == 200) {
+                return conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            }
+        } catch (e: Exception) {
+            return null
+        } finally {
+            try { conn?.disconnect() } catch (e: Exception) { }
+        }
+        return null
+    }
+}
 
 class MainActivity : FlutterActivity() {
     private var pendingShortcut: String? = null
@@ -137,12 +365,25 @@ class MainActivity : FlutterActivity() {
     private val reqNotif = 4712
     private var player: MediaPlayer? = null
     private var playDone = false
-    private var notifSeq = 100
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         pendingShortcut = intent?.getStringExtra("shortcut")
-        ensureNotifChannel()
+        DeloEstNotif.ensureChannel(this)
+        DeloEstNotif.scheduleBgPoll(this, 45000L)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
+            .edit().putBoolean("fg", true).apply()
+    }
+
+    override fun onPause() {
+        getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
+            .edit().putBoolean("fg", false).apply()
+        DeloEstNotif.scheduleBgPoll(this, 30000L)
+        super.onPause()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -153,52 +394,12 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
+            .edit().putBoolean("fg", false).apply()
+        DeloEstNotif.scheduleBgPoll(this, 30000L)
         releaseRec()
         releasePlayer()
         super.onDestroy()
-    }
-
-    private fun ensureNotifChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val ch = NotificationChannel(
-                "deloest_push",
-                "Уведомления ДелоЕсть",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Сообщения, отклики и важные оповещения сервиса ДелоЕсть"
-            }
-            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            nm.createNotificationChannel(ch)
-        }
-    }
-
-    private fun showSystemNotif(title: String, body: String, shortcut: String?) {
-        if (Build.VERSION.SDK_INT >= 33) {
-            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), reqNotif)
-                return
-            }
-        }
-        ensureNotifChannel()
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            if (!shortcut.isNullOrEmpty()) putExtra("shortcut", shortcut)
-        }
-        val piFlags = if (Build.VERSION.SDK_INT >= 23)
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        else PendingIntent.FLAG_UPDATE_CURRENT
-        val pi = PendingIntent.getActivity(this, notifSeq, intent, piFlags)
-        val builder = NotificationCompat.Builder(this, "deloest_push")
-            .setSmallIcon(R.drawable.icon_orange)
-            .setContentTitle(title)
-            .setContentText(body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .setContentIntent(pi)
-        try {
-            NotificationManagerCompat.from(this).notify(notifSeq++, builder.build())
-        } catch (e: Exception) { }
     }
 
     private fun releaseRec() {
@@ -312,14 +513,40 @@ class MainActivity : FlutterActivity() {
                             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), reqNotif)
                         }
-                        result.success(true)
+                        val brand = Build.MANUFACTURER.replaceFirstChar { it.uppercase() }
+                        val model = Build.MODEL
+                        val devName = if (model.startsWith(brand, ignoreCase = true)) "$model · Android" else "$brand $model · Android"
+                        result.success(devName)
+                    }
+                    "syncBg" -> {
+                        val args = call.arguments as? Map<*, *>
+                        val p = getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
+                        val ed = p.edit()
+                        if (args != null) {
+                            if (args.containsKey("apiUrl")) ed.putString("apiUrl", args["apiUrl"] as? String ?: "")
+                            if (args.containsKey("token")) ed.putString("token", args["token"] as? String ?: "")
+                            if (args.containsKey("enabled")) ed.putBoolean("enabled", args["enabled"] as? Boolean ?: true)
+                            if (args.containsKey("lastPushTs")) ed.putLong("lastPushTs", (args["lastPushTs"] as? Number)?.toLong() ?: System.currentTimeMillis())
+                            if (args.containsKey("unread")) ed.putInt("unread", (args["unread"] as? Number)?.toInt() ?: 0)
+                        }
+                        ed.apply()
+                        DeloEstNotif.scheduleBgPoll(this, 45000L)
+                        result.success(mapOf(
+                            "lastPushTs" to p.getLong("lastPushTs", 0L),
+                            "unread" to p.getInt("unread", 0)
+                        ))
                     }
                     "show" -> {
                         val args = call.arguments as? Map<*, *>
                         val title = (args?.get("title") as? String) ?: "ДелоЕсть"
                         val body = (args?.get("body") as? String) ?: ""
                         val sc = args?.get("shortcut") as? String
-                        showSystemNotif(title, body, sc)
+                        if (Build.VERSION.SDK_INT >= 33 &&
+                            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), reqNotif)
+                        } else {
+                            DeloEstNotif.show(this, title, body, sc)
+                        }
                         result.success(true)
                     }
                     else -> result.notImplemented()
@@ -431,4 +658,4 @@ sc_xml.append('</shortcuts>')
 (res_dir / 'values' / 'shortcut_strings.xml').write_text('\n'.join(strings) + '\n', encoding='utf-8')
 (res_dir / 'xml' / 'shortcuts.xml').write_text('\n'.join(sc_xml) + '\n', encoding='utf-8')
 
-print('Android настроен: пакет %s, значок, уведомления, ярлыки, MainActivity' % pkg)
+print('Android настроен: пакет %s, значок, фоновые пуш-уведомления, ярлыки, MainActivity' % pkg)
