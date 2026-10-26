@@ -55,26 +55,19 @@ jobs:
         run: python3 ../configure_android.py
 
       - name: Постоянная подпись (обновления ставятся поверх)
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
           mkdir -p ~/.android
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
-            echo "Использован ключ подписи из KEYSTORE_BASE64"
-          elif [ -f signing/debug.keystore ]; then
+          if [ -f signing/debug.keystore ]; then
             cp signing/debug.keystore ~/.android/debug.keystore
-            echo "Использован постоянный ключ signing/debug.keystore"
           elif [ -f debug.keystore ]; then
             cp debug.keystore ~/.android/debug.keystore
-            echo "Использован постоянный ключ debug.keystore"
           else
             echo "::warning::debug.keystore не найден, будет создан новый ключ"
           fi
 
       - name: Сборка APK
         working-directory: shell
-        run: flutter build apk --release --build-number=${{ github.run_number }} --build-name=1.4.${{ github.run_number }}
+        run: flutter build apk --release --build-number=${{ github.run_number }} --build-name=1.0.${{ github.run_number }}
 
       - name: Переименование
         run: cp shell/build/app/outputs/flutter-apk/app-release.apk DeloEst.apk

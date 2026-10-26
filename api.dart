@@ -19,9 +19,23 @@ class Api {
   static const String url = apiUrl;
   static String? token;
   static String deviceName = 'Android · Приложение ДелоЕсть';
+  static String ip = '';
+  static String geo = '';
+
+  // IP и страна нужны только для списка «Устройства и сеансы»; сервер Apps Script их сам не видит
+  static Future<void> loadNetInfo() async {
+    try {
+      final r = await http.get(Uri.parse('https://ipwho.is/')).timeout(const Duration(seconds: 10));
+      final j = jsonDecode(utf8.decode(r.bodyBytes)) as Map<String, dynamic>;
+      if (j['success'] != false && j['ip'] != null) {
+        ip = j['ip'].toString();
+        geo = [j['country'], j['city']].where((e) => e != null && e.toString().isNotEmpty).join(', ');
+      }
+    } catch (_) {}
+  }
 
   static Future<Map<String, dynamic>> call(String a, [Map<String, dynamic>? data]) async {
-    final body = jsonEncode(<String, dynamic>{'a': a, 't': token, 'dev': deviceName, ...?data});
+    final body = jsonEncode(<String, dynamic>{'a': a, 't': token, 'dev': deviceName, 'ip': ip, 'geo': geo, ...?data});
     late http.Response res;
     try {
       res = await http

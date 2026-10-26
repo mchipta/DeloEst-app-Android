@@ -122,6 +122,7 @@ class S extends ChangeNotifier {
       } catch (_) {}
     }
     await requestPushPermission();
+    Api.loadNetInfo();
     await i.syncBgPushState();
     i._timer = Timer.periodic(const Duration(seconds: 20), (_) => i.refreshUnread());
     i.refreshUnread();

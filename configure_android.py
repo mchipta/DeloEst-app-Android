@@ -36,6 +36,8 @@ perm = (
     '<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n'
     '<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>\n'
     '<uses-permission android:name="android.permission.WAKE_LOCK"/>\n'
+    '<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>\n'
+    '<uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>\n'
     '<uses-permission android:name="android.permission.VIBRATE"/>\n'
     '    <queries>\n'
     '        <intent><action android:name="android.intent.action.DIAL"/><data android:scheme="tel"/></intent>\n'
@@ -80,6 +82,9 @@ alias = (
     '                <action android:name="ru.deloest.delo_est.BG_POLL"/>\n'
     '            </intent-filter>\n'
     '        </receiver>\n'
+    '        <service android:name=".DeloEstPollService" android:enabled="true" android:exported="false" android:foregroundServiceType="specialUse">\n'
+    '            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Проверка новых сообщений и откликов"/>\n'
+    '        </service>\n'
 )
 aliases = '\n' + alias % dict(n='OrangeLauncher', en='true', ic='icon_orange')
 if '</application>' not in text:
@@ -137,16 +142,19 @@ import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.graphics.BitmapFactory
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -161,7 +169,21 @@ import java.net.URL
 object DeloEstNotif {
     const val CHANNEL_ID = "deloest_push_v2"
     const val PREFS = "deloest_bg_prefs"
+    const val SERVICE_CHANNEL = "deloest_service"
     private var seq = 200
+
+    // true только пока приложение открыто; живёт в памяти процесса, поэтому после закрытия или вылета сбрасывается сам
+    @Volatile var appFg = false
+
+    fun startPollService(ctx: Context) {
+        try {
+            val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            if (!p.getBoolean("enabled", true)) return
+            if ((p.getString("apiUrl", "") ?: "").isEmpty()) return
+            val i = Intent(ctx, DeloEstPollService::class.java)
+            if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(i) else ctx.startService(i)
+        } catch (e: Exception) { }
+    }
 
     fun ensureChannel(ctx: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -242,21 +264,26 @@ object DeloEstNotif {
 }
 
 class DeloEstPushReceiver : BroadcastReceiver() {
+    companion object {
+        val LOCK = Any()
+    }
+
     override fun onReceive(context: Context, intent: Intent?) {
         DeloEstNotif.scheduleBgPoll(context, 45000L)
+        DeloEstNotif.startPollService(context)
         val p = context.getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
         if (!p.getBoolean("enabled", true)) return
-        val appFg = p.getBoolean("fg", false)
-        if (appFg) return
+        if (DeloEstNotif.appFg) return
 
         val apiUrl = p.getString("apiUrl", "") ?: ""
         if (apiUrl.isEmpty()) return
         val token = p.getString("token", "") ?: ""
-        val lastPushTs = p.getLong("lastPushTs", System.currentTimeMillis())
-        val prevUnread = p.getInt("unread", 0)
 
         val pending = goAsync()
         Thread {
+            synchronized(LOCK) {
+            val lastPushTs = p.getLong("lastPushTs", System.currentTimeMillis())
+            val prevUnread = p.getInt("unread", 0)
             try {
                 val payload = JSONObject()
                 if (token.isNotEmpty()) {
@@ -308,6 +335,7 @@ class DeloEstPushReceiver : BroadcastReceiver() {
             } finally {
                 try { pending.finish() } catch (e: Exception) { }
             }
+            }
         }.start()
     }
 
@@ -353,6 +381,62 @@ class DeloEstPushReceiver : BroadcastReceiver() {
     }
 }
 
+// Постоянная фоновая проверка: каждые 30 секунд просит ресивер проверить сообщения и пуши, даже когда приложение закрыто
+class DeloEstPollService : Service() {
+    @Volatile private var running = false
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val p = getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
+        if (!p.getBoolean("enabled", true)) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        if (Build.VERSION.SDK_INT >= 26) {
+            val ch = NotificationChannel(DeloEstNotif.SERVICE_CHANNEL, "Фоновая работа", NotificationManager.IMPORTANCE_MIN)
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(ch)
+        }
+        val n = NotificationCompat.Builder(this, DeloEstNotif.SERVICE_CHANNEL)
+            .setSmallIcon(R.drawable.ic_stat_deloest)
+            .setContentTitle("ДелоЕсть")
+            .setContentText("Ждём новые сообщения и отклики")
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .build()
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(7702, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else {
+            startForeground(7702, n)
+        }
+        if (!running) {
+            running = true
+            Thread {
+                while (running) {
+                    try {
+                        val q = getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
+                        if (!q.getBoolean("enabled", true)) {
+                            running = false
+                            stopSelf()
+                            break
+                        }
+                        val i = Intent(this, DeloEstPushReceiver::class.java)
+                        i.action = "ru.deloest.delo_est.BG_POLL"
+                        sendBroadcast(i)
+                    } catch (e: Exception) { }
+                    try { Thread.sleep(30000L) } catch (e: Exception) { }
+                }
+            }.start()
+        }
+        return START_STICKY
+    }
+
+    override fun onDestroy() {
+        running = false
+        super.onDestroy()
+    }
+}
+
 class MainActivity : FlutterActivity() {
     private var pendingShortcut: String? = null
 
@@ -375,13 +459,11 @@ class MainActivity : FlutterActivity() {
 
     override fun onResume() {
         super.onResume()
-        getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
-            .edit().putBoolean("fg", true).apply()
+        DeloEstNotif.appFg = true
     }
 
     override fun onPause() {
-        getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
-            .edit().putBoolean("fg", false).apply()
+        DeloEstNotif.appFg = false
         DeloEstNotif.scheduleBgPoll(this, 30000L)
         super.onPause()
     }
@@ -394,8 +476,7 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
-        getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
-            .edit().putBoolean("fg", false).apply()
+        DeloEstNotif.appFg = false
         DeloEstNotif.scheduleBgPoll(this, 30000L)
         releaseRec()
         releasePlayer()
@@ -531,6 +612,7 @@ class MainActivity : FlutterActivity() {
                         }
                         ed.apply()
                         DeloEstNotif.scheduleBgPoll(this, 45000L)
+                        DeloEstNotif.startPollService(this)
                         result.success(mapOf(
                             "lastPushTs" to p.getLong("lastPushTs", 0L),
                             "unread" to p.getInt("unread", 0)

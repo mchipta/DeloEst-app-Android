@@ -385,10 +385,6 @@ class _CabinetPageState extends State<CabinetPage> {
         _markSeen();
       }));
     }
-    if (S.i.unread > 0) {
-      out.add(al(S.i.unread, plural(S.i.unread, 'непрочитанное сообщение', 'непрочитанных сообщения', 'непрочитанных сообщений'),
-          () => S.i.goTab(4)));
-    }
     return out;
   }
 
@@ -508,11 +504,6 @@ class _CabinetPageState extends State<CabinetPage> {
 
     final items = <Widget>[];
     if (all.isNotEmpty) {
-      items.add(Row(children: [
-        Expanded(child: Text('Мои объявления', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx))),
-        Text('${all.length}', style: TextStyle(color: p.mu, fontSize: 13, fontWeight: FontWeight.w700)),
-      ]));
-      items.add(const SizedBox(height: 10));
       items.add(Row(children: [
         Expanded(child: f('all', 'Все', all.length)),
         Expanded(child: f('open', 'Активные', open)),

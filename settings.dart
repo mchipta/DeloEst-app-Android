@@ -577,6 +577,15 @@ class _DevicesCardState extends State<_DevicesCard> {
                     ],
                   ]),
                   const SizedBox(height: 2),
+                  Builder(builder: (_) {
+                    final cur = _list[i]['cur'] == true;
+                    var ipT = (_list[i]['ip'] ?? '').toString();
+                    var geoT = (_list[i]['geo'] ?? '').toString();
+                    if (cur && ipT.isEmpty) ipT = Api.ip;
+                    if (cur && geoT.isEmpty) geoT = Api.geo;
+                    final line = [if (ipT.isNotEmpty) ipT, if (geoT.isNotEmpty) geoT].join(' · ');
+                    return Text(line.isEmpty ? 'IP и страна не определены' : line, style: TextStyle(color: p.mu, fontSize: 12));
+                  }),
                   Text(
                     _list[i]['cur'] == true
                         ? 'В сети сейчас'
