@@ -320,6 +320,7 @@ class AboutAppPage extends StatefulWidget {
 
 class _AboutAppPageState extends State<AboutAppPage> {
   String tg = '', vk = '';
+  bool checkingUpdate = false;
 
   @override
   void initState() {
@@ -337,6 +338,40 @@ class _AboutAppPageState extends State<AboutAppPage> {
         });
       }
     } catch (_) {}
+  }
+
+  Future<void> _checkUpdate() async {
+    setState(() => checkingUpdate = true);
+    final hasNew = await S.i.checkAppUpdate(silent: false);
+    if (!mounted) return;
+    setState(() => checkingUpdate = false);
+    final dl = S.i.updateUrl ?? 'https://github.com/mchipta/DeloEst-app-Android/releases/latest/download/DeloEst.apk';
+    final name = S.i.updateName ?? S.i.updateTag ?? 'последняя сборка';
+    final p = pal(context);
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: p.card,
+        title: Text(hasNew ? 'Доступно обновление!' : 'Проверка обновлений', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
+        content: Text(
+          hasNew
+              ? 'Вышла новая сборка: $name.\nСкачать и установить свежий DeloEst.apk поверх текущей версии?'
+              : 'У вас установлена версия $kAppVersion (последний релиз на GitHub: $name).\nПри желании вы можете скачать свежий APK-файл напрямую.',
+          style: TextStyle(color: p.mu, height: 1.4),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text('Закрыть', style: TextStyle(color: p.mu))),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: Text('Скачать APK', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+    if (go == true && mounted) {
+      if (S.i.updateTag != null) S.i.prefs.setString('seen_release_tag', S.i.updateTag!);
+      openUrl(context, Uri.parse(dl));
+    }
   }
 
   String _handle(String url) {
@@ -381,7 +416,29 @@ class _AboutAppPageState extends State<AboutAppPage> {
         ]),
         const SizedBox(height: 4),
         Center(child: Text('Версия $kAppVersion', style: TextStyle(color: p.mu, fontSize: 15))),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: cardDeco(p, r: 18),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(children: [
+              Icon(Icons.system_update_rounded, color: p.ac, size: 26),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Автообновление приложения', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 16)),
+                  Text(
+                    S.i.updateName != null ? 'Последняя сборка: ${S.i.updateName}' : 'Единая цифровая подпись — обновления ставятся поверх',
+                    style: TextStyle(color: p.mu, fontSize: 12.5),
+                  ),
+                ]),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            GradBtn('Проверить обновление', icon: Icons.refresh_rounded, busy: checkingUpdate, onTap: _checkUpdate),
+          ]),
+        ),
+        const SizedBox(height: 14),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: cardDeco(p, r: 18),

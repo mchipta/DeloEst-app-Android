@@ -3,13 +3,18 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
 import 'models.dart';
+import 'util.dart';
 
 class S extends ChangeNotifier {
   static final S i = S._();
   S._();
+
+  static const MethodChannel _notifyCh = MethodChannel('ru.deloest.delo_est/notify');
 
   late SharedPreferences prefs;
   Map<String, dynamic>? user;
@@ -36,9 +41,14 @@ class S extends ChangeNotifier {
   bool Function()? postBack;
   Set<String> fav = {};
   Map<String, String> mutedChats = {};
+  Map<String, String> blockedUsers = {};
   List<Map<String, String>> ss = [];
   Map<String, String>? pendingSearch;
   String cid = '';
+  int lastPushTs = 0;
+  String? updateTag;
+  String? updateUrl;
+  String? updateName;
   Timer? _timer;
   bool _unreadInit = false;
   int chatOpen = 0;
@@ -65,6 +75,10 @@ class S extends ChangeNotifier {
     applyEdgeToEdge(true); // панель всегда плавающая, вокруг неё ничего нет
     i.chatQuickSuggestionsEnabled = p.getBool('chat_quick_suggestions') ?? true;
     i.timeZone = p.getString('timezone') ?? '';
+    i.lastPushTs = p.getInt('last_push_ts') ?? DateTime.now().millisecondsSinceEpoch;
+    if (!p.containsKey('last_push_ts')) {
+      await p.setInt('last_push_ts', i.lastPushTs);
+    }
     final tm = p.getString('theme');
     i.themeMode = tm == 'dark'
         ? ThemeMode.dark
@@ -82,7 +96,15 @@ class S extends ChangeNotifier {
     if (fl != null) i.fav = fl.toSet();
     final muted = p.getString('muted_chats');
     if (muted != null) {
-      try { i.mutedChats = Map<String, String>.from(jsonDecode(muted) as Map); } catch (_) {}
+      try {
+        i.mutedChats = Map<String, String>.from(jsonDecode(muted) as Map);
+      } catch (_) {}
+    }
+    final bl = p.getString('blocked_users');
+    if (bl != null) {
+      try {
+        i.blockedUsers = Map<String, String>.from(jsonDecode(bl) as Map);
+      } catch (_) {}
     }
     final sj = p.getString('ss');
     if (sj != null) {
@@ -98,8 +120,27 @@ class S extends ChangeNotifier {
             .toList();
       } catch (_) {}
     }
+    requestPushPermission();
     i._timer = Timer.periodic(const Duration(seconds: 20), (_) => i.refreshUnread());
     i.refreshUnread();
+    if (i.logged) i.syncBlocks();
+    Future.delayed(const Duration(seconds: 3), () => i.checkAppUpdate(silent: true));
+  }
+
+  static Future<void> requestPushPermission() async {
+    try {
+      await _notifyCh.invokeMethod('request');
+    } catch (_) {}
+  }
+
+  static Future<void> showSystemPush(String title, String body, {int? id}) async {
+    try {
+      await _notifyCh.invokeMethod('show', {
+        'title': title,
+        'body': body,
+        'id': id ?? (DateTime.now().millisecondsSinceEpoch & 0x7fffffff),
+      });
+    } catch (_) {}
   }
 
   bool get logged => user != null;
@@ -125,7 +166,10 @@ class S extends ChangeNotifier {
       tab = 1; // вошли: «Главная» скрыта, открываем поиск
     }
     notifyListeners();
-    if (j != null) refreshUnread();
+    if (j != null) {
+      refreshUnread();
+      syncBlocks();
+    }
   }
 
   Future<void> patchUser(Map<String, dynamic> m) async {
@@ -138,6 +182,45 @@ class S extends ChangeNotifier {
   bool isFav(String id) => fav.contains(id);
 
   bool isChatMuted(String pid) => mutedChats.containsKey(pid);
+
+  bool isBlocked(String pid) => pid.isNotEmpty && blockedUsers.containsKey(pid);
+
+  Future<void> reportItem(String id, String reason) async {
+    await Api.call('report', {'id': id, 'reason': reason});
+  }
+
+  Future<void> setBlocked(String targetPid, String targetName, bool on) async {
+    if (logged) {
+      await Api.call('block', {'pid': targetPid, 'on': on});
+    }
+    if (on) {
+      blockedUsers[targetPid] = targetName.isEmpty ? 'Пользователь' : targetName;
+    } else {
+      blockedUsers.remove(targetPid);
+    }
+    await prefs.setString('blocked_users', jsonEncode(blockedUsers));
+    notifyListeners();
+  }
+
+  Future<void> syncBlocks() async {
+    if (!logged) return;
+    try {
+      final j = await Api.call('blocks');
+      final list = j['list'];
+      if (list is List) {
+        final next = <String, String>{};
+        for (final it in list) {
+          final m = Map<String, dynamic>.from(it as Map);
+          final p = (m['pid'] ?? '').toString();
+          final n = (m['name'] ?? 'Пользователь').toString();
+          if (p.isNotEmpty) next[p] = n;
+        }
+        blockedUsers = next;
+        await prefs.setString('blocked_users', jsonEncode(blockedUsers));
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
 
   // подсказки и предупреждение в чате скрываются отдельно для каждого собеседника (навсегда)
   bool chipsHidden(String pid) => prefs.getBool('qh_${user?['pid'] ?? ''}_$pid') ?? false;
@@ -175,6 +258,34 @@ class S extends ChangeNotifier {
   }
 
   Future<void> refreshUnread() async {
+    try {
+      // Проверяем серверные Push-уведомления (рассылки админа и события по сделкам)
+      final pj = await Api.call('pushes', {'after': lastPushTs});
+      final plist = pj['list'];
+      if (plist is List && plist.isNotEmpty) {
+        var maxTs = lastPushTs;
+        for (final raw in plist) {
+          final m = Map<String, dynamic>.from(raw as Map);
+          final ts = (m['ts'] as num?)?.toInt() ?? 0;
+          final title = (m['title'] ?? 'ДелоЕсть').toString();
+          final body = (m['body'] ?? '').toString();
+          if (ts > maxTs) maxTs = ts;
+          if (messageNotificationsEnabled && body.isNotEmpty) {
+            await showSystemPush(title, body);
+            final sm = msgKey.currentState;
+            if (sm != null) {
+              sm.hideCurrentSnackBar();
+              sm.showSnackBar(SnackBar(content: Text('$title: $body')));
+            }
+          }
+        }
+        if (maxTs > lastPushTs) {
+          lastPushTs = maxTs;
+          await prefs.setInt('last_push_ts', lastPushTs);
+        }
+      }
+    } catch (_) {}
+
     if (!logged) {
       if (unread != 0) {
         unread = 0;
@@ -203,6 +314,7 @@ class S extends ChangeNotifier {
         }
       }
       if (_unreadInit && n > unread && messageNotificationsEnabled && !messagesOpen && chatOpen == 0) {
+        await showSystemPush('Новое сообщение', 'Откройте ДелоЕсть, чтобы прочитать сообщение');
         final sm = msgKey.currentState;
         if (sm != null) {
           sm.hideCurrentSnackBar();
@@ -220,6 +332,67 @@ class S extends ChangeNotifier {
       }
     } catch (e) {
       if (e is ApiError && e.message == 'auth') fail(e);
+    }
+  }
+
+  /// Проверка обновлений APK через GitHub Releases репозитория
+  Future<bool> checkAppUpdate({bool silent = true}) async {
+    try {
+      final res = await http
+          .get(
+            Uri.parse('https://api.github.com/repos/mchipta/DeloEst-app-Android/releases/latest'),
+            headers: const {'Accept': 'application/vnd.github+json'},
+          )
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) return false;
+      final j = jsonDecode(res.body) as Map<String, dynamic>;
+      final tag = (j['tag_name'] ?? '').toString().trim();
+      final name = (j['name'] ?? tag).toString().trim();
+      var dl = (j['html_url'] ?? 'https://github.com/mchipta/DeloEst-app-Android/releases/latest').toString();
+      if (j['assets'] is List) {
+        for (final a in (j['assets'] as List)) {
+          if (a is Map && (a['browser_download_url'] ?? '').toString().endsWith('.apk')) {
+            dl = a['browser_download_url'].toString();
+            break;
+          }
+        }
+      }
+      if (tag.isEmpty) return false;
+      final seenTag = prefs.getString('seen_release_tag') ?? '';
+      if (seenTag.isEmpty) {
+        // Первый запуск этой сборки — запоминаем текущий релиз как базовый
+        await prefs.setString('seen_release_tag', tag);
+        updateTag = tag;
+        updateUrl = dl;
+        updateName = name;
+        notifyListeners();
+        return !silent;
+      }
+      updateTag = tag;
+      updateUrl = dl;
+      updateName = name;
+      notifyListeners();
+      if (tag != seenTag) {
+        final sm = msgKey.currentState;
+        if (sm != null) {
+          sm.hideCurrentSnackBar();
+          sm.showSnackBar(SnackBar(
+            duration: const Duration(seconds: 8),
+            content: Text('Доступно обновление приложения ($name)'),
+            action: SnackBarAction(
+              label: 'Скачать APK',
+              onPressed: () {
+                prefs.setString('seen_release_tag', tag);
+                launchUrl(Uri.parse(dl), mode: LaunchMode.externalApplication);
+              },
+            ),
+          ));
+        }
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -274,6 +447,7 @@ class S extends ChangeNotifier {
   Future<void> setMessageNotificationsEnabled(bool enabled) async {
     messageNotificationsEnabled = enabled;
     await prefs.setBool('messages_notifications', enabled);
+    if (enabled) requestPushPermission();
     notifyListeners();
   }
 

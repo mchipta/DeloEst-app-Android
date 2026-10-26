@@ -56,16 +56,17 @@ class _FeedPageState extends State<FeedPage> {
       ].join(' · ');
 
   List<Ad> _filtered() {
-    final q = _q.text.trim().toLowerCase();
+    final q = _q.text.trim();
     final c = _city.trim().toLowerCase();
     final mn = int.tryParse(digitsOnly(_min)) ?? 0;
     final mx = int.tryParse(digitsOnly(_max)) ?? 0;
     final r = S.i.ads.where((a) {
+      if (S.i.isBlocked(a.pid)) return false;
       final n = payNum(a.pay);
       if (_type.isNotEmpty && a.type != _type) return false;
       if (_cat.isNotEmpty && a.category != _cat) return false;
       if (c.isNotEmpty && !a.city.toLowerCase().contains(c)) return false;
-      if (q.isNotEmpty && !('${a.title} ${a.desc}'.toLowerCase().contains(q))) return false;
+      if (q.isNotEmpty && !smartMatchAd(q, a.title, a.desc, a.category, a.city)) return false;
       if (mn > 0 && (n == null || n < mn)) return false;
       if (mx > 0 && (n == null || n > mx)) return false;
       return true;
@@ -559,7 +560,45 @@ class _FeedPageState extends State<FeedPage> {
           ),
         ]),
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: 10),
+      // умные подсказки поиска (синонимы, частые запросы)
+      SizedBox(
+        height: 30,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.auto_awesome_rounded, size: 14, color: p.ac),
+                const SizedBox(width: 4),
+                Text('Умный поиск:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: p.mu)),
+              ]),
+            ),
+            for (final h in kSmartHints)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Tap(
+                  onTap: () => setState(() {
+                    _q.text = _q.text.trim().toLowerCase() == h ? '' : h;
+                  }),
+                  scale: .95,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _q.text.trim().toLowerCase() == h ? p.ac.withOpacity(.16) : p.bg2,
+                      borderRadius: BorderRadius.circular(99),
+                      border: Border.all(color: _q.text.trim().toLowerCase() == h ? p.ac : p.bd),
+                    ),
+                    child: Text(h, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _q.text.trim().toLowerCase() == h ? p.ac : p.tx)),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 10),
       // быстрые категории
       SizedBox(
         height: 38,

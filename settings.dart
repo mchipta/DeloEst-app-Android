@@ -342,28 +342,43 @@ class _SettingsBodyState extends State<SettingsBody> {
               ),
             ]),
           ),
-          _label(p, 'Уведомления'),
+          _label(p, 'Уведомления и Push'),
           Container(
             margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+            padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
             decoration: cardDeco(p, r: 16),
-            child: Row(children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12)),
-                child: Icon(Icons.notifications_none_rounded, color: p.ac),
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Уведомления о сообщениях', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: p.tx)),
-                const SizedBox(height: 3),
-                Text('Оповещение внутри приложения, когда приходят новые сообщения.', style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.3)),
-              ])),
-              Switch(
-                value: S.i.messageNotificationsEnabled,
-                activeColor: p.ac,
-                onChanged: (v) { S.i.setMessageNotificationsEnabled(v); },
+            child: Column(children: [
+              Row(children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12)),
+                  child: Icon(Icons.notifications_active_outlined, color: p.ac),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Push-уведомления', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: p.tx)),
+                  const SizedBox(height: 3),
+                  Text('Системные уведомления в шторке телефона о новых сообщениях, откликах и важных новостях.', style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.3)),
+                ])),
+                Switch(
+                  value: S.i.messageNotificationsEnabled,
+                  activeColor: p.ac,
+                  onChanged: (v) { S.i.setMessageNotificationsEnabled(v); },
+                ),
+              ]),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () async {
+                    await S.requestPushPermission();
+                    await S.showSystemPush('ДелоЕсть', 'Push-уведомления успешно подключены и работают!');
+                    if (context.mounted) toast(context, 'Тестовое Push-уведомление отправлено');
+                  },
+                  icon: Icon(Icons.send_to_mobile_rounded, size: 18, color: p.ac),
+                  label: Text('Проверить Push-уведомление', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800, fontSize: 13)),
+                ),
               ),
             ]),
           ),
@@ -388,6 +403,32 @@ class _SettingsBodyState extends State<SettingsBody> {
                   ),
               ]),
             ),
+          if (S.i.blockedUsers.isNotEmpty) ...[
+            _label(p, 'Чёрный список'),
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: cardDeco(p, r: 16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Заблокированные пользователи не могут писать вам и откликаться на ваши объявления.',
+                    style: TextStyle(color: p.mu, fontSize: 12.5)),
+                const SizedBox(height: 8),
+                for (final entry in S.i.blockedUsers.entries)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(children: [
+                      Icon(Icons.block_rounded, size: 17, color: p.dng),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(entry.value.isEmpty ? 'Пользователь' : entry.value, style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 14))),
+                      TextButton(
+                        onPressed: () => S.i.setBlocked(entry.key, entry.value, false),
+                        child: Text('Разблокировать', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
+                      ),
+                    ]),
+                  ),
+              ]),
+            ),
+          ],
           _label(p, 'Часовой пояс'),
           Container(
             padding: const EdgeInsets.all(14),

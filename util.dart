@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 
-const kAppVersion = '1.3';
+const kAppVersion = '1.4';
 const kSiteUrl = 'https://mchipta.github.io/DeloEst-website/';
 
 String digitsOnly(String s) => s.replaceAll(RegExp(r'\D'), '');
@@ -22,10 +22,8 @@ String fmtPhone(String v) {
   } else if (d.startsWith('9') && d.length <= 10) {
     d = '7$d';
   }
-  // кусок цифр [a, b) без выхода за границы
   String part(String s, int a, int b) => s.length <= a ? '' : s.substring(a, s.length < b ? s.length : b);
   String clip(String s, int n) => s.length > n ? s.substring(0, n) : s;
-  // как на сайте: Россия и Казахстан +7, Беларусь +375, Узбекистан +998
   if (d.startsWith('7')) {
     d = clip(d, 11);
     final a = part(d, 1, 4), b = part(d, 4, 7), c = part(d, 7, 9), e = part(d, 9, 11);
@@ -44,7 +42,7 @@ String fmtPhone(String v) {
   return '+${clip(d, 15)}';
 }
 
-/// Номер введён полностью: 11 цифр для +7, 12 для +375 и +998 (в нормализованном виде, без плюса)
+/// Номер введён полностью: 11 цифр для +7, 12 для +375 и +998
 bool phoneComplete(String norm) {
   final d = digitsOnly(norm);
   if (d.startsWith('7')) return d.length == 11;
@@ -129,6 +127,99 @@ double? payNum(String pay) {
 final riskRe = RegExp(
     r'предоплат|аванс|задаток|залог|вперёд|вперед|на карту|перевод на|переведи|вложени|взнос|регистрационн\S* сбор|комисси',
     caseSensitive: false);
+
+// ===== УМНЫЙ ПОИСК: нормализация, раскладка клавиатуры, корни слов и синонимы =====
+const _enToRu = <String, String>{
+  'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з', '[': 'х', ']': 'ъ',
+  'a': 'ф', 's': 'ы', 'd': 'в', 'f': 'а', 'g': 'п', 'h': 'р', 'j': 'о', 'k': 'л', 'l': 'д', ';': 'ж', "'": 'э',
+  'z': 'я', 'x': 'ч', 'c': 'с', 'v': 'м', 'b': 'и', 'n': 'т', 'm': 'ь', ',': 'б', '.': 'ю',
+};
+
+const _synGroups = <List<String>>[
+  ['сантехник', 'сантехника', 'смеситель', 'кран', 'труб', 'унитаз', 'раковин', 'протечк', 'засор', 'слив', 'бойлер', 'водонагревател'],
+  ['электрик', 'электрика', 'проводк', 'розетк', 'выключател', 'люстр', 'светильник', 'автомат', 'щиток', 'замыкан'],
+  ['грузчик', 'переезд', 'разгруз', 'погруз', 'таскать', 'подъем', 'мебел', 'газель', 'перенести'],
+  ['уборк', 'клининг', 'помыть', 'мытье', 'генеральн', 'окн', 'пыль', 'прибрать', 'горничн', 'чистк'],
+  ['курьер', 'доставк', 'привезти', 'отвезти', 'посылк', 'пеший', 'автокурьер', 'продукт'],
+  ['сад', 'огород', 'трав', 'покос', 'косить', 'триммер', 'газон', 'вскопать', 'копк', 'грядк', 'участок', 'спил', 'дерев', 'снег'],
+  ['репетитор', 'учитель', 'преподавател', 'математик', 'алгебр', 'геометр', 'английск', 'русск', 'физик', 'хими', 'егэ', 'огэ', 'школ', 'урок'],
+  ['компьютер', 'ноутбук', 'пк', 'виндовс', 'windows', 'переустанов', 'программ', 'вирус', 'настройк', 'сайт', 'бот', 'программист', 'айти', 'it'],
+  ['стиральн', 'холодильник', 'посудомоечн', 'микроволнов', 'телевизор', 'плит', 'духовк', 'бытов', 'техник', 'починить'],
+  ['ремонт', 'отделк', 'обои', 'плитк', 'кафел', 'ламинат', 'линолеум', 'шпаклев', 'штукатур', 'покраск', 'маляр', 'гипсокартон', 'потолок', 'сборк', 'муж на час'],
+  ['ведущ', 'фотограф', 'видеограф', 'аниматор', 'праздник', 'свадьб', 'мероприят', 'банкет', 'официант', 'повар'],
+  ['разнорабоч', 'подсобник', 'помощник', 'подработк', 'смен', 'день', 'час', 'листовк', 'промоутер'],
+];
+
+String _fixLayout(String s) {
+  if (!RegExp(r'[a-zA-Z]').hasMatch(s)) return s;
+  final b = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    final ch = s[i].toLowerCase();
+    b.write(_enToRu[ch] ?? ch);
+  }
+  return b.toString();
+}
+
+String _normText(String s) => s.toLowerCase().replaceAll('ё', 'е').replaceAll(RegExp(r'[^а-яa-z0-9\s]'), ' ');
+
+String _stem(String w) {
+  if (w.length <= 4) return w;
+  return w.replaceFirst(
+      RegExp(r'(ами|ями|ого|его|ому|ему|ыми|ими|ешь|ете|ать|ять|ить|уть|оть|еть|ый|ий|ой|ая|яя|ое|ее|ые|ие|ов|ев|ей|ам|ям|ах|ях|ую|юю|ом|ем|а|я|о|е|ы|и|у|ю|ь)$'),
+      '');
+}
+
+/// Умная проверка соответствия объявления поисковому запросу
+bool smartMatchAd({
+  required String query,
+  required String title,
+  required String desc,
+  required String category,
+  required String city,
+  required String addr,
+}) {
+  final raw = query.trim();
+  if (raw.isEmpty) return true;
+  final hay = _normText('$title $desc $category $city $addr');
+  final q1 = _normText(raw);
+  final q2 = _normText(_fixLayout(raw));
+
+  bool matchOne(String qNorm) {
+    final words = qNorm.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (words.isEmpty) return true;
+    for (final w in words) {
+      final st = _stem(w);
+      if (hay.contains(w) || (st.length >= 3 && hay.contains(st))) continue;
+      // Проверяем синонимы
+      var synHit = false;
+      for (final grp in _synGroups) {
+        if (grp.any((g) => g.startsWith(st) || st.startsWith(g) || w.contains(g))) {
+          if (grp.any((g) => hay.contains(g))) {
+            synHit = true;
+            break;
+          }
+        }
+      }
+      if (!synHit) return false;
+    }
+    return true;
+  }
+
+  return matchOne(q1) || (q2 != q1 && matchOne(q2));
+}
+
+const kSmartHints = <String>[
+  'Грузчики',
+  'Уборка квартиры',
+  'Сантехник',
+  'Электрик',
+  'Курьер на день',
+  'Покос травы',
+  'Сборка мебели',
+  'Репетитор',
+  'Вывоз мусора',
+  'Настройка ПК',
+];
 
 class Tpl {
   final String name;
@@ -273,9 +364,6 @@ String ssLabel(Map<String, String> s) {
   return parts.join(' · ');
 }
 
-
-// Настройки часового пояса из веб-версии. Все доступные зоны сайта — российские
-// зоны без сезонного перевода часов, поэтому их действующие смещения заданы явно.
 const kSiteTimeZones = <List<String>>[
   ['', 'Как на устройстве'],
   ['Europe/Kaliningrad', 'Калининград (UTC+2)'],
@@ -332,7 +420,6 @@ String siteChatStamp(int ts, String zone) {
   if (d.year == now.year && d.month == now.month && d.day == now.day) return hm;
   return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')} $hm';
 }
-
 
 String siteListTime(int ts, String zone) {
   if (ts <= 0) return '';

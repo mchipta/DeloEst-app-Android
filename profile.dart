@@ -82,20 +82,55 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final p = pal(context);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Профиль')),
-      body: loading
-          ? Center(child: CircularProgressIndicator(color: p.ac))
-          : d == null
-              ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(err ?? 'Не удалось загрузить профиль', style: TextStyle(color: p.mu))))
-              : _body(p, d!),
+    return ListenableBuilder(
+      listenable: S.i,
+      builder: (context, _) {
+        final p = pal(context);
+        final me = d?['me'] == true || (S.i.logged && S.i.pid == widget.pid);
+        final blocked = S.i.isBlocked(widget.pid);
+        final uName = (d?['name'] ?? widget.name).toString();
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Профиль'),
+            actions: [
+              if (!me && widget.pid.isNotEmpty)
+                PopupMenuButton<String>(
+                  onSelected: (v) async {
+                    if (!S.i.logged) {
+                      await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
+                      if (!mounted || !S.i.logged) return;
+                    }
+                    if (v == 'report' && mounted) {
+                      await showReportSheet(context, id: 'user:${widget.pid}', label: 'пользователя');
+                    }
+                    if (v == 'block' && mounted) {
+                      await toggleUserBlock(context, pid: widget.pid, name: uName);
+                    }
+                  },
+                  itemBuilder: (c) => [
+                    const PopupMenuItem(value: 'report', child: Text('Пожаловаться на профиль')),
+                    PopupMenuItem(
+                      value: 'block',
+                      child: Text(blocked ? 'Разблокировать пользователя' : 'Заблокировать пользователя'),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          body: loading
+              ? Center(child: CircularProgressIndicator(color: p.ac))
+              : d == null
+                  ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(err ?? 'Не удалось загрузить профиль', style: TextStyle(color: p.mu))))
+                  : _body(p, d!),
+        );
+      },
     );
   }
 
   Widget _body(Pal p, Map<String, dynamic> d) {
     final name = (d['name'] ?? widget.name).toString();
-    final me = d['me'] == true;
+    final me = d['me'] == true || (S.i.logged && S.i.pid == widget.pid);
+    final blocked = S.i.isBlocked(widget.pid);
     final rc = (d['rc'] as num?)?.toInt() ?? 0;
     final rt = (d['rt'] as num?)?.toDouble() ?? 0;
     final created = (d['created'] as num?)?.toInt() ?? 0;
@@ -170,7 +205,40 @@ class _ProfilePageState extends State<ProfilePage> {
             ],
             if (!me) ...[
               const SizedBox(height: 14),
-              GradBtn('Написать', icon: Icons.chat_bubble_outline, onTap: _write),
+              if (!blocked)
+                GradBtn('Написать', icon: Icons.chat_bubble_outline, onTap: _write),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(
+                  child: OutBtn(
+                    'Пожаловаться',
+                    icon: Icons.flag_outlined,
+                    color: p.mu,
+                    onTap: () async {
+                      if (!S.i.logged) {
+                        await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
+                        if (!mounted || !S.i.logged) return;
+                      }
+                      if (mounted) await showReportSheet(context, id: 'user:${widget.pid}', label: 'пользователя');
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutBtn(
+                    blocked ? 'Разблокировать' : 'Заблокировать',
+                    icon: blocked ? Icons.lock_open_rounded : Icons.block_rounded,
+                    color: blocked ? p.ac : p.dng,
+                    onTap: () async {
+                      if (!S.i.logged) {
+                        await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
+                        if (!mounted || !S.i.logged) return;
+                      }
+                      if (mounted) await toggleUserBlock(context, pid: widget.pid, name: name);
+                    },
+                  ),
+                ),
+              ]),
             ],
           ]),
         ),

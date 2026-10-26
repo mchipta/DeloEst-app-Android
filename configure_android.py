@@ -1,10 +1,10 @@
 """Настройка сгенерированного Android-проекта (запускается из папки shell).
 
 Что делает:
-  1. добавляет разрешение INTERNET и запросы для звонков/ссылок;
+  1. добавляет разрешения INTERNET, RECORD_AUDIO, POST_NOTIFICATIONS и запросы для звонков/ссылок;
   2. ставит название приложения «ДелоЕсть»;
   3. создаёт алиас значка (оранжевый);
-  4. пишет MainActivity с MethodChannel 'ru.deloest.delo_est/launcher_icon', ярлыками значка и записью/воспроизведением голоса.
+  4. пишет MainActivity с MethodChannel 'ru.deloest.delo_est/launcher_icon', 'ru.deloest.delo_est/notify' (системные Push-уведомления), ярлыками значка и записью/воспроизведением голоса.
 Любая ошибка останавливает сборку с понятным сообщением.
 """
 import re
@@ -32,6 +32,7 @@ if 'OrangeLauncher' in text:
 perm = (
     '<uses-permission android:name="android.permission.INTERNET"/>\n'
     '<uses-permission android:name="android.permission.RECORD_AUDIO"/>\n'
+    '<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n'
     '    <queries>\n'
     '        <intent><action android:name="android.intent.action.DIAL"/><data android:scheme="tel"/></intent>\n'
     '        <intent><action android:name="android.intent.action.SENDTO"/><data android:scheme="mailto"/></intent>\n'
@@ -106,13 +107,19 @@ if old.suffix == '.java':
 kt.write_text('''package %(pkg)s
 
 import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.Build
 import android.os.Bundle
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -127,18 +134,21 @@ class MainActivity : FlutterActivity() {
     private var recStart = 0L
     private var pendingPerm: MethodChannel.Result? = null
     private val reqAudio = 4711
+    private val reqNotif = 4712
     private var player: MediaPlayer? = null
     private var playDone = false
+    private var notifSeq = 100
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        pendingShortcut = intent?.getStringExtra(\"shortcut\")
+        pendingShortcut = intent?.getStringExtra("shortcut")
+        ensureNotifChannel()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        val s = intent.getStringExtra(\"shortcut\")
+        val s = intent.getStringExtra("shortcut")
         if (s != null) pendingShortcut = s
     }
 
@@ -146,6 +156,49 @@ class MainActivity : FlutterActivity() {
         releaseRec()
         releasePlayer()
         super.onDestroy()
+    }
+
+    private fun ensureNotifChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val ch = NotificationChannel(
+                "deloest_push",
+                "Уведомления ДелоЕсть",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Сообщения, отклики и важные оповещения сервиса ДелоЕсть"
+            }
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.createNotificationChannel(ch)
+        }
+    }
+
+    private fun showSystemNotif(title: String, body: String, shortcut: String?) {
+        if (Build.VERSION.SDK_INT >= 33) {
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), reqNotif)
+                return
+            }
+        }
+        ensureNotifChannel()
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            if (!shortcut.isNullOrEmpty()) putExtra("shortcut", shortcut)
+        }
+        val piFlags = if (Build.VERSION.SDK_INT >= 23)
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        else PendingIntent.FLAG_UPDATE_CURRENT
+        val pi = PendingIntent.getActivity(this, notifSeq, intent, piFlags)
+        val builder = NotificationCompat.Builder(this, "deloest_push")
+            .setSmallIcon(R.drawable.icon_orange)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pi)
+        try {
+            NotificationManagerCompat.from(this).notify(notifSeq++, builder.build())
+        } catch (e: Exception) { }
     }
 
     private fun releaseRec() {
@@ -175,7 +228,7 @@ class MainActivity : FlutterActivity() {
             pendingPerm = null
             if (r != null) {
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) doStartRec(r)
-                else r.success(\"denied\")
+                else r.success("denied")
             }
         }
     }
@@ -183,7 +236,7 @@ class MainActivity : FlutterActivity() {
     private fun doStartRec(result: MethodChannel.Result) {
         try {
             releaseRec()
-            val f = File(cacheDir, \"rec_\" + System.currentTimeMillis() + \".m4a\")
+            val f = File(cacheDir, "rec_" + System.currentTimeMillis() + ".m4a")
             val r = if (Build.VERSION.SDK_INT >= 31) MediaRecorder(this) else MediaRecorder()
             r.setAudioSource(MediaRecorder.AudioSource.MIC)
             r.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
@@ -197,10 +250,10 @@ class MainActivity : FlutterActivity() {
             rec = r
             recFile = f
             recStart = System.currentTimeMillis()
-            result.success(\"ok\")
+            result.success("ok")
         } catch (e: Exception) {
             releaseRec()
-            result.error(\"REC_FAILED\", e.message, null)
+            result.error("REC_FAILED", e.message, null)
         }
     }
 
@@ -215,7 +268,7 @@ class MainActivity : FlutterActivity() {
         try {
             r.stop()
             releaseRec()
-            result.success(mapOf(\"path\" to f.absolutePath, \"ms\" to ms))
+            result.success(mapOf("path" to f.absolutePath, "ms" to ms))
         } catch (e: Exception) {
             releaseRec()
             try { f.delete() } catch (x: Exception) { }
@@ -245,49 +298,70 @@ class MainActivity : FlutterActivity() {
             result.success(true)
         } catch (e: Exception) {
             releasePlayer()
-            result.error(\"PLAY_FAILED\", e.message, null)
+            result.error("PLAY_FAILED", e.message, null)
         }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, \"ru.deloest.delo_est/voice\")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "ru.deloest.delo_est/notify")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
-                    \"start\" -> startRec(result)
-                    \"stop\" -> stopRec(result)
-                    \"cancel\" -> cancelRec(result)
-                    \"play\" -> play((call.arguments as? String) ?: \"\", result)
-                    \"pause\" -> {
+                    "request" -> {
+                        if (Build.VERSION.SDK_INT >= 33 &&
+                            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), reqNotif)
+                        }
+                        result.success(true)
+                    }
+                    "show" -> {
+                        val args = call.arguments as? Map<*, *>
+                        val title = (args?.get("title") as? String) ?: "ДелоЕсть"
+                        val body = (args?.get("body") as? String) ?: ""
+                        val sc = args?.get("shortcut") as? String
+                        showSystemNotif(title, body, sc)
+                        result.success(true)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "ru.deloest.delo_est/voice")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "start" -> startRec(result)
+                    "stop" -> stopRec(result)
+                    "cancel" -> cancelRec(result)
+                    "play" -> play((call.arguments as? String) ?: "", result)
+                    "pause" -> {
                         try { player?.pause() } catch (e: Exception) { }
                         result.success(true)
                     }
-                    \"resume\" -> {
+                    "resume" -> {
                         try { player?.start() } catch (e: Exception) { }
                         result.success(true)
                     }
-                    \"stopPlay\" -> {
+                    "stopPlay" -> {
                         releasePlayer()
                         result.success(true)
                     }
-                    \"state\" -> {
+                    "state" -> {
                         val mp = player
                         if (mp == null) {
-                            result.success(mapOf(\"playing\" to false, \"pos\" to 0, \"dur\" to 0, \"done\" to true))
+                            result.success(mapOf("playing" to false, "pos" to 0, "dur" to 0, "done" to true))
                         } else {
                             try {
-                                result.success(mapOf(\"playing\" to mp.isPlaying, \"pos\" to mp.currentPosition, \"dur\" to mp.duration, \"done\" to playDone))
+                                result.success(mapOf("playing" to mp.isPlaying, "pos" to mp.currentPosition, "dur" to mp.duration, "done" to playDone))
                             } catch (e: Exception) {
-                                result.success(mapOf(\"playing\" to false, \"pos\" to 0, \"dur\" to 0, \"done\" to true))
+                                result.success(mapOf("playing" to false, "pos" to 0, "dur" to 0, "done" to true))
                             }
                         }
                     }
                     else -> result.notImplemented()
                 }
             }
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, \"ru.deloest.delo_est/shortcut\")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "ru.deloest.delo_est/shortcut")
             .setMethodCallHandler { call, result ->
-                if (call.method == \"take\") {
+                if (call.method == "take") {
                     val s = pendingShortcut
                     pendingShortcut = null
                     result.success(s)
@@ -295,25 +369,25 @@ class MainActivity : FlutterActivity() {
                     result.notImplemented()
                 }
             }
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, \"ru.deloest.delo_est/launcher_icon\")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "ru.deloest.delo_est/launcher_icon")
             .setMethodCallHandler { call, result ->
-                if (call.method != \"setLauncherIcon\") {
+                if (call.method != "setLauncherIcon") {
                     result.notImplemented()
                     return@setMethodCallHandler
                 }
-                val style = call.arguments as? String ?: \"orange\"
+                val style = call.arguments as? String ?: "orange"
                 val pm = packageManager
-                val orange = ComponentName(this, \"%(pkg)s.OrangeLauncher\")
+                val orange = ComponentName(this, "%(pkg)s.OrangeLauncher")
                 try {
                     pm.setComponentEnabledSetting(
                         orange,
-                        if (style == \"orange\") PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                        if (style == "orange") PackageManager.COMPONENT_ENABLED_STATE_ENABLED
                         else PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                         PackageManager.DONT_KILL_APP
                     )
                     result.success(true)
                 } catch (e: Exception) {
-                    result.error(\"ICON_CHANGE_FAILED\", e.message, null)
+                    result.error("ICON_CHANGE_FAILED", e.message, null)
                 }
             }
     }
@@ -357,4 +431,4 @@ sc_xml.append('</shortcuts>')
 (res_dir / 'values' / 'shortcut_strings.xml').write_text('\n'.join(strings) + '\n', encoding='utf-8')
 (res_dir / 'xml' / 'shortcuts.xml').write_text('\n'.join(sc_xml) + '\n', encoding='utf-8')
 
-print('Android настроен: пакет %s, значок, ярлыки, MainActivity' % pkg)
+print('Android настроен: пакет %s, значок, уведомления, ярлыки, MainActivity' % pkg)

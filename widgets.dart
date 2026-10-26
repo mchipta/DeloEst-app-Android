@@ -605,7 +605,7 @@ class VerifiedBadge extends StatelessWidget {
 }
 
 class BrandIcon extends StatelessWidget {
-  final String kind; // tg, wa, vk или max
+  final String kind; // tg, wa, vk, ya или max
   final double size;
   const BrandIcon(this.kind, {super.key, this.size = 40});
   @override
@@ -614,9 +614,11 @@ class BrandIcon extends StatelessWidget {
         ? const Color(0xFF229ED9)
         : kind == 'wa'
             ? const Color(0xFF25D366)
-            : kind == 'max'
-                ? const Color(0xFF5B5BF0)
-                : const Color(0xFF0077FF);
+            : kind == 'ya'
+                ? const Color(0xFFFC3F1D)
+                : kind == 'max'
+                    ? const Color(0xFF5B5BF0)
+                    : const Color(0xFF0077FF);
     final Widget glyph;
     if (kind == 'tg') {
       glyph = CustomPaint(size: Size.square(size * .64), painter: const _TgPainter());
@@ -632,6 +634,8 @@ class BrandIcon extends StatelessWidget {
           ),
         ]),
       );
+    } else if (kind == 'ya') {
+      glyph = Text('Я', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: size * .48));
     } else if (kind == 'max') {
       glyph = Text('MAX', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: size * .27, letterSpacing: -.3));
     } else {
@@ -644,6 +648,112 @@ class BrandIcon extends StatelessWidget {
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(size * .3)),
       child: glyph,
     );
+  }
+}
+
+const List<String> kReportReasons = [
+  'Мошенничество или просят предоплату',
+  'Спам или реклама',
+  'Неверная информация / чужой номер',
+  'Грубость или оскорбления',
+  'Запрещённые товары или услуги',
+];
+
+Future<void> showReportSheet(BuildContext context, {required String id, String label = 'объявление'}) async {
+  final p = pal(context);
+  String picked = kReportReasons.first;
+  final ctl = TextEditingController();
+  final res = await showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: p.card,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+    builder: (c) => StatefulBuilder(
+      builder: (c, setS) => Padding(
+        padding: EdgeInsets.fromLTRB(16, 18, 16, 16 + MediaQuery.of(c).viewInsets.bottom),
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Пожаловаться на $label', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: p.tx)),
+            const SizedBox(height: 6),
+            Text('Выберите причину или опишите ситуацию — модератор проверит обращение.',
+                style: TextStyle(color: p.mu, fontSize: 13.5)),
+            const SizedBox(height: 12),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final r in kReportReasons)
+                GestureDetector(
+                  onTap: () => setS(() => picked = r),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: picked == r ? p.ac.withOpacity(.15) : p.bg2,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: picked == r ? p.ac : p.bd, width: picked == r ? 1.4 : 1),
+                    ),
+                    child: Text(r, style: TextStyle(color: picked == r ? p.ac : p.tx, fontWeight: FontWeight.w700, fontSize: 13)),
+                  ),
+                ),
+            ]),
+            const SizedBox(height: 12),
+            TextField(
+              contextMenuBuilder: appContextMenu,
+              controller: ctl,
+              minLines: 2,
+              maxLines: 4,
+              maxLength: 300,
+              style: TextStyle(color: p.tx),
+              decoration: deco(c, 'Комментарий (необязательно)'),
+            ),
+            const SizedBox(height: 4),
+            GradBtn('Отправить жалобу', onTap: () {
+              final extra = ctl.text.trim();
+              Navigator.pop(c, extra.isEmpty ? picked : '$picked: $extra');
+            }),
+          ]),
+        ),
+      ),
+    ),
+  );
+  if (res == null || res.isEmpty || !context.mounted) return;
+  try {
+    await S.i.reportItem(id, res);
+    if (context.mounted) toast(context, 'Спасибо! Жалоба отправлена на проверку');
+  } catch (e) {
+    if (context.mounted) toast(context, S.i.fail(e));
+  }
+}
+
+Future<void> toggleUserBlock(BuildContext context, {required String pid, required String name}) async {
+  if (pid.isEmpty) return;
+  final blocked = S.i.isBlocked(pid);
+  final p = pal(context);
+  if (!blocked) {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: p.card,
+        title: Text('Заблокировать ${name.isEmpty ? 'пользователя' : name}?', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
+        content: Text(
+          'Вы больше не будете видеть объявления этого пользователя, а он не сможет писать вам в чат и откликаться.',
+          style: TextStyle(color: p.mu, height: 1.35),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text('Отмена', style: TextStyle(color: p.mu))),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: Text('Заблокировать', style: TextStyle(color: p.dng, fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+  }
+  try {
+    await S.i.setBlocked(pid, name, !blocked);
+    if (context.mounted) {
+      toast(context, !blocked ? 'Пользователь добавлен в чёрный список' : 'Пользователь разблокирован');
+    }
+  } catch (e) {
+    if (context.mounted) toast(context, S.i.fail(e));
   }
 }
 
