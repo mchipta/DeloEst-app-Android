@@ -238,6 +238,8 @@ class _ChatPageState extends State<ChatPage> {
   bool ver = false;
   bool _muted = false;
   bool _emoji = false;
+  bool _chipsOff = false;
+  bool _safeOff = false;
   bool _rec = false;
   int _recMs = 0;
   DateTime? _recAt;
@@ -248,6 +250,8 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
+    _chipsOff = S.i.chipsHidden(widget.pid);
+    _safeOff = S.i.safeHidden(widget.pid);
     S.i.chatOpen++;
     name = widget.name;
     avatar = widget.avatar;
@@ -610,7 +614,9 @@ class _ChatPageState extends State<ChatPage> {
           ]),
         ),
       ),
-      body: Stack(children: [
+      body: Column(children: [
+        if (!_safeOff) _safeBanner(p),
+        Expanded(child: Stack(children: [
         Positioned.fill(
           child: !loaded
               ? Center(child: err != null ? Text(err!, style: TextStyle(color: p.mu)) : CircularProgressIndicator(color: p.ac))
@@ -628,11 +634,12 @@ class _ChatPageState extends State<ChatPage> {
           right: 0,
           bottom: 0,
           child: Column(key: _barKey, mainAxisSize: MainAxisSize.min, children: [
-            if (S.i.chatQuickSuggestionsEnabled) _quick(p),
+            if (S.i.chatQuickSuggestionsEnabled && !_chipsOff) _quick(p),
             _input(p),
             if (_emoji) _emojiPanel(p),
           ]),
         ),
+      ])),
       ]),
     );
   }
@@ -716,38 +723,95 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
+  void _hideChips() {
+    S.i.hideChips(widget.pid);
+    if (mounted) setState(() => _chipsOff = true);
+  }
+
+  void _hideSafe() {
+    S.i.hideSafe(widget.pid);
+    if (mounted) setState(() => _safeOff = true);
+  }
+
+  // Быстрые фразы: ряд чипов с прокруткой и постоянной кнопкой «закрыть» справа
   Widget _quick(Pal p) {
-    return Container(
-      color: Colors.transparent,
-      height: 44,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        children: [
-          for (final q in kQuick)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: GestureDetector(
-                onTap: () {
-                  _ctl.text = q;
-                  _send();
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(99), border: Border.all(color: p.bd)),
-                  child: Text(q, style: TextStyle(fontSize: 13, color: p.tx, fontWeight: FontWeight.w600)),
+    return SizedBox(
+      height: 46,
+      child: Row(children: [
+        Expanded(
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(12, 5, 4, 5),
+            children: [
+              for (final q in kQuick)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Tap(
+                    onTap: () {
+                      _hideChips();
+                      _ctl.text = q;
+                      _send();
+                    },
+                    scale: .95,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: p.ac.withOpacity(.10),
+                        borderRadius: BorderRadius.circular(99),
+                        border: Border.all(color: p.ac.withOpacity(.38)),
+                      ),
+                      child: Text(q, style: TextStyle(fontSize: 13.5, color: p.tx, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          GestureDetector(
-            onTap: () => S.i.setChatQuickSuggestionsEnabled(false),
-            child: Container(width: 32, alignment: Alignment.center,
-              decoration: BoxDecoration(color: p.bg2, shape: BoxShape.circle, border: Border.all(color: p.bd)),
-              child: Icon(Icons.close_rounded, size: 17, color: p.mu)),
+            ],
           ),
-        ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(right: 14, left: 2),
+          child: Tap(
+            onTap: _hideChips,
+            scale: .9,
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(color: p.card, shape: BoxShape.circle, border: Border.all(color: p.bd)),
+              child: Icon(Icons.close_rounded, size: 18, color: p.mu),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  // Предупреждение про предоплату: закрывается навсегда для этого собеседника
+  Widget _safeBanner(Pal p) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+      decoration: BoxDecoration(
+        color: p.ac2.withOpacity(.12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: p.ac.withOpacity(.28)),
       ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(padding: const EdgeInsets.only(top: 1), child: Icon(Icons.shield_outlined, size: 19, color: p.ac)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text.rich(
+            TextSpan(style: TextStyle(color: p.tx, fontSize: 13, height: 1.35), children: const [
+              TextSpan(text: 'Осторожно: ', style: TextStyle(fontWeight: FontWeight.w800)),
+              TextSpan(text: 'не переводите предоплату незнакомым и не называйте коды из СМС. Расплачивайтесь после работы.'),
+            ]),
+          ),
+        ),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _hideSafe,
+          child: SizedBox(width: 32, height: 28, child: Icon(Icons.close_rounded, size: 19, color: p.mu)),
+        ),
+      ]),
     );
   }
 

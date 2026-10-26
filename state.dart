@@ -139,6 +139,12 @@ class S extends ChangeNotifier {
 
   bool isChatMuted(String pid) => mutedChats.containsKey(pid);
 
+  // подсказки и предупреждение в чате скрываются отдельно для каждого собеседника (навсегда)
+  bool chipsHidden(String pid) => prefs.getBool('qh_${user?['pid'] ?? ''}_$pid') ?? false;
+  Future<void> hideChips(String pid) => prefs.setBool('qh_${user?['pid'] ?? ''}_$pid', true);
+  bool safeHidden(String pid) => prefs.getBool('safe_${user?['pid'] ?? ''}_$pid') ?? false;
+  Future<void> hideSafe(String pid) => prefs.setBool('safe_${user?['pid'] ?? ''}_$pid', true);
+
   Future<void> setChatQuickSuggestionsEnabled(bool enabled) async {
     chatQuickSuggestionsEnabled = enabled;
     await prefs.setBool('chat_quick_suggestions', enabled);
