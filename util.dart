@@ -170,14 +170,14 @@ String _stem(String w) {
 }
 
 /// Умная проверка соответствия объявления поисковому запросу
-bool smartMatchAd({
-  required String query,
-  required String title,
-  required String desc,
-  required String category,
-  required String city,
-  required String addr,
-}) {
+bool smartMatchAd(
+  String query,
+  String title,
+  String desc,
+  String category,
+  String city, [
+  String addr = '',
+]) {
   final raw = query.trim();
   if (raw.isEmpty) return true;
   final hay = _normText('$title $desc $category $city $addr');

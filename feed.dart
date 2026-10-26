@@ -66,7 +66,7 @@ class _FeedPageState extends State<FeedPage> {
       if (_type.isNotEmpty && a.type != _type) return false;
       if (_cat.isNotEmpty && a.category != _cat) return false;
       if (c.isNotEmpty && !a.city.toLowerCase().contains(c)) return false;
-      if (q.isNotEmpty && !smartMatchAd(q, a.title, a.desc, a.category, a.city)) return false;
+      if (q.isNotEmpty && !smartMatchAd(q, a.title, a.desc, a.category, a.city, a.addr)) return false;
       if (mn > 0 && (n == null || n < mn)) return false;
       if (mx > 0 && (n == null || n > mx)) return false;
       return true;
