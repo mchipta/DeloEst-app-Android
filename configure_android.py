@@ -323,11 +323,11 @@ class DeloEstPushReceiver : BroadcastReceiver() {
                 doOutput = true
                 setRequestProperty("Content-Type", "text/plain;charset=utf-8")
             }
-            conn.outputStream.use { os ->
+            conn!!.outputStream.use { os ->
                 os.write(body.toByteArray(Charsets.UTF_8))
             }
-            var code = conn.responseCode
-            var loc = conn.getHeaderField("Location")
+            var code = conn!!.responseCode
+            var loc = conn!!.getHeaderField("Location")
             var hops = 0
             while ((code == 301 || code == 302 || code == 303 || code == 307 || code == 308) && !loc.isNullOrEmpty() && hops < 5) {
                 conn?.disconnect()
@@ -337,12 +337,12 @@ class DeloEstPushReceiver : BroadcastReceiver() {
                     connectTimeout = 15000
                     readTimeout = 15000
                 }
-                code = conn.responseCode
-                loc = conn.getHeaderField("Location")
+                code = conn!!.responseCode
+                loc = conn!!.getHeaderField("Location")
                 hops++
             }
             if (code == 200) {
-                return conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                return conn!!.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
             }
         } catch (e: Exception) {
             return null
