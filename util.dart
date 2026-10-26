@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'models.dart';
 
 const kAppVersion = '1.4';
 const kSiteUrl = 'https://mchipta.github.io/DeloEst-website/';
