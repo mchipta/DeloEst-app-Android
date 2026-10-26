@@ -141,11 +141,13 @@ class S extends ChangeNotifier {
   Future<void> syncBgPushState() async {
     try {
       await _notifyCh.invokeMethod('syncBg', {
-        'url': Api.url,
+        'url': apiUrl,
+        'apiUrl': apiUrl,
         'token': Api.token ?? '',
         'enabled': messageNotificationsEnabled,
         'lastPushTs': lastPushTs,
         'lastUnread': unread,
+        'unread': unread,
       });
     } catch (_) {}
   }
