@@ -92,7 +92,7 @@ class _CabinetPageState extends State<CabinetPage> {
       if (a == 'status') S.i.loadAds();
       await _load();
     } catch (e) {
-      if (mounted) toast(context, S.i.fail(e));
+      if (mounted) toast(context, S.i.fail(e), err: true);
     }
   }
 

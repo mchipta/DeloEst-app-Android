@@ -101,7 +101,7 @@ class _SettingsBodyState extends State<SettingsBody> {
     try {
       await f();
     } catch (e) {
-      if (mounted) toast(context, S.i.fail(e));
+      if (mounted) toast(context, S.i.fail(e), err: true);
     }
     if (mounted) setState(() => busy = false);
   }
@@ -509,7 +509,7 @@ class _DevicesCardState extends State<_DevicesCard> {
         toast(context, allOther ? 'Остальные сеансы завершены' : 'Сеанс на устройстве завершён');
       }
     } catch (e) {
-      if (mounted) toast(context, S.i.fail(e));
+      if (mounted) toast(context, S.i.fail(e), err: true);
     }
     if (mounted) setState(() => _busy = false);
   }
@@ -695,7 +695,7 @@ Future<void> showLeadForm(BuildContext context) async {
     await Api.call('lead', {'name': r[0], 'phone': r[1], 'msg': r[2]});
     if (context.mounted) toast(context, 'Заявка отправлена');
   } catch (e) {
-    if (context.mounted) toast(context, S.i.fail(e));
+    if (context.mounted) toast(context, S.i.fail(e), err: true);
   }
 }
 

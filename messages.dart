@@ -142,12 +142,38 @@ class _MessagesPageState extends State<MessagesPage> {
                           child: Text('Диалогов пока нет.\nОткройте объявление и нажмите «Написать».',
                               textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 15)),
                         ),
-                      for (final d in list) _item(p, d),
+                      for (final d in list) _dismiss(p, d),
                     ],
                   ),
                 ),
         );
       },
+    );
+  }
+
+  // Свайп влево удаляет переписку (только у вас)
+  Widget _dismiss(Pal p, Map<String, dynamic> d) {
+    final pid = (d['pid'] ?? '').toString();
+    return Dismissible(
+      key: ValueKey('dlg-$pid'),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) => _delChat(context, pid, (d['name'] ?? '').toString()),
+      onDismissed: (_) {
+        setState(() => list.removeWhere((x) => (x['pid'] ?? '').toString() == pid));
+        S.i.refreshUnread();
+      },
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.only(right: 24),
+        alignment: Alignment.centerRight,
+        decoration: BoxDecoration(color: p.dng, borderRadius: BorderRadius.circular(16)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: const [
+          Icon(Icons.delete_outline_rounded, color: Colors.white, size: 22),
+          SizedBox(width: 8),
+          Text('Удалить', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+        ]),
+      ),
+      child: _item(p, d),
     );
   }
 
@@ -216,6 +242,34 @@ class _MessagesPageState extends State<MessagesPage> {
         ]),
       ),
     );
+  }
+}
+
+// Удаление переписки только у себя: подтверждение и запрос на сервер
+Future<bool> _delChat(BuildContext context, String pid, String name) async {
+  final p = pal(context);
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      backgroundColor: p.card,
+      title: Text('Удалить переписку?', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
+      content: Text(
+        'Переписка с ${name.isEmpty ? 'пользователем' : name} исчезнет только у вас, у собеседника она останется.',
+        style: TextStyle(color: p.mu, height: 1.35),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c, false), child: Text('Отмена', style: TextStyle(color: p.mu))),
+        TextButton(onPressed: () => Navigator.pop(c, true), child: Text('Удалить', style: TextStyle(color: p.dng, fontWeight: FontWeight.w800))),
+      ],
+    ),
+  );
+  if (ok != true) return false;
+  try {
+    await Api.call('delChat', {'with': pid});
+    return true;
+  } catch (e) {
+    if (context.mounted) toast(context, S.i.fail(e), err: true);
+    return false;
   }
 }
 
@@ -363,7 +417,7 @@ class _ChatPageState extends State<ChatPage> {
       if (!mounted) return;
       setState(() => msgs.removeWhere((x) => x['id'] == tmp));
       _ctl.text = text;
-      toast(context, m);
+      toast(context, m, err: true);
     }
   }
 
@@ -480,7 +534,7 @@ class _ChatPageState extends State<ChatPage> {
         msgs.sort((a, b) => _n(a['ts']).compareTo(_n(b['ts'])));
       });
     } catch (e) {
-      if (mounted) toast(context, S.i.fail(e));
+      if (mounted) toast(context, S.i.fail(e), err: true);
     }
     if (mounted) setState(() => busy = false);
   }
@@ -559,7 +613,7 @@ class _ChatPageState extends State<ChatPage> {
       final m = S.i.fail(e);
       if (mounted) {
         setState(() => busy = false);
-        toast(context, m);
+        toast(context, m, err: true);
       }
     }
   }
@@ -594,13 +648,20 @@ class _ChatPageState extends State<ChatPage> {
             icon: Icon(_muted ? Icons.notifications_off_outlined : Icons.notifications_active_outlined, color: _muted ? p.mu : p.ac),
           ),
           PopupMenuButton<String>(
-            onSelected: (v) {
-              if (v == 'profile') {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(pid: widget.pid, name: name)));
+            onSelected: (v) async {
+              if (v == 'block') {
+                await toggleUserBlock(context, pid: widget.pid, name: name);
+              }
+              if (v == 'del') {
+                if (await _delChat(context, widget.pid, name) && mounted) Navigator.pop(context);
               }
             },
             itemBuilder: (c) => [
-              PopupMenuItem(value: 'profile', child: menuRow(c, Icons.person_outline_rounded, 'Открыть профиль')),
+              PopupMenuItem(
+                value: 'block',
+                child: menuRow(c, Icons.visibility_off_outlined, S.i.isBlocked(widget.pid) ? 'Разблокировать' : 'Заблокировать'),
+              ),
+              PopupMenuItem(value: 'del', child: menuRow(c, Icons.delete_outline_rounded, 'Удалить переписку')),
             ],
           ),
         ],

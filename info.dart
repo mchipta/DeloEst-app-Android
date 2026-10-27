@@ -105,7 +105,7 @@ class _InfoPageState extends State<InfoPage> {
       await Api.call('lead', {'name': r[0], 'phone': r[1], 'msg': r[2]});
       if (mounted) toast(context, 'Заявка отправлена, мы свяжемся с вами');
     } catch (e) {
-      if (mounted) toast(context, S.i.fail(e));
+      if (mounted) toast(context, S.i.fail(e), err: true);
     }
   }
 

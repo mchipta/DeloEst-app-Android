@@ -68,7 +68,7 @@ class _AdminPageState extends State<AdminPage> with SingleTickerProviderStateMix
       S.i.loadAds();
       await _load();
     } catch (e) {
-      if (mounted) toast(context, S.i.fail(e));
+      if (mounted) toast(context, S.i.fail(e), err: true);
     }
   }
 
@@ -90,7 +90,7 @@ class _AdminPageState extends State<AdminPage> with SingleTickerProviderStateMix
       await _load();
       S.i.refreshUnread();
     } catch (e) {
-      if (mounted) toast(context, S.i.fail(e));
+      if (mounted) toast(context, S.i.fail(e), err: true);
     }
     if (mounted) setState(() => _sendingPush = false);
   }

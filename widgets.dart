@@ -12,8 +12,12 @@ import 'util.dart';
 
 String imgUrl(String id, int w) => 'https://lh3.googleusercontent.com/d/$id=w$w';
 
-void toast(BuildContext c, String m) {
-  TopToastHost.show(m);
+// Сообщения-подсказки (нужно ввести, не удалось и т.п.) показываем как ошибку, остальные как успех
+const _toastErrStarts = ['Не удалось', 'Не больше', 'Введите', 'Укажите', 'Напишите', 'Поставьте', 'Слишком', 'Разрешите', 'Сначала', 'Войдите'];
+
+void toast(BuildContext c, String m, {bool? err}) {
+  final bad = err ?? _toastErrStarts.any((x) => m.startsWith(x));
+  TopToastHost.show(m, kind: bad ? 'er' : 'ok');
 }
 
 class _ToastEntry {
@@ -23,8 +27,10 @@ class _ToastEntry {
   final VoidCallback? onAction;
   final int seconds;
   final int id;
+  final String kind;
   const _ToastEntry({
     required this.message,
+    this.kind = 'ok',
     this.title,
     this.actionLabel,
     this.onAction,
@@ -46,9 +52,11 @@ class TopToastHost extends StatefulWidget {
     String? actionLabel,
     VoidCallback? onAction,
     int seconds = 4,
+    String? kind,
   }) {
     _state?._push(_ToastEntry(
       message: message,
+      kind: kind ?? (title != null ? 'hi' : 'ok'),
       title: title,
       actionLabel: actionLabel,
       onAction: onAction,
@@ -117,136 +125,100 @@ class _TopToastHostState extends State<TopToastHost> {
                 child: AnimatedOpacity(
                   opacity: _vis ? 1 : 0,
                   duration: const Duration(milliseconds: 220),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 460),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: GestureDetector(
-                          onVerticalDragEnd: (d) {
-                            if ((d.primaryVelocity ?? 0) < 0) _hide();
-                          },
-                          onTap: () {
-                            if (e.onAction != null) {
-                              final fn = e.onAction!;
-                              _hide();
-                              fn();
-                            } else {
-                              _hide();
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: p.card,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: p.ac.withOpacity(.45), width: 1.2),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(.28),
-                                  blurRadius: 24,
-                                  offset: const Offset(0, 8),
-                                ),
-                                BoxShadow(
-                                  color: p.ac.withOpacity(.14),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 34,
-                                  height: 34,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [p.ac, p.ac2],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    borderRadius: BorderRadius.circular(11),
-                                  ),
-                                  child: Icon(
-                                    e.title != null ? Icons.notifications_active_rounded : Icons.check_rounded,
-                                    color: Colors.white,
-                                    size: 19,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: e.title != null && e.title!.isNotEmpty
-                                      ? Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              e.title!,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                color: p.tx,
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 14,
-                                                height: 1.15,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              e.message,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                color: p.mu,
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 13,
-                                                height: 1.25,
-                                              ),
-                                            ),
-                                          ],
-                                        )
-                                      : Text(
-                                          e.message,
-                                          maxLines: 3,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            color: p.tx,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 14,
-                                            height: 1.25,
-                                          ),
-                                        ),
-                                ),
-                                if (e.actionLabel != null && e.onAction != null) ...[
-                                  const SizedBox(width: 10),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(colors: [p.ac, p.ac2]),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      e.actionLabel!,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 12.5,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: _card(p, e))),
                 ),
               ),
             ),
           ),
       ],
+    );
+  }
+
+  // Карточка как на сайте: цветной значок, текст и полоска времени снизу
+  Widget _card(Pal p, _ToastEntry e) {
+    final er = e.kind == 'er';
+    final hi = e.kind == 'hi';
+    final tone = er ? p.dng : (hi ? p.ac : p.ok);
+    final icon = er ? Icons.error_outline_rounded : (hi ? Icons.notifications_active_rounded : Icons.check_rounded);
+    final hasTitle = e.title != null && e.title!.isNotEmpty;
+    return Material(
+      color: Colors.transparent,
+      child: GestureDetector(
+        onVerticalDragEnd: (d) {
+          if ((d.primaryVelocity ?? 0) < 0) _hide();
+        },
+        onTap: () {
+          final fn = e.onAction;
+          _hide();
+          if (fn != null) fn();
+        },
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: p.card,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: er ? Color.alphaBlend(p.dng.withOpacity(.45), p.bd) : p.bd),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(.25), blurRadius: 22, offset: const Offset(0, 8))],
+          ),
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 18, 15),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: hi ? null : tone,
+                        gradient: hi ? LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight) : null,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(icon, color: Colors.white, size: 19),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: hasTitle
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(e.title!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 14, height: 1.25)),
+                                const SizedBox(height: 2),
+                                Text(e.message, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontWeight: FontWeight.w500, fontSize: 13, height: 1.3)),
+                              ],
+                            )
+                          : Text(e.message, maxLines: 3, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.tx, fontWeight: FontWeight.w600, fontSize: 14, height: 1.3)),
+                    ),
+                    if (e.actionLabel != null && e.onAction != null) ...[
+                      const SizedBox(width: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                        decoration: BoxDecoration(gradient: LinearGradient(colors: [p.ac, p.ac2]), borderRadius: BorderRadius.circular(10)),
+                        child: Text(e.actionLabel!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12.5)),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: TweenAnimationBuilder<double>(
+                  key: ValueKey(e.id),
+                  tween: Tween<double>(begin: 1, end: 0),
+                  duration: Duration(seconds: e.seconds),
+                  builder: (_, v, __) => Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(widthFactor: v, child: Container(height: 3, color: tone)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -951,7 +923,7 @@ Future<void> showReportSheet(BuildContext context, {required String id, String l
     await S.i.reportItem(id, res);
     if (context.mounted) toast(context, 'Спасибо! Жалоба отправлена на проверку');
   } catch (e) {
-    if (context.mounted) toast(context, S.i.fail(e));
+    if (context.mounted) toast(context, S.i.fail(e), err: true);
   }
 }
 
@@ -986,7 +958,7 @@ Future<void> toggleUserBlock(BuildContext context, {required String pid, require
       toast(context, !blocked ? 'Пользователь добавлен в чёрный список' : 'Пользователь разблокирован');
     }
   } catch (e) {
-    if (context.mounted) toast(context, S.i.fail(e));
+    if (context.mounted) toast(context, S.i.fail(e), err: true);
   }
 }
 

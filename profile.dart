@@ -296,7 +296,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
       stars = 0;
       await _load();
     } catch (e) {
-      if (mounted) toast(context, S.i.fail(e));
+      if (mounted) toast(context, S.i.fail(e), err: true);
     }
     if (mounted) setState(() => busy = false);
   }
