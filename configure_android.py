@@ -393,7 +393,7 @@ class DeloEstFcmService : FirebaseMessagingService() {
         val body = msg.data["body"] ?: ""
         if (body.isEmpty()) return
         val kind = msg.data["kind"] ?: ""
-        val from = msg.data["from"] ?: ""
+        val from = msg.data["peer"] ?: ""
         if (kind == "msg" && from.isNotEmpty()) {
             DeloEstNotif.postMessage(this, title, from, msg.data["ad"] ?: "", body, false, true)
             return
