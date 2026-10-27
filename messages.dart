@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:image_picker/image_picker.dart';
 import 'ad_page.dart';
 import 'api.dart';
@@ -285,6 +286,8 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final List<Map<String, dynamic>> msgs = [];
   final _ctl = TextEditingController();
+  final FocusNode _fn = FocusNode();
+  String? _editId; // id сообщения, которое сейчас редактируется
   Timer? _timer;
   bool loaded = false, online = false, typing = false, busy = false, polling = false;
   int seen = 0, lastTs = 0;
@@ -323,6 +326,7 @@ class _ChatPageState extends State<ChatPage> {
     if (_rec) Voice.cancel();
     VoicePlayer.i.stop();
     _ctl.dispose();
+    _fn.dispose();
     super.dispose();
   }
 
@@ -338,6 +342,8 @@ class _ChatPageState extends State<ChatPage> {
       final o = j['other'] is Map ? Map<String, dynamic>.from(j['other'] as Map) : <String, dynamic>{};
       final incoming = (j['msgs'] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
       final sts = j['sts'] is Map ? Map<String, dynamic>.from(j['sts'] as Map) : <String, dynamic>{};
+      final chg = j['chg'] is Map ? Map<String, dynamic>.from(j['chg'] as Map) : <String, dynamic>{};
+      var lostEdit = false;
       setState(() {
         online = j['on'] == true;
         typing = j['ty'] == true;
@@ -355,6 +361,26 @@ class _ChatPageState extends State<ChatPage> {
           final id = m['id'].toString();
           if (sts.containsKey(id)) m['st'] = sts[id];
         }
+        // изменённые и удалённые сообщения (в том числе у собеседника)
+        for (final e in chg.entries) {
+          final i = msgs.indexWhere((x) => x['id'].toString() == e.key);
+          if (i < 0 || e.value is! Map) continue;
+          final c = Map<String, dynamic>.from(e.value as Map);
+          final m = msgs[i];
+          if (c['g'] != null) {
+            if (m['gone'] != true) {
+              _wipe(m);
+              if (_editId == e.key) {
+                _editId = null;
+                _ctl.clear();
+                lostEdit = true;
+              }
+            }
+          } else if (_n(c['ed']) != _n(m['ed'])) {
+            m['text'] = (c['t'] ?? '').toString();
+            m['ed'] = _n(c['ed']);
+          }
+        }
         msgs.sort((a, b) => _n(a['ts']).compareTo(_n(b['ts'])));
         for (final m in msgs) {
           if (!m['id'].toString().startsWith('tmp') && _n(m['ts']) > lastTs) lastTs = _n(m['ts']);
@@ -362,6 +388,7 @@ class _ChatPageState extends State<ChatPage> {
         loaded = true;
         err = null;
       });
+      if (lostEdit && mounted) toast(context, 'Собеседник удалил это сообщение', err: true);
     } catch (e) {
       final m = S.i.fail(e);
       if (mounted && !loaded) setState(() => err = m);
@@ -371,7 +398,7 @@ class _ChatPageState extends State<ChatPage> {
 
   void _onChanged(String _) {
     final now = DateTime.now();
-    if (now.difference(_lastTyping).inSeconds >= 3) {
+    if (_editId == null && now.difference(_lastTyping).inSeconds >= 3) {
       _lastTyping = now;
       Api.call('typing', {'with': widget.pid}).then((_) {}, onError: (_) {});
     }
@@ -379,6 +406,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _send({List<String> imgs = const []}) async {
+    if (_editId != null && imgs.isEmpty) return _saveEdit();
     final text = _ctl.text.trim();
     if (text.isEmpty && imgs.isEmpty) return;
     final withAd = widget.adId.isNotEmpty && !msgs.any((x) => x['ad'] == widget.adId);
@@ -419,6 +447,172 @@ class _ChatPageState extends State<ChatPage> {
       _ctl.text = text;
       toast(context, m, err: true);
     }
+  }
+
+  // ---------- Изменить / удалить сообщение (как в Telegram) ----------
+  void _wipe(Map<String, dynamic> m) {
+    m['gone'] = true;
+    m['text'] = '';
+    m['img'] = <dynamic>[];
+    m['aud'] = '';
+    m['ed'] = 0;
+  }
+
+  Future<void> _msgMenu(Map<String, dynamic> m, Offset pos) async {
+    if (m['gone'] == true || m['id'].toString().startsWith('tmp')) return;
+    final mine = m['mine'] == true;
+    final text = (m['text'] ?? '').toString();
+    final aud = (m['aud'] ?? '').toString();
+    final p = pal(context);
+    Widget row(IconData ic, String t, Color c) => Row(children: [
+          Icon(ic, size: 20, color: c),
+          const SizedBox(width: 12),
+          Text(t, style: TextStyle(fontWeight: FontWeight.w600, color: c)),
+        ]);
+    final items = <PopupMenuEntry<String>>[
+      if (text.isNotEmpty) PopupMenuItem(value: 'copy', child: row(Icons.copy_rounded, 'Копировать', p.tx)),
+      if (mine && aud.isEmpty) PopupMenuItem(value: 'edit', child: row(Icons.edit_outlined, 'Изменить', p.tx)),
+      if (mine) PopupMenuItem(value: 'del', child: row(Icons.delete_outline_rounded, 'Удалить', p.dng)),
+    ];
+    if (items.isEmpty) return;
+    final size = MediaQuery.of(context).size;
+    final act = await showMenu<String>(
+      context: context,
+      color: p.card,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      position: RelativeRect.fromLTRB(pos.dx, pos.dy, size.width - pos.dx, size.height - pos.dy),
+      items: items,
+    );
+    if (!mounted || act == null) return;
+    if (act == 'copy') {
+      await Clipboard.setData(ClipboardData(text: text));
+      if (mounted) toast(context, 'Скопировано');
+    } else if (act == 'edit') {
+      _startEdit(m);
+    } else if (act == 'del') {
+      await _delMsg(m);
+    }
+  }
+
+  void _startEdit(Map<String, dynamic> m) {
+    setState(() {
+      _editId = m['id'].toString();
+      _emoji = false;
+    });
+    _ctl.text = (m['text'] ?? '').toString();
+    _ctl.selection = TextSelection.collapsed(offset: _ctl.text.length);
+    _fn.requestFocus();
+  }
+
+  void _cancelEdit() {
+    setState(() => _editId = null);
+    _ctl.clear();
+  }
+
+  Future<void> _saveEdit() async {
+    final id = _editId;
+    if (id == null) return;
+    final i = msgs.indexWhere((x) => x['id'].toString() == id);
+    if (i < 0) {
+      _cancelEdit();
+      return;
+    }
+    final m = msgs[i];
+    final text = _ctl.text.trim();
+    final hasImg = m['img'] is List && (m['img'] as List).isNotEmpty;
+    if (m['gone'] == true) {
+      _cancelEdit();
+      toast(context, 'Сообщение уже удалено', err: true);
+      return;
+    }
+    if (text.isEmpty && !hasImg) {
+      toast(context, 'Введите текст сообщения', err: true);
+      return;
+    }
+    if (text == (m['text'] ?? '').toString()) {
+      _cancelEdit();
+      return;
+    }
+    setState(() => busy = true);
+    try {
+      final j = await Api.call('editMsg', {'id': id, 'text': text});
+      if (!mounted) return;
+      setState(() {
+        m['text'] = (j['text'] ?? text).toString();
+        m['ed'] = _n(j['ed']) > 0 ? _n(j['ed']) : DateTime.now().millisecondsSinceEpoch;
+        _editId = null;
+        busy = false;
+      });
+      _ctl.clear();
+    } catch (e) {
+      final msg = S.i.fail(e);
+      if (!mounted) return;
+      setState(() => busy = false);
+      toast(context, msg, err: true);
+    }
+  }
+
+  Future<void> _delMsg(Map<String, dynamic> m) async {
+    final p = pal(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: p.card,
+        title: Text('Удалить сообщение?', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
+        content: Text(
+          'Сообщение исчезнет и у вас, и у собеседника: вместо него останется надпись «Сообщение удалено».',
+          style: TextStyle(color: p.mu, height: 1.35),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text('Отмена', style: TextStyle(color: p.mu))),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: Text('Удалить', style: TextStyle(color: p.dng, fontWeight: FontWeight.w800))),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final id = m['id'].toString();
+    try {
+      await Api.call('delMsg', {'id': id});
+      if (!mounted) return;
+      setState(() {
+        _wipe(m);
+        if (_editId == id) {
+          _editId = null;
+          _ctl.clear();
+        }
+      });
+      toast(context, 'Сообщение удалено');
+    } catch (e) {
+      final msg = S.i.fail(e);
+      if (mounted) toast(context, msg, err: true);
+    }
+  }
+
+  Widget _editBar(Pal p) {
+    final i = msgs.indexWhere((x) => x['id'].toString() == _editId);
+    final t = i < 0 ? '' : (msgs[i]['text'] ?? '').toString();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+        decoration: BoxDecoration(
+          color: p.card.withOpacity(.94),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: p.bd),
+        ),
+        child: Row(children: [
+          Icon(Icons.edit_outlined, size: 20, color: p.ac),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text('Редактирование', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800, fontSize: 13)),
+              Text(t.isEmpty ? 'Фото' : t, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13.5)),
+            ]),
+          ),
+          IconButton(onPressed: _cancelEdit, icon: Icon(Icons.close_rounded, color: p.mu), tooltip: 'Отменить'),
+        ]),
+      ),
+    );
   }
 
   final GlobalKey _barKey = GlobalKey();
@@ -705,7 +899,8 @@ class _ChatPageState extends State<ChatPage> {
           right: 0,
           bottom: 0,
           child: Column(key: _barKey, mainAxisSize: MainAxisSize.min, children: [
-            if (S.i.chatQuickSuggestionsEnabled && !_chipsOff) _quick(p),
+            if (S.i.chatQuickSuggestionsEnabled && !_chipsOff && _editId == null) _quick(p),
+            if (_editId != null) _editBar(p),
             _input(p),
             if (_emoji) _emojiPanel(p),
           ]),
@@ -729,9 +924,36 @@ class _ChatPageState extends State<ChatPage> {
     final adt = (m['adt'] ?? '').toString();
     final aud = (m['aud'] ?? '').toString();
     final fg = mine ? Colors.white : p.tx;
+    if (m['gone'] == true) {
+      return Align(
+        alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .78),
+          margin: const EdgeInsets.symmetric(vertical: 3),
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: p.bd),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.delete_outline_rounded, size: 16, color: p.mu),
+              const SizedBox(width: 6),
+              Text('Сообщение удалено', style: TextStyle(color: p.mu, fontSize: 15, fontStyle: FontStyle.italic)),
+            ]),
+            const SizedBox(height: 2),
+            Text(stamp(_n(m['ts'])), style: TextStyle(fontSize: 11, color: p.mu)),
+          ]),
+        ),
+      );
+    }
+    final edited = _n(m['ed']) > 0;
     return Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
+      child: GestureDetector(
+        onTapUp: (d) => _msgMenu(m, d.globalPosition),
+        onLongPressStart: (d) => _msgMenu(m, d.globalPosition),
+        child: Container(
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .78),
         margin: const EdgeInsets.symmetric(vertical: 3),
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
@@ -786,10 +1008,12 @@ class _ChatPageState extends State<ChatPage> {
             Align(alignment: Alignment.centerLeft, child: Text(text, style: TextStyle(color: fg, fontSize: 15.5, height: 1.3))),
           const SizedBox(height: 2),
           Row(mainAxisSize: MainAxisSize.min, children: [
+            if (edited) Text('изменено  ', style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: mine ? Colors.white70 : p.mu)),
             Text(stamp(_n(m['ts'])), style: TextStyle(fontSize: 11, color: mine ? Colors.white70 : p.mu)),
             if (mine) ...[const SizedBox(width: 4), _tick(p, (m['st'] ?? '').toString())],
           ]),
         ]),
+      ),
       ),
     );
   }
@@ -887,7 +1111,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _input(Pal p) {
-    final can = _ctl.text.trim().isNotEmpty;
+    final can = _ctl.text.trim().isNotEmpty || _editId != null;
     // плавающая стеклянная панель: вокруг ничего нет, под ней прокручиваются сообщения
     return SafeArea(
       top: false,
@@ -915,7 +1139,7 @@ class _ChatPageState extends State<ChatPage> {
                       ? const Padding(padding: EdgeInsets.all(11), child: CircularProgressIndicator(strokeWidth: 2.4))
                       : GestureDetector(
                           behavior: HitTestBehavior.opaque,
-                          onTap: _attach,
+                          onTap: _editId != null ? null : _attach,
                           child: Icon(Icons.attach_file_rounded, color: p.mu),
                         ),
                 ),
@@ -934,6 +1158,7 @@ class _ChatPageState extends State<ChatPage> {
                 Expanded(
                   child: TextField(contextMenuBuilder: appContextMenu, 
                     controller: _ctl,
+                    focusNode: _fn,
                     onTap: () {
                       if (_emoji) setState(() => _emoji = false);
                     },
