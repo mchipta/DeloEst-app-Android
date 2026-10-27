@@ -599,8 +599,8 @@ class _ChatPageState extends State<ChatPage> {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(pid: widget.pid, name: name)));
               }
             },
-            itemBuilder: (c) => const [
-              PopupMenuItem(value: 'profile', child: Text('Открыть профиль')),
+            itemBuilder: (c) => [
+              PopupMenuItem(value: 'profile', child: menuRow(c, Icons.person_outline_rounded, 'Открыть профиль')),
             ],
           ),
         ],

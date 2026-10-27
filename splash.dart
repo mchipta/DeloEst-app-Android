@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'home.dart';
 import 'shortcuts.dart';
 import 'theme.dart';
@@ -24,13 +25,24 @@ class _SplashGateState extends State<SplashGate> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
+    final p = pal(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: p.bg,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
+        systemNavigationBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+      ),
+      child: AnimatedSwitcher(
       duration: const Duration(milliseconds: 450),
       transitionBuilder: (child, anim) => FadeTransition(
         opacity: anim,
         child: ScaleTransition(scale: Tween<double>(begin: .96, end: 1.0).animate(anim), child: child),
       ),
       child: done ? const ShortcutHost(key: ValueKey('home'), child: HomeShell()) : const _Splash(key: ValueKey('splash')),
+      ),
     );
   }
 }

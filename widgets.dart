@@ -1371,3 +1371,9 @@ Widget appContextMenu(BuildContext context, EditableTextState state) {
     ],
   );
 }
+
+// Пункт выпадающего меню: значок и подпись (как на сайте)
+Widget menuRow(BuildContext context, IconData icon, String text) {
+  final p = pal(context);
+  return Row(children: [Icon(icon, size: 20, color: p.ac), const SizedBox(width: 12), Text(text)]);
+}

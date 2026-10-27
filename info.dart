@@ -345,18 +345,19 @@ class _AboutAppPageState extends State<AboutAppPage> {
     final hasNew = await S.i.checkAppUpdate(silent: false);
     if (!mounted) return;
     setState(() => checkingUpdate = false);
+    if (!hasNew) {
+      toast(context, 'Обновлений не найдено');
+      return;
+    }
     final dl = S.i.updateUrl ?? 'https://github.com/mchipta/DeloEst-app-Android/releases/latest/download/DeloEst.apk';
-    final name = S.i.updateName ?? S.i.updateTag ?? 'последняя сборка';
     final p = pal(context);
     final go = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         backgroundColor: p.card,
-        title: Text(hasNew ? 'Доступно обновление!' : 'Проверка обновлений', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
+        title: Text('Доступно обновление!', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
         content: Text(
-          hasNew
-              ? 'Вышла новая сборка: $name.\nСкачать и установить свежий DeloEst.apk поверх текущей версии?'
-              : 'У вас установлена версия $kAppVersion (последний релиз на GitHub: $name).\nПри желании вы можете скачать свежий APK-файл напрямую.',
+          'Вышла новая версия приложения.\nСкачать и установить обновление поверх текущей?',
           style: TextStyle(color: p.mu, height: 1.4),
         ),
         actions: [

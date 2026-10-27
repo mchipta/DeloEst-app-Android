@@ -110,9 +110,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   itemBuilder: (c) => [
                     PopupMenuItem(
                       value: 'block',
-                      child: Text(blocked ? 'Разблокировать' : 'Заблокировать'),
+                      child: menuRow(c, Icons.visibility_off_outlined, blocked ? 'Разблокировать' : 'Заблокировать'),
                     ),
-                    const PopupMenuItem(value: 'report', child: Text('Пожаловаться')),
+                    PopupMenuItem(value: 'report', child: menuRow(c, Icons.warning_amber_rounded, 'Пожаловаться')),
                   ],
                 ),
             ],

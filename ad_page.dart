@@ -154,8 +154,8 @@ class _AdPageState extends State<AdPage> {
                 if (v == 'share') showShare(context, ad);
               },
               itemBuilder: (c) => [
-                const PopupMenuItem(value: 'share', child: Text('Поделиться')),
-                if (!mine) const PopupMenuItem(value: 'report', child: Text('Пожаловаться')),
+                PopupMenuItem(value: 'share', child: menuRow(c, Icons.send_outlined, 'Поделиться')),
+                if (!mine) PopupMenuItem(value: 'report', child: menuRow(c, Icons.warning_amber_rounded, 'Пожаловаться')),
               ],
             ),
           ]),
