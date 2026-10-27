@@ -61,25 +61,6 @@ class _ProfilePageState extends State<ProfilePage> {
     if (mounted) setState(() => loading = false);
   }
 
-  Future<void> _write() async {
-    if (!S.i.logged) {
-      await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
-      if (!mounted || !S.i.logged) return;
-    }
-    final dd = d;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ChatPage(
-          pid: widget.pid,
-          name: (dd?['name'] ?? widget.name).toString(),
-          avatar: (dd?['avatar'] ?? '').toString(),
-          ver: dd?['ver'] == true,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -202,10 +183,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   const Spacer(),
                 if (dn > 0) Text('Выполнено: $dn', style: TextStyle(color: p.ok, fontWeight: FontWeight.w800, fontSize: 13.5)),
               ]),
-            ],
-            if (!me && !blocked) ...[
-              const SizedBox(height: 14),
-              GradBtn('Написать', icon: Icons.chat_bubble_outline, onTap: _write),
             ],
           ]),
         ),

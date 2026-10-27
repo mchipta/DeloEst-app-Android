@@ -1026,6 +1026,24 @@ class CallBadge extends StatelessWidget {
   }
 }
 
+class ChatBadge extends StatelessWidget {
+  final double size;
+  const ChatBadge({super.key, this.size = 30});
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(size * .3),
+      ),
+      child: Icon(Icons.chat_bubble_rounded, color: Colors.white, size: size * .55),
+    );
+  }
+}
+
 // ---------- Выбор из списка в стиле приложения ----------
 class PickItem {
   final String value;

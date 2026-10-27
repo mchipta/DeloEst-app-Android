@@ -1,7 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter/services.dart';
 import 'api.dart';
 import 'auth.dart';
 import 'map_page.dart';
@@ -83,22 +82,6 @@ class _AdPageState extends State<AdPage> {
       context,
       MaterialPageRoute(builder: (_) => ChatPage(pid: ad.pid, name: ad.author, ver: ad.ver, adId: ad.id)),
     );
-  }
-
-  Future<void> _openSocial(String kind, String phone) async {
-    var digits = phone.replaceAll(RegExp(r'\D'), '');
-    if (digits.length == 11 && digits.startsWith('8')) digits = '7${digits.substring(1)}';
-    const message = 'Здравствуйте, я с ДелоЕсть по вашему объявлению';
-    await Clipboard.setData(const ClipboardData(text: message));
-    final uri = kind == 'wa'
-        ? Uri.parse('https://wa.me/$digits?text=${Uri.encodeComponent(message)}')
-        : Uri.parse('https://t.me/+${digits}?text=${Uri.encodeComponent(message)}');
-    try {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (mounted) toast(context, 'Текст скопирован — можно отправить его в чате');
-    } catch (_) {
-      if (mounted) toast(context, 'Текст скопирован. Не удалось открыть приложение');
-    }
   }
 
   Future<void> _report() async {
@@ -232,17 +215,13 @@ class _AdPageState extends State<AdPage> {
             else ...[
               GradBtn('Откликнуться', icon: Icons.send_rounded, onTap: _reply),
               const SizedBox(height: 10),
-              OutBtn('Написать автору', icon: Icons.chat_bubble_outline, onTap: _write),
-              if (ph.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Row(children: [
+              Row(children: [
+                _contactBtn(p, const ChatBadge(), 'Написать', _write),
+                if (ph.isNotEmpty) ...[
+                  const SizedBox(width: 8),
                   _contactBtn(p, const CallBadge(), 'Позвонить', () => _call(ph)),
-                  const SizedBox(width: 8),
-                  _contactBtn(p, const BrandIcon('wa', size: 30), 'WhatsApp', () => _openSocial('wa', ph)),
-                  const SizedBox(width: 8),
-                  _contactBtn(p, const BrandIcon('tg', size: 30), 'Telegram', () => _openSocial('tg', ph)),
-                ]),
-              ],
+                ],
+              ]),
             ],
           ]),
         );
