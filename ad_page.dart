@@ -375,8 +375,26 @@ class _ReplySheet extends StatefulWidget {
 
 class _ReplySheetState extends State<_ReplySheet> {
   final _msg = TextEditingController();
+  final List<String> _tpls = ['Могу сегодня', 'Свой транспорт', 'Есть опыт'];
   bool busy = false;
   String? err;
+
+  @override
+  void dispose() {
+    _msg.dispose();
+    super.dispose();
+  }
+
+  void _addTpl(String t) {
+    final v = _msg.text.trim();
+    final next = '${v.isEmpty ? '' : '$v '}$t.';
+    if (next.length > 300) return;
+    setState(() {
+      _msg.text = next;
+      _msg.selection = TextSelection.collapsed(offset: next.length);
+      _tpls.remove(t);
+    });
+  }
 
   Future<void> _send() async {
     setState(() {
@@ -400,23 +418,53 @@ class _ReplySheetState extends State<_ReplySheet> {
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
-    return Padding(
+    return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(16, 18, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
-      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Отклик на объявление', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: p.tx)),
-        const SizedBox(height: 4),
-        Text('Автор увидит ваше имя и номер телефона', style: TextStyle(color: p.mu, fontSize: 13.5)),
-        const SizedBox(height: 14),
-        TextField(contextMenuBuilder: appContextMenu, 
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text('Отклик на объявление',
+            textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: p.tx)),
+        const SizedBox(height: 8),
+        Text('Напишите пару слов о себе', textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 13.5)),
+        const SizedBox(height: 12),
+        TextField(
+          contextMenuBuilder: appContextMenu,
           controller: _msg,
           maxLines: 4,
           minLines: 3,
-          maxLength: 500,
+          maxLength: 300,
           style: TextStyle(color: p.tx),
-          decoration: deco(context, 'Сообщение', hint: 'Например: могу сегодня после 18:00'),
+          decoration: deco(context, null, hint: 'Опыт, когда можете приехать').copyWith(counterText: ''),
         ),
-        if (err != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(err!, style: TextStyle(color: p.dng))),
+        if (_tpls.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final t in _tpls)
+              Tap(
+                onTap: () => _addTpl(t),
+                scale: .96,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: p.ac.withOpacity(.12),
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: p.ac.withOpacity(.35)),
+                  ),
+                  child: Text(t, style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 13)),
+                ),
+              ),
+          ]),
+        ],
+        const SizedBox(height: 12),
+        Row(children: [
+          Icon(Icons.phone_outlined, size: 15, color: p.mu),
+          const SizedBox(width: 6),
+          Expanded(child: Text('Автор увидит ваш номер телефона', style: TextStyle(color: p.mu, fontSize: 13.5))),
+        ]),
+        if (err != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(err!, style: TextStyle(color: p.dng))),
+        const SizedBox(height: 12),
         GradBtn('Отправить отклик', busy: busy, onTap: _send),
+        const SizedBox(height: 8),
+        OutBtn('Отмена', color: p.mu, onTap: () => Navigator.pop(context)),
       ]),
     );
   }
