@@ -4,7 +4,7 @@
   1. добавляет разрешения INTERNET, RECORD_AUDIO, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED, WAKE_LOCK и запросы для звонков/ссылок;
   2. ставит название приложения «ДелоЕсть»;
   3. создаёт алиас значка (оранжевый) и векторную иконку уведомлений ic_stat_deloest (галочка ДелоЕсть + цветная крупная иконка приложения);
-  4. регистрирует фоновый ресивер DeloEstPushReceiver, который проверяет новые сообщения и пуши даже когда приложение полностью закрыто;
+  4. подключает Firebase Cloud Messaging (сервис DeloEstFcmService): пуши приходят от сервера даже когда приложение полностью закрыто;
   5. пишет MainActivity с MethodChannel 'ru.deloest.delo_est/launcher_icon', 'ru.deloest.delo_est/notify', ярлыками значка и записью/воспроизведением голоса.
 Любая ошибка останавливает сборку с понятным сообщением.
 """
@@ -36,8 +36,6 @@ perm = (
     '<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n'
     '<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>\n'
     '<uses-permission android:name="android.permission.WAKE_LOCK"/>\n'
-    '<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>\n'
-    '<uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>\n'
     '<uses-permission android:name="android.permission.VIBRATE"/>\n'
     '    <queries>\n'
     '        <intent><action android:name="android.intent.action.DIAL"/><data android:scheme="tel"/></intent>\n'
@@ -75,15 +73,10 @@ alias = (
     '            </intent-filter>\n'
     '            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts"/>\n'
     '        </activity-alias>\n'
-    '        <receiver android:name=".DeloEstPushReceiver" android:enabled="true" android:exported="true">\n'
+    '        <service android:name=".DeloEstFcmService" android:exported="false">\n'
     '            <intent-filter>\n'
-    '                <action android:name="android.intent.action.BOOT_COMPLETED"/>\n'
-    '                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>\n'
-    '                <action android:name="ru.deloest.delo_est.BG_POLL"/>\n'
+    '                <action android:name="com.google.firebase.MESSAGING_EVENT"/>\n'
     '            </intent-filter>\n'
-    '        </receiver>\n'
-    '        <service android:name=".DeloEstPollService" android:enabled="true" android:exported="false" android:foregroundServiceType="specialUse">\n'
-    '            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Проверка новых сообщений и откликов"/>\n'
     '        </service>\n'
 )
 aliases = '\n' + alias % dict(n='OrangeLauncher', en='true', ic='icon_orange')
@@ -96,6 +89,33 @@ try:
 except Exception as e:
     die('Получился некорректный AndroidManifest.xml: %s' % e)
 manifest.write_text(text, encoding='utf-8')
+
+# 4b. Firebase Cloud Messaging: зависимость и параметры проекта (без плагина google-services)
+dep_added = False
+for gname, gline in (
+    ('build.gradle', '\ndependencies {\n    implementation "com.google.firebase:firebase-messaging:23.4.1"\n}\n'),
+    ('build.gradle.kts', '\ndependencies {\n    implementation("com.google.firebase:firebase-messaging:23.4.1")\n}\n'),
+):
+    gp = Path('android/app') / gname
+    if gp.exists():
+        gp.write_text(gp.read_text(encoding='utf-8') + gline, encoding='utf-8')
+        dep_added = True
+if not dep_added:
+    die('Не найден android/app/build.gradle для подключения Firebase')
+vals_dir = Path('android/app/src/main/res/values')
+vals_dir.mkdir(parents=True, exist_ok=True)
+(vals_dir / 'firebase.xml').write_text(
+    '<?xml version="1.0" encoding="utf-8"?>\n'
+    '<resources>\n'
+    '    <string name="google_app_id" translatable="false">%(app)s</string>\n'
+    '    <string name="gcm_defaultSenderId" translatable="false">%(sender)s</string>\n'
+    '    <string name="google_api_key" translatable="false">%(key)s</string>\n'
+    '    <string name="google_crash_reporting_api_key" translatable="false">%(key)s</string>\n'
+    '    <string name="project_id" translatable="false">%(pid)s</string>\n'
+    '</resources>\n' % dict(app='1:516231830945:android:f76787626726a765d3ffe0', sender='516231830945', key='AIzaSyD2jLm75wT7kM5j9Oxg_4eDzmMJpE8naQo', pid='deloest-46983'),
+    encoding='utf-8'
+)
+
 
 # 4. Картинки значков + прозрачный векторный значок статус-бара ic_stat_deloest.xml
 res = Path('android/app/src/main/res/drawable')
@@ -138,52 +158,36 @@ if old.suffix == '.java':
 kt.write_text('''package %(pkg)s
 
 import android.Manifest
-import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.Service
-import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.pm.ServiceInfo
 import android.graphics.BitmapFactory
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.Build
 import android.os.Bundle
-import android.os.IBinder
-import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import com.google.firebase.messaging.FirebaseMessaging
+import com.google.firebase.messaging.FirebaseMessagingService
+import com.google.firebase.messaging.RemoteMessage
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import org.json.JSONObject
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 
 object DeloEstNotif {
     const val CHANNEL_ID = "deloest_push_v2"
     const val PREFS = "deloest_bg_prefs"
-    const val SERVICE_CHANNEL = "deloest_service"
     private var seq = 200
 
-    // true только пока приложение открыто; живёт в памяти процесса, поэтому после закрытия или вылета сбрасывается сам
+    // true только пока приложение открыто (живёт в памяти процесса, после закрытия сбрасывается само)
     @Volatile var appFg = false
-
-    fun startPollService(ctx: Context) {
-        try {
-            val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            if (!p.getBoolean("enabled", true)) return
-            if ((p.getString("apiUrl", "") ?: "").isEmpty()) return
-            val i = Intent(ctx, DeloEstPollService::class.java)
-            if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(i) else ctx.startService(i)
-        } catch (e: Exception) { }
-    }
 
     fun ensureChannel(ctx: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -243,197 +247,23 @@ object DeloEstNotif {
         } catch (e: Exception) { }
     }
 
-    fun scheduleBgPoll(ctx: Context, delayMs: Long = 45000L) {
-        try {
-            val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            val i = Intent(ctx, DeloEstPushReceiver::class.java).apply {
-                action = "ru.deloest.delo_est.BG_POLL"
-            }
-            val flags = if (Build.VERSION.SDK_INT >= 23)
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            else PendingIntent.FLAG_UPDATE_CURRENT
-            val pi = PendingIntent.getBroadcast(ctx, 7701, i, flags)
-            val triggerAt = SystemClock.elapsedRealtime() + delayMs
-            if (Build.VERSION.SDK_INT >= 23) {
-                am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pi)
-            } else {
-                am.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pi)
-            }
-        } catch (e: Exception) { }
-    }
 }
 
-class DeloEstPushReceiver : BroadcastReceiver() {
-    companion object {
-        val LOCK = Any()
+// Пуши от сервера через Firebase Cloud Messaging (работают при закрытом приложении)
+class DeloEstFcmService : FirebaseMessagingService() {
+    override fun onNewToken(token: String) {
+        getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE).edit().putString("fcmToken", token).apply()
     }
 
-    override fun onReceive(context: Context, intent: Intent?) {
-        DeloEstNotif.scheduleBgPoll(context, 45000L)
-        DeloEstNotif.startPollService(context)
-        val p = context.getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
+    override fun onMessageReceived(msg: RemoteMessage) {
+        val p = getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
         if (!p.getBoolean("enabled", true)) return
         if (DeloEstNotif.appFg) return
-
-        val apiUrl = p.getString("apiUrl", "") ?: ""
-        if (apiUrl.isEmpty()) return
-        val token = p.getString("token", "") ?: ""
-
-        val pending = goAsync()
-        Thread {
-            synchronized(LOCK) {
-            val lastPushTs = p.getLong("lastPushTs", System.currentTimeMillis())
-            val prevUnread = p.getInt("unread", 0)
-            try {
-                val payload = JSONObject()
-                if (token.isNotEmpty()) {
-                    payload.put("a", "unread")
-                    payload.put("t", token)
-                    payload.put("pAfter", lastPushTs)
-                } else {
-                    payload.put("a", "pushes")
-                    payload.put("after", lastPushTs)
-                }
-                val respText = postJsonFollowRedirects(apiUrl, payload.toString())
-                if (respText != null) {
-                    val j = JSONObject(respText)
-                    if (j.optBoolean("ok", false)) {
-                        val ed = p.edit()
-                        val list = if (j.has("pushes")) j.optJSONArray("pushes") else j.optJSONArray("list")
-                        if (list != null && list.length() > 0) {
-                            var maxTs = lastPushTs
-                            for (k in 0 until list.length()) {
-                                val item = list.optJSONObject(k) ?: continue
-                                val ts = item.optLong("ts", 0L)
-                                val title = item.optString("title", "ДелоЕсть")
-                                val body = item.optString("body", "")
-                                if (ts > maxTs) maxTs = ts
-                                if (body.isNotEmpty()) {
-                                    DeloEstNotif.show(context, title, body, "messages")
-                                }
-                            }
-                            if (maxTs > lastPushTs) {
-                                ed.putLong("lastPushTs", maxTs)
-                            }
-                        }
-                        if (token.isNotEmpty() && j.has("n")) {
-                            val n = j.optInt("n", 0)
-                            if (n > prevUnread) {
-                                DeloEstNotif.show(
-                                    context,
-                                    "Новое сообщение",
-                                    "У вас новое непрочитанное сообщение в ДелоЕсть",
-                                    "messages"
-                                )
-                            }
-                            ed.putInt("unread", n)
-                        }
-                        ed.apply()
-                    }
-                }
-            } catch (e: Exception) {
-            } finally {
-                try { pending.finish() } catch (e: Exception) { }
-            }
-            }
-        }.start()
-    }
-
-    private fun postJsonFollowRedirects(urlStr: String, body: String): String? {
-        var conn: HttpURLConnection? = null
-        try {
-            val u = URL(urlStr)
-            conn = (u.openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                instanceFollowRedirects = false
-                connectTimeout = 15000
-                readTimeout = 15000
-                doOutput = true
-                setRequestProperty("Content-Type", "text/plain;charset=utf-8")
-            }
-            conn!!.outputStream.use { os ->
-                os.write(body.toByteArray(Charsets.UTF_8))
-            }
-            var code = conn!!.responseCode
-            var loc = conn!!.getHeaderField("Location")
-            var hops = 0
-            while ((code == 301 || code == 302 || code == 303 || code == 307 || code == 308) && !loc.isNullOrEmpty() && hops < 5) {
-                conn?.disconnect()
-                conn = (URL(loc).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    instanceFollowRedirects = true
-                    connectTimeout = 15000
-                    readTimeout = 15000
-                }
-                code = conn!!.responseCode
-                loc = conn!!.getHeaderField("Location")
-                hops++
-            }
-            if (code == 200) {
-                return conn!!.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-            }
-        } catch (e: Exception) {
-            return null
-        } finally {
-            try { conn?.disconnect() } catch (e: Exception) { }
-        }
-        return null
-    }
-}
-
-// Постоянная фоновая проверка: каждые 30 секунд просит ресивер проверить сообщения и пуши, даже когда приложение закрыто
-class DeloEstPollService : Service() {
-    @Volatile private var running = false
-
-    override fun onBind(intent: Intent?): IBinder? = null
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val p = getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
-        if (!p.getBoolean("enabled", true)) {
-            stopSelf()
-            return START_NOT_STICKY
-        }
-        if (Build.VERSION.SDK_INT >= 26) {
-            val ch = NotificationChannel(DeloEstNotif.SERVICE_CHANNEL, "Фоновая работа", NotificationManager.IMPORTANCE_MIN)
-            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(ch)
-        }
-        val n = NotificationCompat.Builder(this, DeloEstNotif.SERVICE_CHANNEL)
-            .setSmallIcon(R.drawable.ic_stat_deloest)
-            .setContentTitle("ДелоЕсть")
-            .setContentText("Ждём новые сообщения и отклики")
-            .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_MIN)
-            .build()
-        if (Build.VERSION.SDK_INT >= 34) {
-            startForeground(7702, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-        } else {
-            startForeground(7702, n)
-        }
-        if (!running) {
-            running = true
-            Thread {
-                while (running) {
-                    try {
-                        val q = getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
-                        if (!q.getBoolean("enabled", true)) {
-                            running = false
-                            stopSelf()
-                            break
-                        }
-                        val i = Intent(this, DeloEstPushReceiver::class.java)
-                        i.action = "ru.deloest.delo_est.BG_POLL"
-                        sendBroadcast(i)
-                    } catch (e: Exception) { }
-                    try { Thread.sleep(30000L) } catch (e: Exception) { }
-                }
-            }.start()
-        }
-        return START_STICKY
-    }
-
-    override fun onDestroy() {
-        running = false
-        super.onDestroy()
+        val title = msg.data["title"] ?: "ДелоЕсть"
+        val body = msg.data["body"] ?: ""
+        if (body.isEmpty()) return
+        val sc = if (msg.data["link"] == "messages") "messages" else null
+        DeloEstNotif.show(this, title, body, sc)
     }
 }
 
@@ -454,7 +284,6 @@ class MainActivity : FlutterActivity() {
         super.onCreate(savedInstanceState)
         pendingShortcut = intent?.getStringExtra("shortcut")
         DeloEstNotif.ensureChannel(this)
-        DeloEstNotif.scheduleBgPoll(this, 45000L)
     }
 
     override fun onResume() {
@@ -464,7 +293,6 @@ class MainActivity : FlutterActivity() {
 
     override fun onPause() {
         DeloEstNotif.appFg = false
-        DeloEstNotif.scheduleBgPoll(this, 30000L)
         super.onPause()
     }
 
@@ -477,7 +305,6 @@ class MainActivity : FlutterActivity() {
 
     override fun onDestroy() {
         DeloEstNotif.appFg = false
-        DeloEstNotif.scheduleBgPoll(this, 30000L)
         releaseRec()
         releasePlayer()
         super.onDestroy()
@@ -599,6 +426,15 @@ class MainActivity : FlutterActivity() {
                         val devName = if (model.startsWith(brand, ignoreCase = true)) "$model · Android" else "$brand $model · Android"
                         result.success(devName)
                     }
+                    "fcmToken" -> {
+                        try {
+                            FirebaseMessaging.getInstance().token.addOnCompleteListener { t ->
+                                result.success(if (t.isSuccessful) t.result else null)
+                            }
+                        } catch (e: Exception) {
+                            result.success(null)
+                        }
+                    }
                     "syncBg" -> {
                         val args = call.arguments as? Map<*, *>
                         val p = getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
@@ -611,8 +447,6 @@ class MainActivity : FlutterActivity() {
                             if (args.containsKey("unread")) ed.putInt("unread", (args["unread"] as? Number)?.toInt() ?: 0)
                         }
                         ed.apply()
-                        DeloEstNotif.scheduleBgPoll(this, 45000L)
-                        DeloEstNotif.startPollService(this)
                         result.success(mapOf(
                             "lastPushTs" to p.getLong("lastPushTs", 0L),
                             "unread" to p.getInt("unread", 0)

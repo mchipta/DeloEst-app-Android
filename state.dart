@@ -124,6 +124,7 @@ class S extends ChangeNotifier {
     await requestPushPermission();
     Api.loadNetInfo();
     await i.syncBgPushState();
+    i.syncFcm();
     i._timer = Timer.periodic(const Duration(seconds: 20), (_) => i.refreshUnread());
     i.refreshUnread();
     if (i.logged) i.syncBlocks();
@@ -137,6 +138,20 @@ class S extends ChangeNotifier {
         Api.deviceName = 'Android · ${dev.trim()}';
       }
     } catch (_) {}
+  }
+
+  // Передаёт серверу токен устройства для push-уведомлений при закрытом приложении
+  Future<void> syncFcm() async {
+    try {
+      final tok = await _notifyCh.invokeMethod('fcmToken');
+      if (tok is String && tok.isNotEmpty) await Api.call('fcm', {'tok': tok});
+    } catch (_) {}
+  }
+
+  // Системные уведомления из приложения показываем только пока оно открыто, в фоне их присылает сервер
+  bool get _resumed {
+    final st = WidgetsBinding.instance.lifecycleState;
+    return st == null || st == AppLifecycleState.resumed;
   }
 
   Future<void> syncBgPushState() async {
@@ -187,6 +202,7 @@ class S extends ChangeNotifier {
     }
     notifyListeners();
     await syncBgPushState();
+    syncFcm();
     if (j != null) {
       refreshUnread();
       syncBlocks();
@@ -292,7 +308,7 @@ class S extends ChangeNotifier {
           final body = (m['body'] ?? '').toString();
           if (ts > maxTs) maxTs = ts;
           if (messageNotificationsEnabled && body.isNotEmpty) {
-            await showSystemPush(title, body);
+            if (_resumed) await showSystemPush(title, body);
             TopToastHost.show(body, title: title, seconds: 5);
           }
         }
@@ -333,7 +349,7 @@ class S extends ChangeNotifier {
         }
       }
       if (_unreadInit && n > unread && messageNotificationsEnabled && !messagesOpen && chatOpen == 0) {
-        await showSystemPush('Новое сообщение', 'Откройте ДелоЕсть, чтобы прочитать сообщение');
+        if (_resumed) await showSystemPush('Новое сообщение', 'Откройте ДелоЕсть, чтобы прочитать сообщение');
         TopToastHost.show(
           'Откройте чаты, чтобы прочитать сообщение',
           title: 'Новое сообщение',
