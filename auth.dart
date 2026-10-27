@@ -1,6 +1,8 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api.dart';
+import 'legal.dart';
 import 'state.dart';
 import 'theme.dart';
 import 'util.dart';
@@ -84,8 +86,49 @@ class _AuthPageState extends State<AuthPage> {
   Country country = kCountries.first;
   bool busy = false;
   bool show = false;
+  bool agreeTerms = false; // оферта и политика
+  bool agreePd = false; // согласие на обработку персональных данных (отдельная отметка, 152-ФЗ ст. 9)
   String? err;
   String? info;
+
+  late final TapGestureRecognizer _rOffer = TapGestureRecognizer()..onTap = () => openLegal(context, 'offer');
+  late final TapGestureRecognizer _rPrivacy = TapGestureRecognizer()..onTap = () => openLegal(context, 'privacy');
+  late final TapGestureRecognizer _rConsent = TapGestureRecognizer()..onTap = () => openLegal(context, 'consent');
+
+  @override
+  void dispose() {
+    _rOffer.dispose();
+    _rPrivacy.dispose();
+    _rConsent.dispose();
+    super.dispose();
+  }
+
+  TextSpan _link(Pal p, String t, GestureRecognizer r) =>
+      TextSpan(text: t, recognizer: r, style: TextStyle(color: p.ac, fontWeight: FontWeight.w700));
+
+  Widget _agree(Pal p, bool v, ValueChanged<bool> f, List<InlineSpan> spans) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: Checkbox(
+              value: v,
+              onChanged: (x) => f(x ?? false),
+              activeColor: p.ac,
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => f(!v),
+              child: Text.rich(TextSpan(style: TextStyle(color: p.mu, fontSize: 13.5, height: 1.4), children: spans)),
+            ),
+          ),
+        ]),
+      );
 
   static final _emailRe = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$');
 
@@ -139,6 +182,8 @@ class _AuthPageState extends State<AuthPage> {
         if (!_check(nat.length == country.len, 'Укажите номер телефона полностью')) return;
         if (!_check(_emailRe.hasMatch(_em), 'Укажите настоящий адрес почты')) return;
         if (!_check(pass.text.length >= 6, 'Пароль — не короче 6 символов')) return;
+        if (!_check(agreeTerms, 'Примите условия Пользовательского соглашения и Политики конфиденциальности')) return;
+        if (!_check(agreePd, 'Нужно согласие на обработку персональных данных')) return;
         await _run(() async {
           await Api.call('sendCode', {'email': _em, 'kind': 'reg'});
           code.clear();
@@ -157,6 +202,10 @@ class _AuthPageState extends State<AuthPage> {
             'name': name.text.trim(),
             'phone': '+${country.code} ${_nat(phone.text, country)}', // как на сайте: «+375 291234567»
             'code': code.text.trim(),
+            // фиксируем на сервере, что оферта и согласие на обработку данных приняты (и какой редакции)
+            'terms': agreeTerms ? 1 : 0,
+            'pd': agreePd ? 1 : 0,
+            'docs': kLegalVersion,
           });
           await _finish(j);
         });
@@ -246,11 +295,36 @@ class _AuthPageState extends State<AuthPage> {
           if (isCode) _field(code, 'Код из письма', icon: Icons.pin_outlined, type: TextInputType.number),
           if (m == AMode.login || m == AMode.reg || m == AMode.resetCode)
             _field(pass, m == AMode.resetCode ? 'Новый пароль' : 'Пароль', icon: Icons.lock_outline, secret: true),
+          if (m == AMode.reg) ...[
+            _agree(p, agreeTerms, (v) => setState(() => agreeTerms = v), [
+              const TextSpan(text: 'Я принимаю условия '),
+              _link(p, 'Пользовательского соглашения (оферты)', _rOffer),
+              const TextSpan(text: ' и '),
+              _link(p, 'Политики конфиденциальности', _rPrivacy),
+              const TextSpan(text: '. Мне исполнилось 18 лет'),
+            ]),
+            _agree(p, agreePd, (v) => setState(() => agreePd = v), [
+              const TextSpan(text: 'Даю '),
+              _link(p, 'согласие на обработку персональных данных', _rConsent),
+            ]),
+          ],
           if (info != null) Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(info!, style: TextStyle(color: p.ok, fontWeight: FontWeight.w600))),
           if (err != null) Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(err!, style: TextStyle(color: p.dng, fontWeight: FontWeight.w600))),
           GradBtn(btn[m]!, busy: busy, onTap: _submit),
           const SizedBox(height: 10),
           if (m == AMode.login) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+              child: Text.rich(
+                TextSpan(style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.4), children: [
+                  const TextSpan(text: 'Входя в аккаунт, вы принимаете условия '),
+                  _link(p, 'Пользовательского соглашения', _rOffer),
+                  const TextSpan(text: ' и '),
+                  _link(p, 'Политики конфиденциальности', _rPrivacy),
+                ]),
+                textAlign: TextAlign.center,
+              ),
+            ),
             Center(child: TextButton(onPressed: () => _mode(AMode.reset), child: Text('Забыли пароль?', style: TextStyle(color: p.mu)))),
             Center(child: TextButton(onPressed: () => _mode(AMode.reg), child: Text('Нет аккаунта? Зарегистрироваться', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700)))),
           ] else

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'admin.dart';
 import 'api.dart';
 import 'info.dart';
+import 'legal.dart';
 import 'models.dart';
 import 'state.dart';
 import 'theme.dart';
@@ -767,6 +768,8 @@ class BottomLinks extends StatelessWidget {
                 () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage(only: 3, title: 'Поддержка')))),
           _MenuRow(Icons.info_outline, 'О сервисе', 'О нас, вопросы, контакты',
               () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage()))),
+          _MenuRow(Icons.description_outlined, 'Документы', 'Оферта, политика, согласие на данные',
+              () => openLegal(context, 'offer')),
           _MenuRow(Icons.phone_android, 'О приложении', 'Версия $kAppVersion, разработчик @mchipta',
               () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutAppPage()))),
           if (S.i.logged && S.i.user?['admin'] == true)

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'ad_page.dart';
 import 'auth.dart';
 import 'info.dart';
+import 'legal.dart';
 import 'cities.dart';
 import 'models.dart';
 import 'site_defaults.dart';
@@ -599,6 +600,14 @@ class _LandingPageState extends State<LandingPage> {
             _contactLine(p, Icons.place_outlined, _site['addr']!, null),
           if ((_site['hours'] ?? '').trim().isNotEmpty)
             _contactLine(p, Icons.schedule_rounded, _site['hours']!, null),
+          const SizedBox(height: 12),
+          Text('ДОКУМЕНТЫ', style: TextStyle(color: p.mu, fontWeight: FontWeight.w800, fontSize: 11, letterSpacing: .8)),
+          const SizedBox(height: 6),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            _footerLink('Пользовательское соглашение', () => openLegal(context, 'offer'), p),
+            _footerLink('Политика конфиденциальности', () => openLegal(context, 'privacy'), p),
+            _footerLink('Согласие на обработку данных', () => openLegal(context, 'consent'), p),
+          ]),
           const SizedBox(height: 14),
           Text(_site['copy'] ?? '© ДелоЕсть. Все права защищены.', textAlign: TextAlign.center,
               style: TextStyle(color: p.mu, fontSize: 11.5, height: 1.4)),
