@@ -73,6 +73,7 @@ alias = (
     '            </intent-filter>\n'
     '            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts"/>\n'
     '        </activity-alias>\n'
+    '        <receiver android:name=".DeloEstReplyReceiver" android:exported="false"/>\n'
     '        <service android:name=".DeloEstFcmService" android:exported="false">\n'
     '            <intent-filter>\n'
     '                <action android:name="com.google.firebase.MESSAGING_EVENT"/>\n'
@@ -161,6 +162,7 @@ import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -170,8 +172,13 @@ import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.Person
+import androidx.core.app.RemoteInput
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -180,6 +187,8 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import org.json.JSONObject
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 
 object DeloEstNotif {
     const val CHANNEL_ID = "deloest_push_v2"
@@ -204,7 +213,7 @@ object DeloEstNotif {
         }
     }
 
-    fun show(ctx: Context, title: String, body: String, shortcut: String?) {
+    fun show(ctx: Context, title: String, body: String, shortcut: String?, label: String? = null) {
         if (Build.VERSION.SDK_INT >= 33) {
             if (ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 return
@@ -241,10 +250,131 @@ object DeloEstNotif {
         if (largeBmp != null) {
             builder.setLargeIcon(largeBmp)
         }
+        if (!label.isNullOrEmpty()) builder.setSubText(label)
 
         try {
             NotificationManagerCompat.from(ctx).notify(id, builder.build())
         } catch (e: Exception) { }
+    }
+
+    const val REPLY_KEY = "reply_text"
+
+    private fun existingStyle(nm: NotificationManager, nid: Int): NotificationCompat.MessagingStyle? {
+        if (Build.VERSION.SDK_INT < 23) return null
+        return try {
+            var res: NotificationCompat.MessagingStyle? = null
+            for (n in nm.activeNotifications) {
+                if (n.id == nid) res = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(n.notification)
+            }
+            res
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // Уведомление-переписка с кнопкой «Ответить»; mine = true добавляет в переписку ваш ответ
+    fun postMessage(ctx: Context, sender: String, from: String, ad: String, text: String?, mine: Boolean, alert: Boolean) {
+        if (Build.VERSION.SDK_INT >= 33) {
+            if (ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                return
+            }
+        }
+        ensureChannel(ctx)
+        val nid = 5000 + (from.hashCode() and 0xFFFF)
+        val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val style = existingStyle(nm, nid) ?: NotificationCompat.MessagingStyle(Person.Builder().setName("Вы").build())
+        if (text != null) {
+            if (mine) {
+                style.addMessage(text, System.currentTimeMillis(), null as Person?)
+            } else {
+                style.addMessage(text, System.currentTimeMillis(), Person.Builder().setName(sender).build())
+            }
+        }
+
+        val open = Intent(ctx, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("shortcut", "messages")
+        }
+        val openFlags = if (Build.VERSION.SDK_INT >= 23)
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        else PendingIntent.FLAG_UPDATE_CURRENT
+        val openPi = PendingIntent.getActivity(ctx, nid, open, openFlags)
+
+        val replyIntent = Intent(ctx, DeloEstReplyReceiver::class.java).apply {
+            action = "ru.deloest.delo_est.REPLY"
+            putExtra("from", from)
+            putExtra("ad", ad)
+            putExtra("sender", sender)
+        }
+        val replyFlags = if (Build.VERSION.SDK_INT >= 31)
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+        else PendingIntent.FLAG_UPDATE_CURRENT
+        val replyPi = PendingIntent.getBroadcast(ctx, nid, replyIntent, replyFlags)
+        val remote = RemoteInput.Builder(REPLY_KEY).setLabel("Ответить").build()
+        val replyAction = NotificationCompat.Action.Builder(R.drawable.ic_stat_deloest, "Ответить", replyPi)
+            .addRemoteInput(remote)
+            .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
+            .setAllowGeneratedReplies(false)
+            .build()
+
+        val builder = NotificationCompat.Builder(ctx, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_deloest)
+            .setColor(0xFFFF5A36.toInt())
+            .setStyle(style)
+            .setSubText("Сообщение")
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setOnlyAlertOnce(!alert)
+            .setAutoCancel(true)
+            .setContentIntent(openPi)
+            .addAction(replyAction)
+
+        try {
+            NotificationManagerCompat.from(ctx).notify(nid, builder.build())
+        } catch (e: Exception) { }
+    }
+
+    private fun openConn(u: String, post: Boolean, body: String?): HttpURLConnection {
+        val c = URL(u).openConnection() as HttpURLConnection
+        c.connectTimeout = 10000
+        c.readTimeout = 20000
+        c.instanceFollowRedirects = false
+        if (post) {
+            c.requestMethod = "POST"
+            c.doOutput = true
+            c.setRequestProperty("Content-Type", "text/plain;charset=utf-8")
+            c.outputStream.use { it.write((body ?: "").toByteArray(Charsets.UTF_8)) }
+        } else {
+            c.requestMethod = "GET"
+        }
+        return c
+    }
+
+    // POST в Apps Script: ответ приходит редиректом, его нужно забрать отдельным GET
+    fun postJson(url: String, body: String): String? {
+        return try {
+            var c = openConn(url, true, body)
+            var code = c.responseCode
+            var hops = 0
+            while (code in 300..399 && hops < 5) {
+                val loc = c.getHeaderField("Location") ?: return null
+                c.disconnect()
+                c = openConn(loc, false, null)
+                code = c.responseCode
+                hops++
+            }
+            if (code != 200) {
+                c.disconnect()
+                null
+            } else {
+                val text = c.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                c.disconnect()
+                text
+            }
+        } catch (e: Exception) {
+            null
+        }
     }
 
 }
@@ -262,8 +392,51 @@ class DeloEstFcmService : FirebaseMessagingService() {
         val title = msg.data["title"] ?: "ДелоЕсть"
         val body = msg.data["body"] ?: ""
         if (body.isEmpty()) return
+        val kind = msg.data["kind"] ?: ""
+        val from = msg.data["from"] ?: ""
+        if (kind == "msg" && from.isNotEmpty()) {
+            DeloEstNotif.postMessage(this, title, from, msg.data["ad"] ?: "", body, false, true)
+            return
+        }
         val sc = if (msg.data["link"] == "messages") "messages" else null
-        DeloEstNotif.show(this, title, body, sc)
+        val label = when (kind) {
+            "resp" -> "Отклик"
+            "review" -> "Отзыв"
+            else -> null
+        }
+        DeloEstNotif.show(this, title, body, sc, label)
+    }
+}
+
+// Ответ прямо из уведомления: отправляется на сервер тем же действием, что и в приложении
+class DeloEstReplyReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val text = (RemoteInput.getResultsFromIntent(intent)?.getCharSequence(DeloEstNotif.REPLY_KEY) ?: "").toString().trim()
+        val from = intent.getStringExtra("from") ?: ""
+        val ad = intent.getStringExtra("ad") ?: ""
+        val sender = intent.getStringExtra("sender") ?: ""
+        if (text.isEmpty() || from.isEmpty()) return
+        val p = context.getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
+        val apiUrl = p.getString("apiUrl", "") ?: ""
+        val token = p.getString("token", "") ?: ""
+        val pending = goAsync()
+        Thread {
+            var ok = false
+            try {
+                if (apiUrl.isNotEmpty() && token.isNotEmpty()) {
+                    val body = JSONObject().put("a", "send").put("t", token).put("with", from).put("adId", ad).put("text", text).toString()
+                    val res = DeloEstNotif.postJson(apiUrl, body)
+                    if (res != null) ok = JSONObject(res).optBoolean("ok", false)
+                }
+            } catch (e: Exception) { }
+            DeloEstNotif.postMessage(context, sender, from, ad, if (ok) text else null, true, false)
+            if (!ok) {
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(context, "Не удалось отправить ответ", Toast.LENGTH_LONG).show()
+                }
+            }
+            pending.finish()
+        }.start()
     }
 }
 
@@ -289,6 +462,9 @@ class MainActivity : FlutterActivity() {
     override fun onResume() {
         super.onResume()
         DeloEstNotif.appFg = true
+        try {
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancelAll()
+        } catch (e: Exception) { }
     }
 
     override fun onPause() {
