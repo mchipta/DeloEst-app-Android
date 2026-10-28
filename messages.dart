@@ -445,10 +445,12 @@ class _ChatPageState extends State<ChatPage> {
         'with': widget.pid,
         'text': text,
         'imgs': imgs,
+        'defer': 1,
         if (widget.adId.isNotEmpty) 'adId': widget.adId,
       });
-      if (!mounted) return;
       final sid = (j['id'] ?? '').toString();
+      Api.call('notify', {'id': sid}).then((_) {}, onError: (_) {}); // push собеседнику уходит отдельно, отправитель не ждёт
+      if (!mounted) return;
       setState(() {
         msgs.removeWhere((x) => x['id'] == tmp);
         if (!msgs.any((x) => x['id'] == sid)) {
@@ -731,10 +733,12 @@ class _ChatPageState extends State<ChatPage> {
         'text': '',
         'imgs': <String>[],
         'aud': {'id': id, 'dur': dur},
+        'defer': 1,
         if (widget.adId.isNotEmpty) 'adId': widget.adId,
       });
       VoicePlayer.i.cache[id] = path;
       final sid = (j['id'] ?? '').toString();
+      Api.call('notify', {'id': sid}).then((_) {}, onError: (_) {});
       if (!mounted) return;
       setState(() {
         if (!msgs.any((x) => x['id'] == sid)) {
