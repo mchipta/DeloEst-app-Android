@@ -178,6 +178,64 @@ class _MessagesPageState extends State<MessagesPage> {
     );
   }
 
+  // Объявление в списке диалогов: компактная «таблетка» с фото и ценой (как на сайте)
+  Widget _adChip(Pal p, Map<String, dynamic> d) {
+    final gone = d['adg'] == true;
+    final title = (d['adt'] ?? '').toString();
+    final noAd = !gone && title.isEmpty && (d['ad'] ?? '').toString().isEmpty;
+    final muted = gone || noAd;
+    final pay = muted ? '' : payF((d['adp'] ?? '').toString());
+    final img = (d['adi'] ?? '').toString();
+    final cat = (d['adc'] ?? '').toString();
+    final label = gone ? 'Объявление удалено' : (noAd ? 'Без объявления' : (title.isEmpty ? 'Объявление' : title));
+    Widget thumb;
+    if (img.isNotEmpty && !muted) {
+      thumb = CachedNetworkImage(
+        imageUrl: imgUrl(img, 80),
+        fit: BoxFit.cover,
+        placeholder: (_, __) => Container(color: p.card),
+        errorWidget: (_, __, ___) => Icon(cat.isEmpty ? Icons.sell_outlined : catIcon(cat), size: 12, color: p.ac),
+      );
+    } else {
+      thumb = Icon(muted || cat.isEmpty ? Icons.sell_outlined : catIcon(cat), size: 12, color: muted ? p.mu : p.ac);
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 4),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(3, 3, 10, 3),
+          decoration: BoxDecoration(
+            color: muted ? p.bg2 : Color.alphaBlend(p.ac.withOpacity(.09), p.bg2),
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(color: muted ? p.bd : Color.alphaBlend(p.ac.withOpacity(.18), p.bd)),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 22,
+              height: 22,
+              clipBehavior: Clip.antiAlias,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: p.card, shape: BoxShape.circle),
+              child: thumb,
+            ),
+            const SizedBox(width: 7),
+            Flexible(
+              child: Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: muted ? p.mu : p.tx, fontSize: 12.5, fontWeight: muted ? FontWeight.w500 : FontWeight.w600)),
+            ),
+            if (pay.isNotEmpty) ...[
+              const SizedBox(width: 6),
+              Text(pay, maxLines: 1, style: TextStyle(color: p.ac, fontSize: 12.5, fontWeight: FontWeight.w800)),
+            ],
+          ]),
+        ),
+      ),
+    );
+  }
+
   Widget _item(Pal p, Map<String, dynamic> d) {
     final n = _n(d['n']);
     final text = (d['text'] ?? '').toString();
@@ -219,18 +277,7 @@ class _MessagesPageState extends State<MessagesPage> {
                 Text(siteListTime(_n(d['ts']), S.i.timeZone), style: TextStyle(color: p.mu, fontSize: 11.5)),
               ]),
               const SizedBox(height: 2),
-              Row(children: [
-                Icon(Icons.sell_outlined, size: 13, color: p.ac),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    d['adg'] == true ? 'Объявление удалено' : ((d['adt'] ?? '').toString().isEmpty ? 'Без объявления' : (d['adt'] ?? '').toString()),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: p.ac, fontSize: 12.5, fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ]),
+              _adChip(p, d),
               const SizedBox(height: 2),
               Text('${d['mine'] == true ? 'Вы: ' : ''}${text.isEmpty ? 'Фото' : text}',
                   maxLines: 1,
@@ -950,47 +997,80 @@ class _ChatPageState extends State<ChatPage> {
     if (target != null) Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: target)));
   }
 
-  // Карточка объявления над перепиской, как в Авито
+  // Карточка объявления над перепиской, как в Авито (оформление такое же, как на сайте)
   Widget _adHeader(Pal p) {
     final c = adCard!;
     final gone = c['gone'] == true;
     final closed = !gone && (c['status'] ?? '').toString() != 'open';
     final img = (c['img'] ?? '').toString();
     final pay = payF((c['pay'] ?? '').toString());
-    final sub = gone ? 'Оно больше недоступно' : [pay.isEmpty ? 'Договорная' : pay, if (closed) 'снято с публикации'].join(' · ');
+    final catName = (c['category'] ?? '').toString();
+    final priceText = gone ? 'Объявление удалено' : (pay.isEmpty ? 'Договорная' : pay);
+    final muted = gone || closed;
+    final ph = Container(
+      decoration: BoxDecoration(gradient: LinearGradient(colors: [Color.alphaBlend(p.ac.withOpacity(.16), p.bg2), p.bg2])),
+      child: Icon(gone || catName.isEmpty ? Icons.sell_outlined : catIcon(catName), color: p.ac.withOpacity(.85), size: 26),
+    );
     return GestureDetector(
       onTap: gone ? null : _openAd,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
-        decoration: BoxDecoration(color: p.bg2, border: Border(bottom: BorderSide(color: p.bd))),
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+        decoration: BoxDecoration(color: p.card, border: Border(bottom: BorderSide(color: p.bd))),
         child: Row(children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: SizedBox(
-              width: 46,
-              height: 46,
-              child: img.isEmpty
-                  ? Container(color: p.bg, child: Icon(Icons.sell_outlined, color: p.mu, size: 22))
-                  : CachedNetworkImage(
-                      imageUrl: imgUrl(img, 160),
+          Container(
+            width: 58,
+            height: 58,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
+            child: img.isEmpty || gone
+                ? ph
+                : ColorFiltered(
+                    colorFilter: closed
+                        ? const ColorFilter.matrix(<double>[
+                            .6, .3, .1, 0, 0,
+                            .6, .3, .1, 0, 0,
+                            .6, .3, .1, 0, 0,
+                            0, 0, 0, .75, 0,
+                          ])
+                        : const ColorFilter.mode(Colors.transparent, BlendMode.dst),
+                    child: CachedNetworkImage(
+                      imageUrl: imgUrl(img, 200),
                       fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(color: p.bg),
-                      errorWidget: (_, __, ___) => Container(color: p.bg, child: Icon(Icons.sell_outlined, color: p.mu, size: 22)),
+                      placeholder: (_, __) => Container(color: p.bg2),
+                      errorWidget: (_, __, ___) => ph,
                     ),
-            ),
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(gone ? 'Объявление удалено' : (c['title'] ?? '').toString(),
-                  maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: p.tx)),
-              const SizedBox(height: 2),
-              Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: (gone || closed) ? p.mu : p.ac)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text(priceText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, height: 1.15, color: muted ? p.mu : p.tx)),
+              const SizedBox(height: 3),
+              Text(gone ? 'Оно больше недоступно' : (c['title'] ?? '').toString(),
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13.5, color: p.mu)),
+              if (closed) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+                  decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(99), border: Border.all(color: p.bd)),
+                  child: Text('Снято с публикации', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: p.mu)),
+                ),
+              ],
             ]),
           ),
-          if (!gone) Icon(Icons.chevron_right_rounded, color: p.mu),
+          if (!gone) ...[
+            const SizedBox(width: 8),
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(color: p.bg2, shape: BoxShape.circle),
+              child: Icon(Icons.chevron_right_rounded, color: p.ac, size: 22),
+            ),
+          ],
         ]),
       ),
     );
