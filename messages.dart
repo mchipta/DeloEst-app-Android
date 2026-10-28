@@ -154,13 +154,13 @@ class _MessagesPageState extends State<MessagesPage> {
 
   // Свайп влево удаляет переписку (только у вас)
   Widget _dismiss(Pal p, Map<String, dynamic> d) {
-    final pid = (d['pid'] ?? '').toString();
+    final pid = (d['pid'] ?? '').toString(), ad = (d['ad'] ?? '').toString();
     return Dismissible(
-      key: ValueKey('dlg-$pid'),
+      key: ValueKey('dlg-$pid-$ad'),
       direction: DismissDirection.endToStart,
-      confirmDismiss: (_) => _delChat(context, pid, (d['name'] ?? '').toString()),
+      confirmDismiss: (_) => _delChat(context, pid, (d['name'] ?? '').toString(), ad: ad),
       onDismissed: (_) {
-        setState(() => list.removeWhere((x) => (x['pid'] ?? '').toString() == pid));
+        setState(() => list.removeWhere((x) => (x['pid'] ?? '').toString() == pid && (x['ad'] ?? '').toString() == ad));
         S.i.refreshUnread();
       },
       background: Container(
@@ -191,6 +191,7 @@ class _MessagesPageState extends State<MessagesPage> {
               name: (d['name'] ?? '').toString(),
               avatar: (d['avatar'] ?? '').toString(),
               ver: d['ver'] == true,
+              adId: (d['ad'] ?? '').toString(),
             ),
           ),
         );
@@ -217,7 +218,20 @@ class _MessagesPageState extends State<MessagesPage> {
                 const Spacer(),
                 Text(siteListTime(_n(d['ts']), S.i.timeZone), style: TextStyle(color: p.mu, fontSize: 11.5)),
               ]),
-              const SizedBox(height: 3),
+              const SizedBox(height: 2),
+              Row(children: [
+                Icon(Icons.sell_outlined, size: 13, color: p.ac),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    d['adg'] == true ? 'Объявление удалено' : ((d['adt'] ?? '').toString().isEmpty ? 'Без объявления' : (d['adt'] ?? '').toString()),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: p.ac, fontSize: 12.5, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 2),
               Text('${d['mine'] == true ? 'Вы: ' : ''}${text.isEmpty ? 'Фото' : text}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -247,7 +261,7 @@ class _MessagesPageState extends State<MessagesPage> {
 }
 
 // Удаление переписки только у себя: подтверждение и запрос на сервер
-Future<bool> _delChat(BuildContext context, String pid, String name) async {
+Future<bool> _delChat(BuildContext context, String pid, String name, {String ad = ''}) async {
   final p = pal(context);
   final ok = await showDialog<bool>(
     context: context,
@@ -255,7 +269,7 @@ Future<bool> _delChat(BuildContext context, String pid, String name) async {
       backgroundColor: p.card,
       title: Text('Удалить переписку?', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
       content: Text(
-        'Переписка с ${name.isEmpty ? 'пользователем' : name} исчезнет только у вас, у собеседника она останется.',
+        'Переписка с ${name.isEmpty ? 'пользователем' : name}${ad.isEmpty ? '' : ' по этому объявлению'} исчезнет только у вас, у собеседника она останется.',
         style: TextStyle(color: p.mu, height: 1.35),
       ),
       actions: [
@@ -266,7 +280,7 @@ Future<bool> _delChat(BuildContext context, String pid, String name) async {
   );
   if (ok != true) return false;
   try {
-    await Api.call('delChat', {'with': pid});
+    await Api.call('delChat', {'with': pid, if (ad.isNotEmpty) 'ad': ad});
     return true;
   } catch (e) {
     if (context.mounted) toast(context, S.i.fail(e), err: true);
@@ -302,6 +316,7 @@ class _ChatPageState extends State<ChatPage> {
   DateTime? _recAt;
   Timer? _recT;
   String? err;
+  Map<String, dynamic>? adCard; // карточка объявления, по которому идёт диалог
   DateTime _lastTyping = DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
@@ -336,6 +351,7 @@ class _ChatPageState extends State<ChatPage> {
     try {
       final j = await Api.call('thread', {
         'with': widget.pid,
+        if (widget.adId.isNotEmpty) 'ad': widget.adId,
         if (!first && lastTs > 0) 'after': lastTs,
       });
       if (!mounted) return;
@@ -348,6 +364,7 @@ class _ChatPageState extends State<ChatPage> {
         online = j['on'] == true;
         typing = j['ty'] == true;
         seen = _n(j['seen']);
+        if (j['ad'] is Map) adCard = Map<String, dynamic>.from(j['ad'] as Map);
         if (o.isNotEmpty) {
           name = (o['name'] ?? name).toString();
           ver = o['ver'] == true;
@@ -409,7 +426,6 @@ class _ChatPageState extends State<ChatPage> {
     if (_editId != null && imgs.isEmpty) return _saveEdit();
     final text = _ctl.text.trim();
     if (text.isEmpty && imgs.isEmpty) return;
-    final withAd = widget.adId.isNotEmpty && !msgs.any((x) => x['ad'] == widget.adId);
     final tmp = 'tmp${DateTime.now().microsecondsSinceEpoch}';
     setState(() {
       msgs.add({
@@ -419,7 +435,7 @@ class _ChatPageState extends State<ChatPage> {
         'text': text,
         'st': 'p',
         'img': imgs,
-        'ad': '',
+        'ad': widget.adId,
         'adt': '',
       });
     });
@@ -429,14 +445,14 @@ class _ChatPageState extends State<ChatPage> {
         'with': widget.pid,
         'text': text,
         'imgs': imgs,
-        if (withAd) 'adId': widget.adId,
+        if (widget.adId.isNotEmpty) 'adId': widget.adId,
       });
       if (!mounted) return;
       final sid = (j['id'] ?? '').toString();
       setState(() {
         msgs.removeWhere((x) => x['id'] == tmp);
         if (!msgs.any((x) => x['id'] == sid)) {
-          msgs.add({'id': sid, 'ts': _n(j['ts']), 'mine': true, 'text': text, 'st': '', 'img': imgs, 'ad': withAd ? widget.adId : '', 'adt': ''});
+          msgs.add({'id': sid, 'ts': _n(j['ts']), 'mine': true, 'text': text, 'st': '', 'img': imgs, 'ad': widget.adId, 'adt': ''});
         }
         msgs.sort((a, b) => _n(a['ts']).compareTo(_n(b['ts'])));
       });
@@ -710,20 +726,19 @@ class _ChatPageState extends State<ChatPage> {
       final bytes = await File(path).readAsBytes();
       final up = await Api.call('upaud', {'data': base64Encode(bytes), 'mime': 'audio/mp4', 'dur': dur});
       final id = (up['id'] ?? '').toString();
-      final withAd = widget.adId.isNotEmpty && !msgs.any((x) => x['ad'] == widget.adId);
       final j = await Api.call('send', {
         'with': widget.pid,
         'text': '',
         'imgs': <String>[],
         'aud': {'id': id, 'dur': dur},
-        if (withAd) 'adId': widget.adId,
+        if (widget.adId.isNotEmpty) 'adId': widget.adId,
       });
       VoicePlayer.i.cache[id] = path;
       final sid = (j['id'] ?? '').toString();
       if (!mounted) return;
       setState(() {
         if (!msgs.any((x) => x['id'] == sid)) {
-          msgs.add({'id': sid, 'ts': _n(j['ts']), 'mine': true, 'text': '', 'st': '', 'img': <String>[], 'aud': '$id|$dur', 'ad': withAd ? widget.adId : '', 'adt': ''});
+          msgs.add({'id': sid, 'ts': _n(j['ts']), 'mine': true, 'text': '', 'st': '', 'img': <String>[], 'aud': '$id|$dur', 'ad': widget.adId, 'adt': ''});
         }
         msgs.sort((a, b) => _n(a['ts']).compareTo(_n(b['ts'])));
       });
@@ -847,7 +862,7 @@ class _ChatPageState extends State<ChatPage> {
                 await toggleUserBlock(context, pid: widget.pid, name: name);
               }
               if (v == 'del') {
-                if (await _delChat(context, widget.pid, name) && mounted) Navigator.pop(context);
+                if (await _delChat(context, widget.pid, name, ad: widget.adId) && mounted) Navigator.pop(context);
               }
             },
             itemBuilder: (c) => [
@@ -880,6 +895,7 @@ class _ChatPageState extends State<ChatPage> {
         ),
       ),
       body: Column(children: [
+        if (adCard != null) _adHeader(p),
         if (!_safeOff) _safeBanner(p),
         Expanded(child: Stack(children: [
         Positioned.fill(
@@ -917,11 +933,69 @@ class _ChatPageState extends State<ChatPage> {
     return const Icon(Icons.check, size: 15, color: Colors.white60);
   }
 
+  void _openAd() {
+    final c = adCard;
+    if (c == null || c['gone'] == true) return;
+    final id = (c['id'] ?? '').toString();
+    Ad? found;
+    for (final a in S.i.ads) {
+      if (a.id == id) found = a;
+    }
+    if (found == null && c['full'] is Map) found = Ad.fromJson(Map<String, dynamic>.from(c['full'] as Map));
+    final target = found;
+    if (target != null) Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: target)));
+  }
+
+  // Карточка объявления над перепиской, как в Авито
+  Widget _adHeader(Pal p) {
+    final c = adCard!;
+    final gone = c['gone'] == true;
+    final closed = !gone && (c['status'] ?? '').toString() != 'open';
+    final img = (c['img'] ?? '').toString();
+    final pay = payF((c['pay'] ?? '').toString());
+    final sub = gone ? 'Оно больше недоступно' : [pay.isEmpty ? 'Договорная' : pay, if (closed) 'снято с публикации'].join(' · ');
+    return GestureDetector(
+      onTap: gone ? null : _openAd,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+        decoration: BoxDecoration(color: p.bg2, border: Border(bottom: BorderSide(color: p.bd))),
+        child: Row(children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              width: 46,
+              height: 46,
+              child: img.isEmpty
+                  ? Container(color: p.bg, child: Icon(Icons.sell_outlined, color: p.mu, size: 22))
+                  : CachedNetworkImage(
+                      imageUrl: imgUrl(img, 160),
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => Container(color: p.bg),
+                      errorWidget: (_, __, ___) => Container(color: p.bg, child: Icon(Icons.sell_outlined, color: p.mu, size: 22)),
+                    ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(gone ? 'Объявление удалено' : (c['title'] ?? '').toString(),
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: p.tx)),
+              const SizedBox(height: 2),
+              Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: (gone || closed) ? p.mu : p.ac)),
+            ]),
+          ),
+          if (!gone) Icon(Icons.chevron_right_rounded, color: p.mu),
+        ]),
+      ),
+    );
+  }
+
   Widget _bubble(Pal p, Map<String, dynamic> m) {
     final mine = m['mine'] == true;
     final text = (m['text'] ?? '').toString();
     final imgs = m['img'] is List ? (m['img'] as List).map((e) => e.toString()).toList() : <String>[];
-    final adt = (m['adt'] ?? '').toString();
     final aud = (m['aud'] ?? '').toString();
     final fg = mine ? Colors.white : p.tx;
     if (m['gone'] == true) {
@@ -969,17 +1043,6 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          if (adt.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.only(bottom: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-              decoration: BoxDecoration(color: (mine ? Colors.white : p.bg2).withOpacity(mine ? .2 : 1), borderRadius: BorderRadius.circular(10)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.link, size: 14, color: fg),
-                const SizedBox(width: 4),
-                Flexible(child: Text(adt, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: fg, fontWeight: FontWeight.w600))),
-              ]),
-            ),
           if (imgs.isNotEmpty)
             Padding(
               padding: EdgeInsets.only(bottom: text.isEmpty ? 2 : 6),
