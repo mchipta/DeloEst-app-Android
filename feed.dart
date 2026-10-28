@@ -5,6 +5,7 @@ import 'favorites.dart';
 import 'map_page.dart';
 import 'models.dart';
 import 'state.dart';
+import 'skeleton.dart';
 import 'theme.dart';
 import 'util.dart';
 import 'widgets.dart';
@@ -361,7 +362,10 @@ class _FeedPageState extends State<FeedPage> {
 
   Widget _empty(Pal p) {
     if (S.i.loading && S.i.ads.isEmpty) {
-      return Center(child: CircularProgressIndicator(color: p.ac));
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+        child: Skeleton(child: Column(mainAxisSize: MainAxisSize.min, children: List.generate(6, (_) => const AdCardSkeleton()))),
+      );
     }
     return Padding(
       padding: const EdgeInsets.all(32),

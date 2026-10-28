@@ -153,7 +153,7 @@ class _AdPageState extends State<AdPage> {
             const SizedBox(height: 10),
             Text(ad.title, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: p.tx, height: 1.2)),
             const SizedBox(height: 6),
-            Text(payF(ad.pay), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: p.ok)),
+            Text(payF(ad.pay), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: p.tx)),
             const SizedBox(height: 8),
             Row(children: [
               Icon(Icons.place_outlined, size: 16, color: p.mu),
@@ -216,10 +216,10 @@ class _AdPageState extends State<AdPage> {
               GradBtn('Откликнуться', icon: Icons.send_rounded, onTap: _reply),
               const SizedBox(height: 10),
               Row(children: [
-                _contactBtn(p, const ChatBadge(), 'Написать', _write),
+                _contactBtn(p, Icons.chat_bubble_outline_rounded, 'Написать', _write),
                 if (ph.isNotEmpty) ...[
                   const SizedBox(width: 8),
-                  _contactBtn(p, const CallBadge(), 'Позвонить', () => _call(ph)),
+                  _contactBtn(p, Icons.call_outlined, 'Позвонить', () => _call(ph)),
                 ],
               ]),
             ],
@@ -229,27 +229,27 @@ class _AdPageState extends State<AdPage> {
     );
   }
 
-  Widget _contactBtn(Pal p, Widget icon, String label, VoidCallback onTap) {
+  // Второстепенная кнопка действия: контурная, той же высоты и формы, что и «Откликнуться» (как на сайте)
+  Widget _contactBtn(Pal p, IconData icon, String label, VoidCallback onTap) {
     return Expanded(
       child: Tap(
         onTap: onTap,
         scale: .96,
         child: Container(
-          height: 70,
-          padding: const EdgeInsets.symmetric(horizontal: 4),
+          height: 46,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: p.card,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: p.bd),
+            border: Border.all(color: p.ac, width: 1.5),
           ),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            icon,
-            const SizedBox(height: 6),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(label, maxLines: 1, style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 12.5)),
-            ),
-          ]),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(icon, color: p.ac, size: 20),
+              const SizedBox(width: 8),
+              Text(label, maxLines: 1, style: TextStyle(color: p.ac, fontWeight: FontWeight.w800, fontSize: 16)),
+            ]),
+          ),
         ),
       ),
     );

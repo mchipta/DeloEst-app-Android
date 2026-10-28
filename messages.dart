@@ -12,6 +12,7 @@ import 'auth.dart';
 import 'models.dart';
 import 'profile.dart';
 import 'state.dart';
+import 'skeleton.dart';
 import 'theme.dart';
 import 'util.dart';
 import 'voice.dart';
@@ -134,7 +135,7 @@ class _MessagesPageState extends State<MessagesPage> {
                     padding: EdgeInsets.fromLTRB(16, 6, 16, 20 + (widget.embedded ? navPad(context) : 0)),
                     children: [
                       if (loading && !loaded)
-                        Padding(padding: const EdgeInsets.all(40), child: Center(child: CircularProgressIndicator(color: p.ac))),
+                        Skeleton(child: Column(children: List.generate(6, (_) => const DialogSkeleton()))),
                       if (err != null && !loaded)
                         Padding(padding: const EdgeInsets.all(24), child: Text(err!, textAlign: TextAlign.center, style: TextStyle(color: p.mu))),
                       if (loaded && list.isEmpty)
@@ -228,7 +229,7 @@ class _MessagesPageState extends State<MessagesPage> {
             ),
             if (pay.isNotEmpty) ...[
               const SizedBox(width: 6),
-              Text(pay, maxLines: 1, style: TextStyle(color: p.ac, fontSize: 12.5, fontWeight: FontWeight.w800)),
+              Text(pay, maxLines: 1, style: TextStyle(color: p.tx, fontSize: 12.5, fontWeight: FontWeight.w800)),
             ],
           ]),
         ),

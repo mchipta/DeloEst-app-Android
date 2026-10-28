@@ -473,6 +473,23 @@ String siteDateTime(int ts, String zone) {
   return '$day.$month.${d.year}, $hour:$minute';
 }
 
+// Короткая дата для карточек: «только что», «2 ч назад», «вчера», «24 окт».
+String siteShortAgo(int ts, String zone) {
+  if (ts <= 0) return '';
+  final nowMs = DateTime.now().millisecondsSinceEpoch;
+  final df = nowMs - ts;
+  if (df < 60000) return 'только что';
+  if (df < 3600000) return '${df ~/ 60000} мин назад';
+  if (df < 86400000) return '${df ~/ 3600000} ч назад';
+  final d = siteDate(ts, zone);
+  final now = zone.isEmpty ? DateTime.now() : siteDate(nowMs, zone);
+  final y = now.subtract(const Duration(days: 1));
+  if (df < 172800000 && d.year == y.year && d.month == y.month && d.day == y.day) return 'вчера';
+  const m = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  final s = '${d.day} ${m[d.month - 1]}';
+  return d.year == now.year ? s : '$s ${d.year}';
+}
+
 String siteChatStamp(int ts, String zone) {
   if (ts <= 0) return '';
   final d = siteDate(ts, zone);

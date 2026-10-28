@@ -355,7 +355,7 @@ class _MapPageState extends State<MapPage> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(a.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, height: 1.2, color: p.tx)),
               const SizedBox(height: 3),
-              Text(payF(a.pay), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: p.ok)),
+              Text(payF(a.pay), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: p.tx)),
               const SizedBox(height: 3),
               Row(children: [
                 Icon(Icons.place_outlined, size: 14, color: p.mu),

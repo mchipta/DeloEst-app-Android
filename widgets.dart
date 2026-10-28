@@ -555,7 +555,7 @@ class AdCard extends StatelessWidget {
                   Text(payF(ad.pay),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: p.ok)),
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: p.tx)),
                   const SizedBox(height: 4),
                   Wrap(
                     spacing: 4,
@@ -565,7 +565,7 @@ class AdCard extends StatelessWidget {
                       Icon(Icons.place_outlined, size: 13, color: p.mu),
                       Text(adLoc(ad).isEmpty ? 'Город не указан' : adLoc(ad),
                           style: TextStyle(fontSize: 12, color: p.mu), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      Text('· ${siteDateTime(ad.ts, S.i.timeZone)}', style: TextStyle(fontSize: 12, color: p.mu)),
+                      Text('· ${siteShortAgo(ad.ts, S.i.timeZone)}', style: TextStyle(fontSize: 12, color: p.mu)),
                     ],
                   ),
                 ]),
@@ -602,7 +602,7 @@ class AdCard extends StatelessWidget {
     );
   }
 
-  String _shortDate() => siteDateTime(ad.ts, S.i.timeZone).split(',').first;
+  String _shortDate() => siteShortAgo(ad.ts, S.i.timeZone);
 
   // Плитка: крупное фото сверху, под ним цена, заголовок и город
   Widget _tile(BuildContext context, Pal p) {
@@ -643,7 +643,7 @@ class AdCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(payF(ad.pay), maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: p.ok)),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: p.tx)),
                 const SizedBox(height: 2),
                 Text(ad.title, maxLines: 2, overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, height: 1.2, color: p.tx)),
@@ -678,7 +678,7 @@ class AdCard extends StatelessWidget {
                     style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: p.tx)),
                 const SizedBox(height: 2),
                 Text(payF(ad.pay), maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: p.ok)),
+                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: p.tx)),
                 const SizedBox(height: 2),
                 Row(children: [
                   Container(width: 7, height: 7, decoration: BoxDecoration(color: need ? p.ac : p.ok, shape: BoxShape.circle)),
