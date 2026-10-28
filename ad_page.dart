@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
+import 'icons.dart';
 import 'auth.dart';
 import 'map_page.dart';
 import 'messages.dart';
@@ -101,7 +102,7 @@ class _AdPageState extends State<AdPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: pal(context).card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (c) => _ReplySheet(adId: ad.id),
     );
     if (ok == true && mounted) toast(context, 'Отклик отправлен — автор увидит ваш номер телефона');
@@ -142,9 +143,12 @@ class _AdPageState extends State<AdPage> {
               ],
             ),
           ]),
-          body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+          bottomNavigationBar: _bar(p, mine, ph),
+          body: ListView(padding: const EdgeInsets.only(bottom: 24), children: [
             _gallery(p),
-            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
               typeTag(context, ad.type),
               CatChip(ad.category),
@@ -153,7 +157,7 @@ class _AdPageState extends State<AdPage> {
             const SizedBox(height: 10),
             Text(ad.title, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: p.tx, height: 1.2)),
             const SizedBox(height: 6),
-            Text(payF(ad.pay), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: p.tx)),
+            PriceTag(ad.pay, size: 22),
             const SizedBox(height: 8),
             Row(children: [
               Icon(Icons.place_outlined, size: 16, color: p.mu),
@@ -212,45 +216,52 @@ class _AdPageState extends State<AdPage> {
                   GradBtn('Войти', icon: Icons.login_rounded, onTap: _login),
                 ]),
               )
-            else ...[
-              GradBtn('Откликнуться', icon: Icons.send_rounded, onTap: _reply),
-              const SizedBox(height: 10),
-              Row(children: [
-                _contactBtn(p, Icons.chat_bubble_outline_rounded, 'Написать', _write),
-                if (ph.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  _contactBtn(p, Icons.call_outlined, 'Позвонить', () => _call(ph)),
-                ],
-              ]),
-            ],
+              ])),
           ]),
         );
       },
     );
   }
 
-  // Второстепенная кнопка действия: контурная, той же высоты и формы, что и «Откликнуться» (как на сайте)
-  Widget _contactBtn(Pal p, IconData icon, String label, VoidCallback onTap) {
-    return Expanded(
-      child: Tap(
-        onTap: onTap,
-        scale: .96,
-        child: Container(
-          height: 46,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: p.ac, width: 1.5),
-          ),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(icon, color: p.ac, size: 20),
+  // Закреплённая панель: цена и действия всегда под рукой (для вошедшего, не автора, открытое объявление)
+  Widget? _bar(Pal p, bool mine, String ph) {
+    if (mine || ad.status == 'closed' || !S.i.logged) return null;
+    return Container(
+      decoration: BoxDecoration(color: p.card, border: Border(top: BorderSide(color: p.bd))),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Text('Оплата', style: TextStyle(color: p.mu, fontSize: 13)),
               const SizedBox(width: 8),
-              Text(label, maxLines: 1, style: TextStyle(color: p.ac, fontWeight: FontWeight.w800, fontSize: 16)),
+              Flexible(child: PriceTag(ad.pay, size: 18, dense: true)),
             ]),
-          ),
+            const SizedBox(height: 8),
+            Row(children: [
+              _sq(p, 'chat', _write),
+              if (ph.isNotEmpty) ...[const SizedBox(width: 8), _sq(p, 'phone', () => _call(ph))],
+              const SizedBox(width: 8),
+              Expanded(child: GradBtn('Откликнуться', ico: 'sendr', onTap: _reply)),
+            ]),
+          ]),
         ),
+      ),
+    );
+  }
+
+  // Квадратная контурная кнопка-иконка той же высоты, что «Откликнуться»
+  Widget _sq(Pal p, String ico, VoidCallback onTap) {
+    return Tap(
+      onTap: onTap,
+      scale: .94,
+      child: Container(
+        width: 46,
+        height: 46,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(R.s), border: Border.all(color: p.ac, width: 1.5)),
+        child: Ico(ico, size: 21, color: p.ac),
       ),
     );
   }
@@ -294,13 +305,13 @@ class _AdPageState extends State<AdPage> {
       return Container(
         height: 190,
         alignment: Alignment.center,
-        decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(18)),
+        decoration: BoxDecoration(color: p.bg2, borderRadius: const BorderRadius.vertical(bottom: Radius.circular(R.l))),
         child: Icon(catIcon(ad.category), size: 64, color: p.mu),
       );
     }
     return Column(children: [
       ClipRRect(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(R.l)),
         child: AspectRatio(
           aspectRatio: 4 / 3,
           child: PageView.builder(
@@ -321,7 +332,7 @@ class _AdPageState extends State<AdPage> {
       ),
       if (ad.imgs.length > 1)
         Padding(
-          padding: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.only(top: 10),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             for (var i = 0; i < ad.imgs.length; i++)
               Container(

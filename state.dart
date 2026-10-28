@@ -292,6 +292,7 @@ class S extends ChangeNotifier {
   }
 
   Future<void> toggleFav(String id) async {
+    HapticFeedback.lightImpact();
     if (!fav.remove(id)) fav.add(id);
     await prefs.setStringList('fav', fav.toList());
     notifyListeners();

@@ -176,7 +176,7 @@ class _LandingPageState extends State<LandingPage> {
       padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
       decoration: BoxDecoration(
         color: p.card,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: p.bd),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -207,7 +207,7 @@ class _LandingPageState extends State<LandingPage> {
         const SizedBox(height: 18),
         Container(
           padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
+          decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
           child: Row(children: [
             Expanded(child: _modeButton(p, 'Ищу подработку', 0)),
             Expanded(child: _modeButton(p, 'Ищу исполнителя', 1)),
@@ -380,7 +380,7 @@ class _LandingPageState extends State<LandingPage> {
               width: (MediaQuery.sizeOf(context).width - 41) / 2,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
-                decoration: cardDeco(p, r: 17),
+                decoration: cardDeco(p, r: 16),
                 child: Column(children: [
                   GradText(s.isNotEmpty ? s[0] : '', size: 25),
                   const SizedBox(height: 2),
@@ -429,14 +429,14 @@ class _LandingPageState extends State<LandingPage> {
             width: width,
             child: Material(
               color: p.card,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(16),
               child: InkWell(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(16),
                 onTap: () => _category(c.name),
                 child: Container(
                   constraints: const BoxConstraints(minHeight: 102),
                   padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), border: Border.all(color: p.bd)),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
                     Container(width: 36, height: 36, decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(11)),
                         child: Icon(c.icon, color: p.ac, size: 21)),
@@ -468,7 +468,7 @@ class _LandingPageState extends State<LandingPage> {
             child: Container(
               constraints: const BoxConstraints(minHeight: 150),
               padding: const EdgeInsets.all(14),
-              decoration: cardDeco(p, r: 18),
+              decoration: cardDeco(p, r: 16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Container(width: 36, height: 36, alignment: Alignment.center,
                     decoration: BoxDecoration(gradient: LinearGradient(colors: [p.ac, p.ac2]), borderRadius: BorderRadius.circular(11)),
@@ -499,7 +499,7 @@ class _LandingPageState extends State<LandingPage> {
             width: MediaQuery.sizeOf(context).width * .78,
             child: Container(
               padding: const EdgeInsets.all(16),
-              decoration: cardDeco(p, r: 19),
+              decoration: cardDeco(p, r: 16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [for (var i = 0; i < 5; i++) const Icon(Icons.star_rounded, color: Color(0xFFFF9F1C), size: 17)]),
                 const SizedBox(height: 10),
@@ -543,7 +543,7 @@ class _LandingPageState extends State<LandingPage> {
   Widget _business(Pal p) => Container(
         margin: const EdgeInsets.fromLTRB(14, 26, 14, 4),
         padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(gradient: LinearGradient(colors: [p.ac, p.ac2]), borderRadius: BorderRadius.circular(26)),
+        decoration: BoxDecoration(gradient: LinearGradient(colors: [p.ac, p.ac2]), borderRadius: BorderRadius.circular(24)),
         child: Column(children: [
           const Icon(Icons.handshake_outlined, color: Colors.white, size: 32),
           const SizedBox(height: 10),

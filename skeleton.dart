@@ -81,7 +81,7 @@ class AdCardSkeleton extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: cardDeco(p),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const SkelBox(w: 92, h: 92, r: 14),
+        const SkelBox(w: 92, h: 92, r: 12),
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [

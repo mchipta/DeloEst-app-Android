@@ -112,7 +112,7 @@ class _SettingsBodyState extends State<SettingsBody> {
     final act = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: pal(context).card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (c) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ListTile(leading: const Icon(Icons.photo_camera_outlined), title: const Text('Сделать фото'), onTap: () => Navigator.pop(c, 'camera')),
@@ -633,7 +633,7 @@ class ProfileEditPage extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(14),
-            decoration: cardDeco(p, r: 18),
+            decoration: cardDeco(p, r: 16),
             child: Row(children: [
               Icon(Icons.info_outline, color: p.ac),
               const SizedBox(width: 10),
@@ -787,7 +787,7 @@ class BottomLinks extends StatelessWidget {
           else
             const SizedBox(height: 14),
           Container(
-            decoration: cardDeco(p, r: 18),
+            decoration: cardDeco(p, r: 16),
             child: Column(children: [
               for (var i = 0; i < rows.length; i++) _row(p, rows[i], i == rows.length - 1),
             ]),

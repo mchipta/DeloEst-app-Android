@@ -120,7 +120,7 @@ class _InfoPageState extends State<InfoPage> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(14),
-        decoration: cardDeco(p, r: 14),
+        decoration: cardDeco(p, r: 12),
         child: Row(children: [
           Icon(ic, color: p.ac, size: 22),
           const SizedBox(width: 12),
@@ -137,7 +137,7 @@ class _InfoPageState extends State<InfoPage> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(12),
-        decoration: cardDeco(p, r: 14),
+        decoration: cardDeco(p, r: 12),
         child: Row(children: [
           lead,
           const SizedBox(width: 12),
@@ -205,7 +205,7 @@ class _InfoPageState extends State<InfoPage> {
   Widget _aboutCard(Pal p, String text, bool first) => Container(
         margin: const EdgeInsets.only(bottom: 12),
         clipBehavior: Clip.antiAlias,
-        decoration: cardDeco(p, r: 18),
+        decoration: cardDeco(p, r: 16),
         child: IntrinsicHeight(
           child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Container(
@@ -387,7 +387,7 @@ class _AboutAppPageState extends State<AboutAppPage> {
         onTap: () => openUrl(context, Uri.parse(url)),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
-          decoration: cardDeco(p, r: 18),
+          decoration: cardDeco(p, r: 16),
           child: Column(children: [
             BrandIcon(kind, size: 52),
             const SizedBox(height: 10),
@@ -420,7 +420,7 @@ class _AboutAppPageState extends State<AboutAppPage> {
         const SizedBox(height: 20),
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: cardDeco(p, r: 18),
+          decoration: cardDeco(p, r: 16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Row(children: [
               Icon(Icons.system_update_rounded, color: p.ac, size: 26),
@@ -442,7 +442,7 @@ class _AboutAppPageState extends State<AboutAppPage> {
         const SizedBox(height: 14),
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: cardDeco(p, r: 18),
+          decoration: cardDeco(p, r: 16),
           child: Row(children: [
             const Avatar('mchipta', size: 48),
             const SizedBox(width: 14),

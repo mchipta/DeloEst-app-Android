@@ -4,7 +4,9 @@ import 'dart:typed_data';
 import 'package:flutter/scheduler.dart' show SchedulerPhase;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'cities.dart';
+import 'icons.dart';
 import 'models.dart';
 import 'state.dart';
 import 'theme.dart';
@@ -156,7 +158,7 @@ class _TopToastHostState extends State<TopToastHost> {
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: p.card,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: er ? Color.alphaBlend(p.dng.withOpacity(.45), p.bd) : p.bd),
             boxShadow: [BoxShadow(color: Colors.black.withOpacity(.25), blurRadius: 22, offset: const Offset(0, 8))],
           ),
@@ -243,7 +245,12 @@ class _TapState extends State<Tap> {
       onTapDown: on ? (_) => setState(() => down = true) : null,
       onTapUp: on ? (_) => setState(() => down = false) : null,
       onTapCancel: on ? () => setState(() => down = false) : null,
-      onTap: widget.onTap,
+      onTap: on
+          ? () {
+              HapticFeedback.selectionClick();
+              widget.onTap!();
+            }
+          : null,
       child: AnimatedScale(
         scale: down ? widget.scale : 1,
         duration: const Duration(milliseconds: 110),
@@ -333,8 +340,9 @@ class GradBtn extends StatelessWidget {
   final String text;
   final VoidCallback? onTap;
   final IconData? icon;
+  final String? ico;
   final bool busy;
-  const GradBtn(this.text, {super.key, this.onTap, this.icon, this.busy = false});
+  const GradBtn(this.text, {super.key, this.onTap, this.icon, this.ico, this.busy = false});
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
@@ -349,14 +357,15 @@ class GradBtn extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             gradient: LinearGradient(colors: [p.ac, p.ac2]),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             boxShadow: [BoxShadow(color: p.ac.withOpacity(.16), blurRadius: 12, offset: const Offset(0, 4))],
           ),
           child: busy
               ? const SizedBox(
                   width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
               : Row(mainAxisSize: MainAxisSize.min, children: [
-                  if (icon != null) ...[Icon(icon, color: Colors.white, size: 21), const SizedBox(width: 8)],
+                  if (ico != null) ...[Ico(ico!, color: Colors.white, size: 20), const SizedBox(width: 8)]
+                  else if (icon != null) ...[Icon(icon, color: Colors.white, size: 21), const SizedBox(width: 8)],
                   Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
                 ]),
         ),
@@ -384,7 +393,7 @@ class OutBtn extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           color: p.card,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: p.bd, width: 1),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -411,6 +420,29 @@ class Tag extends StatelessWidget {
         border: Border.all(color: p.bd),
       ),
       child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+    );
+  }
+}
+
+/// Цена-плашка: крупно и цветом, чтобы взгляд находил её первой (как на сайте, .pay)
+class PriceTag extends StatelessWidget {
+  final String pay;
+  final double size;
+  final bool dense;
+  const PriceTag(this.pay, {super.key, this.size = 17, this.dense = false});
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    final text = payF(pay);
+    final fixed = RegExp(r'\d').hasMatch(text);
+    final col = fixed ? p.ok : p.mu;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: dense ? 8 : 10, vertical: dense ? 1 : 3),
+      decoration: BoxDecoration(color: col.withOpacity(.13), borderRadius: BorderRadius.circular(R.s)),
+      child: Text(text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: size, fontWeight: FontWeight.w800, color: col, height: 1.25)),
     );
   }
 }
@@ -505,7 +537,7 @@ class AdCard extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(12),
-          decoration: cardDeco(p, r: 20),
+          decoration: cardDeco(p, r: 24),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               SizedBox(width: thumb, height: thumb, child: _cover(p, thumb)),
@@ -552,17 +584,14 @@ class AdCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, height: 1.18, color: p.tx)),
                   const SizedBox(height: 4),
-                  Text(payF(ad.pay),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: p.tx)),
+                  PriceTag(ad.pay, size: 17),
                   const SizedBox(height: 4),
                   Wrap(
                     spacing: 4,
                     runSpacing: 2,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Icon(Icons.place_outlined, size: 13, color: p.mu),
+                      Ico('pin', size: 14, color: p.mu),
                       Text(adLoc(ad).isEmpty ? 'Город не указан' : adLoc(ad),
                           style: TextStyle(fontSize: 12, color: p.mu), maxLines: 1, overflow: TextOverflow.ellipsis),
                       Text('· ${siteShortAgo(ad.ts, S.i.timeZone)}', style: TextStyle(fontSize: 12, color: p.mu)),
@@ -612,7 +641,7 @@ class AdCard extends StatelessWidget {
         scale: .98,
         child: Container(
           clipBehavior: Clip.antiAlias,
-          decoration: cardDeco(p, r: 18),
+          decoration: cardDeco(p, r: 16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             AspectRatio(
               aspectRatio: 1.25,
@@ -642,9 +671,8 @@ class AdCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(payF(ad.pay), maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: p.tx)),
-                const SizedBox(height: 2),
+                PriceTag(ad.pay, size: 16, dense: true),
+                const SizedBox(height: 4),
                 Text(ad.title, maxLines: 2, overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, height: 1.2, color: p.tx)),
                 const SizedBox(height: 4),
@@ -677,8 +705,7 @@ class AdCard extends StatelessWidget {
                 Text(ad.title, maxLines: 1, overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: p.tx)),
                 const SizedBox(height: 2),
-                Text(payF(ad.pay), maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: p.tx)),
+                PriceTag(ad.pay, size: 14, dense: true),
                 const SizedBox(height: 2),
                 Row(children: [
                   Container(width: 7, height: 7, decoration: BoxDecoration(color: need ? p.ac : p.ok, shape: BoxShape.circle)),
@@ -715,14 +742,14 @@ class AdCard extends StatelessWidget {
     );
   }
 
-  Widget _cover(Pal p, double size) => ClipRRect(borderRadius: BorderRadius.circular(14), child: _coverBody(p, size));
+  Widget _cover(Pal p, double size) => ClipRRect(borderRadius: BorderRadius.circular(12), child: _coverBody(p, size));
 
   Widget _coverBody(Pal p, double size, {bool flat = false}) {
     Widget ph() => Container(
           decoration: BoxDecoration(
             color: Color.alphaBlend(p.ac.withOpacity(.07), p.bg2),
             border: flat ? null : Border.all(color: p.bd),
-            borderRadius: flat ? null : BorderRadius.circular(14),
+            borderRadius: flat ? null : BorderRadius.circular(12),
           ),
           alignment: Alignment.center,
           child: Icon(catIcon(ad.category), size: size * .35, color: p.ac.withOpacity(.75)),
@@ -865,7 +892,7 @@ Future<void> showReportSheet(BuildContext context, {required String id, String l
     context: context,
     isScrollControlled: true,
     backgroundColor: p.card,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (c) => StatefulBuilder(
       builder: (c, setS) => Padding(
         padding: EdgeInsets.fromLTRB(16, 18, 16, 16 + MediaQuery.of(c).viewInsets.bottom),
@@ -1068,7 +1095,7 @@ Future<String?> showPickerSheet(BuildContext context,
         constraints: BoxConstraints(maxHeight: h * .72),
         decoration: BoxDecoration(
           color: surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           border: Border.all(color: p.ac.withOpacity(.4), width: 1.2),
           boxShadow: [BoxShadow(color: p.ac.withOpacity(.22), blurRadius: 32, offset: const Offset(0, -6))],
         ),
@@ -1114,7 +1141,7 @@ Widget _pickRow(Pal p, PickItem it, bool sel, VoidCallback onTap) {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
           color: sel ? p.ac.withOpacity(.16) : p.bg.withOpacity(.4),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: sel ? p.ac : p.bd, width: sel ? 1.4 : 1),
         ),
         child: Row(children: [
@@ -1178,7 +1205,7 @@ class PickerField extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(14, 8, 10, 8),
         decoration: BoxDecoration(
           color: p.card,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: p.bd),
         ),
         child: Row(children: [

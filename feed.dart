@@ -162,7 +162,7 @@ class _FeedPageState extends State<FeedPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: pal(context).card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (c) => StatefulBuilder(
         builder: (c, setS) {
           final p = pal(c);
@@ -322,7 +322,7 @@ class _FeedPageState extends State<FeedPage> {
         crossAxisCount: cols,
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        mainAxisExtent: w / 1.25 + 100,
+        mainAxisExtent: w / 1.25 + 108,
       ),
     );
   }
@@ -517,7 +517,7 @@ class _FeedPageState extends State<FeedPage> {
             height: 54,
             decoration: BoxDecoration(
               color: p.card,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: p.bd),
               boxShadow: [BoxShadow(color: p.ac.withOpacity(.07), blurRadius: 16, offset: const Offset(0, 5))],
             ),

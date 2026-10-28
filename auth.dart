@@ -348,7 +348,7 @@ class _AuthPageState extends State<AuthPage> {
     final c = await showModalBottomSheet<Country>(
       context: context,
       backgroundColor: p.card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const SizedBox(height: 10),
@@ -378,7 +378,7 @@ class _AuthPageState extends State<AuthPage> {
           child: Container(
             height: 56,
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
+            decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Text(country.flag, style: const TextStyle(fontSize: 22)),
               const SizedBox(width: 6),

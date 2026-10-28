@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'ad_page.dart';
 import 'admin.dart';
 import 'api.dart';
+import 'icons.dart';
 import 'auth.dart';
 import 'messages.dart';
 import 'models.dart';
@@ -229,7 +231,7 @@ class _CabinetPageState extends State<CabinetPage> {
             style: IconButton.styleFrom(
               backgroundColor: p.bg2,
               minimumSize: const Size(44, 44),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
         ]),
@@ -244,7 +246,7 @@ class _CabinetPageState extends State<CabinetPage> {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                   boxShadow: [BoxShadow(color: p.ac.withOpacity(.30), blurRadius: 12, offset: const Offset(0, 4))],
                 ),
                 child: const Row(mainAxisSize: MainAxisSize.min, children: [
@@ -267,7 +269,7 @@ class _CabinetPageState extends State<CabinetPage> {
                 side: BorderSide(color: p.bd, width: 1),
                 minimumSize: const Size(0, 44),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
               ),
             ),
@@ -284,7 +286,7 @@ class _CabinetPageState extends State<CabinetPage> {
               backgroundColor: p.bg2,
               side: BorderSide(color: p.bd, width: 1),
               minimumSize: const Size(0, 42),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
             ),
           ),
@@ -331,7 +333,7 @@ class _CabinetPageState extends State<CabinetPage> {
         Container(
           margin: const EdgeInsets.only(bottom: 10),
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(18), border: Border.all(color: p.bd)),
+          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Expanded(child: Text((r['name'] ?? '').toString(), style: TextStyle(fontWeight: FontWeight.w800, color: p.tx))),
@@ -349,8 +351,8 @@ class _CabinetPageState extends State<CabinetPage> {
               if ((r['reply'] ?? '').toString().isEmpty)
                 _small(p, 'Ответить', () => _answer(r), fill: true, icon: Icons.reply_rounded)
               else ...[
-                _small(p, 'Изменить', () => _answer(r), icon: Icons.edit_outlined),
-                _small(p, 'Удалить ответ', () => _act('rrep', {'id': r['id'], 'text': ''}, 'Ответ удалён'), color: p.dng, icon: Icons.delete_outline_rounded),
+                _small(p, 'Изменить', () => _answer(r), ico: 'edit'),
+                _small(p, 'Удалить ответ', () => _act('rrep', {'id': r['id'], 'text': ''}, 'Ответ удалён'), color: p.dng, ico: 'trash'),
               ],
             ]),
           ]),
@@ -367,7 +369,7 @@ class _CabinetPageState extends State<CabinetPage> {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               gradient: LinearGradient(colors: [p.ac.withOpacity(.14), p.ac2.withOpacity(.14)]),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: p.ac.withOpacity(.4)),
             ),
             child: Row(children: [
@@ -391,19 +393,20 @@ class _CabinetPageState extends State<CabinetPage> {
   Widget _chips(Pal p) {
     final pend = _pend;
     final tabs = <List<Object>>[
-      ['ads', 'Мои объявления', Icons.work_outline_rounded],
-      ['in', 'Отклики мне', Icons.bolt_rounded],
-      ['out', 'Мои отклики', Icons.send_outlined],
-      ['rev', 'Отзывы', Icons.star_outline_rounded],
+      ['ads', 'Мои объявления', 'work'],
+      ['in', 'Отклики мне', 'bolt'],
+      ['out', 'Мои отклики', 'send'],
+      ['rev', 'Отзывы', 'star'],
     ];
     return Container(
       padding: const EdgeInsets.all(5),
-      decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(20), border: Border.all(color: p.bd)),
+      decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(24), border: Border.all(color: p.bd)),
       child: Row(children: [
         for (final t in tabs)
           Expanded(
             child: GestureDetector(
               onTap: () {
+                HapticFeedback.selectionClick();
                 setState(() => ct = t[0] as String);
                 _markSeen();
               },
@@ -413,12 +416,12 @@ class _CabinetPageState extends State<CabinetPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
                 decoration: BoxDecoration(
                   gradient: ct == t[0] ? LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight) : null,
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: ct == t[0] ? [BoxShadow(color: p.ac.withOpacity(.32), blurRadius: 12, offset: const Offset(0, 4))] : null,
                 ),
                 child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Stack(clipBehavior: Clip.none, children: [
-                    Icon(t[2] as IconData, size: 21, color: ct == t[0] ? Colors.white : p.mu),
+                    Ico(t[2] as String, size: 21, color: ct == t[0] ? Colors.white : p.mu),
                     if ((t[0] == 'in' ? pend : (t[0] == 'rev' ? _unans : 0)) > 0)
                       Positioned(right: -10, top: -7, child: Container(
                         constraints: const BoxConstraints(minWidth: 16),
@@ -458,10 +461,11 @@ class _CabinetPageState extends State<CabinetPage> {
         child: Text(text, textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 15)),
       );
 
-  Widget _small(Pal p, String text, VoidCallback f, {Color? color, bool fill = false, IconData? icon}) {
+  Widget _small(Pal p, String text, VoidCallback f, {Color? color, bool fill = false, IconData? icon, String? ico}) {
     final c = color ?? p.tx;
-    return GestureDetector(
+    return Tap(
       onTap: f,
+      scale: .96,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
@@ -471,7 +475,8 @@ class _CabinetPageState extends State<CabinetPage> {
           border: Border.all(color: fill ? Colors.transparent : p.bd),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (icon != null) ...[Icon(icon, size: 17, color: fill ? Colors.white : c), const SizedBox(width: 6)],
+          if (ico != null) ...[Ico(ico, size: 17, color: fill ? Colors.white : c), const SizedBox(width: 6)]
+          else if (icon != null) ...[Icon(icon, size: 17, color: fill ? Colors.white : c), const SizedBox(width: 6)],
           Text(text, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: fill ? Colors.white : c)),
         ]),
       ),
@@ -535,14 +540,14 @@ class _CabinetPageState extends State<CabinetPage> {
           ]),
           const SizedBox(height: 10),
           Wrap(spacing: 8, runSpacing: 8, children: [
-            if (isOpen) _small(p, 'Открыть', icon: Icons.open_in_new, () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: ad)))),
-            _small(p, 'Изменить', icon: Icons.edit_outlined, () async {
+            if (isOpen) _small(p, 'Открыть', ico: 'box', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: ad)))),
+            _small(p, 'Изменить', ico: 'edit', () async {
               final r = await Navigator.push(context, MaterialPageRoute(builder: (_) => PostScreen(edit: ad, embedded: false)));
               if (r == true) _load();
             }),
             if (!hidden)
-              _small(p, isOpen ? 'Снять' : 'Опубликовать', icon: isOpen ? Icons.visibility_off_outlined : Icons.publish_outlined, color: isOpen ? p.dng : p.ok, () => _act('status', {'id': ad.id, 's': isOpen ? 'closed' : 'open'}, isOpen ? 'Объявление снято' : 'Объявление снова опубликовано')),
-            if (isOpen) _small(p, 'Поделиться', icon: Icons.share_outlined, () => showShare(context, ad)),
+              _small(p, isOpen ? 'Снять' : 'Опубликовать', ico: isOpen ? 'eyeoff' : 'pub', color: isOpen ? p.dng : p.ok, () => _act('status', {'id': ad.id, 's': isOpen ? 'closed' : 'open'}, isOpen ? 'Объявление снято' : 'Объявление снова опубликовано')),
+            if (isOpen) _small(p, 'Поделиться', ico: 'share', () => showShare(context, ad)),
           ]),
         ]),
       ));
@@ -599,16 +604,16 @@ class _CabinetPageState extends State<CabinetPage> {
           const SizedBox(height: 10),
           Wrap(spacing: 8, runSpacing: 8, children: [
             if (st == 'rejected')
-              _small(p, 'Удалить', icon: Icons.delete_outline, color: p.dng, () => _act('rdel', {'rid': rid}, 'Отклик удалён'))
+              _small(p, 'Удалить', ico: 'trash', color: p.dng, () => _act('rdel', {'rid': rid}, 'Отклик удалён'))
             else ...[
-              if ((r['pid'] ?? '').toString().isNotEmpty) _small(p, 'Написать', icon: Icons.chat_bubble_outline, () => _chat((r['pid']).toString(), (r['name'] ?? '').toString(), adId: adId)),
+              if ((r['pid'] ?? '').toString().isNotEmpty) _small(p, 'Написать', ico: 'chat', () => _chat((r['pid']).toString(), (r['name'] ?? '').toString(), adId: adId)),
               if (st == 'chosen')
-                _small(p, 'Работа выполнена', () => _act('fin', {'rid': rid}, 'Отмечено как выполнено'), fill: true, icon: Icons.check_circle_outline)
+                _small(p, 'Работа выполнена', () => _act('fin', {'rid': rid}, 'Отмечено как выполнено'), fill: true, ico: 'check')
               else if (st != 'done')
-                _small(p, 'Выбрать исполнителем', icon: Icons.how_to_reg_outlined, () => _act('pick', {'rid': rid}, 'Исполнитель выбран')),
-              if (st != 'done') _small(p, 'Отклонить', () => _act('rej', {'rid': rid}, 'Отклик отклонён'), color: p.dng, icon: Icons.close),
+                _small(p, 'Выбрать исполнителем', ico: 'check', () => _act('pick', {'rid': rid}, 'Исполнитель выбран')),
+              if (st != 'done') _small(p, 'Отклонить', () => _act('rej', {'rid': rid}, 'Отклик отклонён'), color: p.dng, ico: 'x'),
             ],
-            if (adObj != null) _small(p, 'Объявление', icon: Icons.open_in_new, () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: adObj)))),
+            if (adObj != null) _small(p, 'Объявление', ico: 'box', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: adObj)))),
           ]),
         ]),
       ));
@@ -624,32 +629,68 @@ class _CabinetPageState extends State<CabinetPage> {
       final st = (r['st'] ?? '').toString();
       final adId = (r['adId'] ?? '').toString();
       final found = _adById(adId);
-      final label = st == 'chosen' ? 'Вас выбрали исполнителем' : st == 'done' ? 'Выполнено' : st == 'rejected' ? 'Отклонён' : 'ждёт ответа';
+      final title = (r['ad'] ?? '').toString().trim();
+      final city = (r['city'] ?? '').toString().trim();
+      final msg = (r['msg'] ?? '').toString().trim();
+      final pid = (r['pid'] ?? '').toString();
+      final label = st == 'chosen' ? 'Вас выбрали' : st == 'done' ? 'Выполнено' : st == 'rejected' ? 'Отклонён' : 'Ждёт ответа';
       final col = (st == 'chosen' || st == 'done') ? p.ok : st == 'rejected' ? p.mu : p.ac;
-      final meta = [payF((r['pay'] ?? '').toString()), (r['city'] ?? '').toString()].where((e) => e.isNotEmpty).join(' · ');
-      items.add(GestureDetector(
-        onTap: found == null ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: found))),
+      final canWrite = pid.isNotEmpty && title.isNotEmpty;
+      void open() => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: found!)));
+      items.add(Tap(
+        onTap: found == null ? null : open,
+        scale: .99,
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(14),
-          decoration: cardDeco(p),
+          padding: const EdgeInsets.all(16),
+          decoration: cardDeco(p, r: R.m),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Expanded(child: Text((r['ad'] ?? 'Объявление удалено').toString(), maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: p.tx))),
-              const SizedBox(width: 8),
-              Tag(label, col),
+              _statePill(label, col),
+              const Spacer(),
+              Text(siteDateTime(((r['ts'] as num?) ?? 0).toInt(), S.i.timeZone), style: TextStyle(color: p.mu, fontSize: 12.5)),
             ]),
-            const SizedBox(height: 4),
-            Text('${meta.isEmpty ? '' : '$meta · '}отклик ${siteDateTime(((r['ts'] as num?) ?? 0).toInt(), S.i.timeZone)}', style: TextStyle(color: p.mu, fontSize: 13)),
-            if ((r['msg'] ?? '').toString().isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text('Вы: ${r['msg']}', style: TextStyle(color: p.tx, height: 1.35)),
-            ],
-            if ((r['pid'] ?? '').toString().isNotEmpty && (r['ad'] ?? '').toString().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(title.isEmpty ? 'Объявление удалено' : title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16.5, height: 1.25, color: title.isEmpty ? p.mu : p.tx)),
+            if (payF((r['pay'] ?? '').toString()).isNotEmpty || city.isNotEmpty) ...[
               const SizedBox(height: 10),
-              Wrap(spacing: 8, children: [
-                _small(p, 'Написать автору', icon: Icons.chat_bubble_outline, () => _chat((r['pid']).toString(), '', adId: adId)),
-                if (found != null) _small(p, 'Объявление', icon: Icons.open_in_new, () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: found)))),
+              Wrap(spacing: 10, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                PriceTag((r['pay'] ?? '').toString(), size: 15, dense: true),
+                if (city.isNotEmpty)
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    Ico('pin', size: 14, color: p.mu),
+                    const SizedBox(width: 4),
+                    Text(city, style: TextStyle(color: p.mu, fontSize: 13.5)),
+                  ]),
+              ]),
+            ],
+            if (msg.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: const BorderRadius.only(topRight: Radius.circular(R.s), bottomRight: Radius.circular(R.s)),
+                child: IntrinsicHeight(
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    Container(width: 3, color: p.ac),
+                    Expanded(
+                      child: Container(
+                        color: p.bg2,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Text(msg, style: TextStyle(color: p.tx, fontSize: 14.5, height: 1.35)),
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+            ],
+            if (canWrite || found != null) ...[
+              const SizedBox(height: 14),
+              Row(children: [
+                if (canWrite) Expanded(child: _wide(p, 'Написать автору', 'chat', () => _chat(pid, '', adId: adId))),
+                if (canWrite && found != null) const SizedBox(width: 8),
+                if (found != null) Expanded(child: _wide(p, 'Объявление', 'box', open)),
               ]),
             ],
           ]),
@@ -658,4 +699,30 @@ class _CabinetPageState extends State<CabinetPage> {
     }
     return items;
   }
+
+  // Статус отклика: тонкая обводка цвета статуса (как .st2 на сайте)
+  Widget _statePill(String text, Color c) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(99), border: Border.all(color: c)),
+        child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: c)),
+      );
+
+  // Кнопка на всю ширину половины ряда (как .acts .btn на сайте)
+  Widget _wide(Pal p, String text, String ico, VoidCallback f) => Tap(
+        onTap: f,
+        scale: .97,
+        child: Container(
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(R.s), border: Border.all(color: p.bd)),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Ico(ico, size: 17, color: p.tx),
+              const SizedBox(width: 7),
+              Text(text, maxLines: 1, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: p.tx)),
+            ]),
+          ),
+        ),
+      );
 }

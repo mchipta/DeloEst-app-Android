@@ -334,7 +334,7 @@ class _MapPageState extends State<MapPage> {
       child: Container(
         decoration: BoxDecoration(
           color: p.card,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: p.bd),
           boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 14, offset: Offset(0, 4))],
         ),
@@ -447,12 +447,12 @@ class AdMiniMap extends StatelessWidget {
         scale: .98,
         child: Container(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(18), border: Border.all(color: p.bd)),
+          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
           child: Row(children: [
             Container(
               width: 42,
               height: 42,
-              decoration: BoxDecoration(color: p.ac.withOpacity(.12), borderRadius: BorderRadius.circular(13)),
+              decoration: BoxDecoration(color: p.ac.withOpacity(.12), borderRadius: BorderRadius.circular(12)),
               child: Icon(Icons.location_on_rounded, size: 22, color: p.ac),
             ),
             const SizedBox(width: 12),
@@ -547,7 +547,7 @@ class _AdLocationPageState extends State<AdLocationPage> {
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: p.card,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: p.bd),
                 boxShadow: [BoxShadow(color: Colors.black.withOpacity(.18), blurRadius: 18, offset: const Offset(0, 6))],
               ),
@@ -555,7 +555,7 @@ class _AdLocationPageState extends State<AdLocationPage> {
                 Container(
                   width: 42,
                   height: 42,
-                  decoration: BoxDecoration(color: p.ac.withOpacity(.12), borderRadius: BorderRadius.circular(13)),
+                  decoration: BoxDecoration(color: p.ac.withOpacity(.12), borderRadius: BorderRadius.circular(12)),
                   child: Icon(Icons.location_on_rounded, size: 22, color: p.ac),
                 ),
                 const SizedBox(width: 12),
@@ -686,7 +686,7 @@ class _AddrFieldState extends State<AddrField> {
           child: Container(
             height: 52,
             padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(color: p.ac.withOpacity(.12), borderRadius: BorderRadius.circular(14), border: Border.all(color: p.ac.withOpacity(.5))),
+            decoration: BoxDecoration(color: p.ac.withOpacity(.12), borderRadius: BorderRadius.circular(12), border: Border.all(color: p.ac.withOpacity(.5))),
             alignment: Alignment.center,
             child: _busy
                 ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: p.ac))

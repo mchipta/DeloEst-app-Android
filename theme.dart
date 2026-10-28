@@ -57,7 +57,7 @@ ThemeData buildTheme(Brightness b) {
     dividerColor: p.bd,
     colorScheme: ColorScheme.fromSeed(seedColor: p.ac, brightness: b)
         .copyWith(primary: p.ac, surface: p.card, onSurface: p.tx),
-    dialogTheme: DialogTheme(backgroundColor: p.card, surfaceTintColor: Colors.transparent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: BorderSide(color: p.bd))),
+    dialogTheme: DialogTheme(backgroundColor: p.card, surfaceTintColor: Colors.transparent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: BorderSide(color: p.bd))),
     popupMenuTheme: PopupMenuThemeData(position: PopupMenuPosition.under, color: p.card, surfaceTintColor: Colors.transparent, textStyle: TextStyle(color: p.tx), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: p.bd))),
     dropdownMenuTheme: DropdownMenuThemeData(menuStyle: MenuStyle(backgroundColor: WidgetStatePropertyAll(p.card), surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent), side: WidgetStatePropertyAll(BorderSide(color: p.bd)), shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))))),
     appBarTheme: AppBarTheme(
@@ -82,7 +82,7 @@ ThemeData buildTheme(Brightness b) {
   );
 }
 
-BoxDecoration cardDeco(Pal p, {double r = 20}) => BoxDecoration(
+BoxDecoration cardDeco(Pal p, {double r = 24}) => BoxDecoration(
       color: p.card,
       borderRadius: BorderRadius.circular(r),
       border: Border.all(color: p.bd),
@@ -93,7 +93,7 @@ BoxDecoration cardDeco(Pal p, {double r = 20}) => BoxDecoration(
 InputDecoration deco(BuildContext c, String? label, {String? hint, Widget? suffix, Widget? prefix}) {
   final p = pal(c);
   OutlineInputBorder ob(Color col, [double w = 1]) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: col, width: w),
       );
   return InputDecoration(
@@ -132,4 +132,9 @@ class QuickPageTransitions extends PageTransitionsBuilder {
       child: _base.buildTransitions<T>(route, context, animation, secondaryAnimation, child),
     );
   }
+}
+
+/// Единая шкала скруглений (как на сайте: --r1, --r2, --r3)
+class R {
+  static const double s = 12, m = 16, l = 24;
 }

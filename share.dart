@@ -29,7 +29,7 @@ Future<void> showShare(BuildContext context, Ad ad) async {
     context: context,
     isScrollControlled: true,
     backgroundColor: p.card,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (c) => SafeArea(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Padding(

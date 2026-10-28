@@ -2,6 +2,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'cabinet.dart';
+import 'icons.dart';
 import 'feed.dart';
 import 'landing.dart';
 import 'messages.dart';
@@ -66,12 +67,12 @@ class _Tabs extends StatelessWidget {
     // [индекс вкладки, иконка, иконка выбранной, подпись, бейдж]
     final items = <List<Object>>[
       // не вошедшему поиск доступен на «Главной», вошедшему «Главная» не нужна
-      if (!S.i.logged) [0, Icons.home_outlined, Icons.home_rounded, 'Главная', 0],
-      if (S.i.logged) [1, Icons.search_rounded, Icons.search_rounded, 'Поиск', 0],
-      [2, Icons.add_circle_outline_rounded, Icons.add_circle_rounded, 'Разместить', 0],
+      if (!S.i.logged) [0, 'home', 'home', 'Главная', 0],
+      if (S.i.logged) [1, 'search', 'search', 'Поиск', 0],
+      [2, 'plus', 'plus', 'Разместить', 0],
       // «Сообщения» видны только вошедшему в аккаунт
-      if (S.i.logged) [4, Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded, 'Сообщения', S.i.unread],
-      [3, Icons.person_outline_rounded, Icons.person_rounded, S.i.logged ? 'Кабинет' : 'Войти', 0],
+      if (S.i.logged) [4, 'chat', 'chat', 'Сообщения', S.i.unread],
+      [3, 'user', 'user', S.i.logged ? 'Кабинет' : 'Войти', 0],
     ];
     // у не вошедшего результаты поиска (вкладка 1) открываются из «Главной», подсвечиваем её
     bool on(int i) => S.i.tab == i || (!S.i.logged && i == 0 && S.i.tab == 1);
@@ -120,6 +121,7 @@ class _Tabs extends StatelessWidget {
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: () {
+                          HapticFeedback.selectionClick();
                           final t = it[0] as int;
                           if (t == 2 && !S.i.logged) {
                             toast(context, 'Войдите, чтобы разместить объявление');
@@ -134,7 +136,7 @@ class _Tabs extends StatelessWidget {
                               scale: on(it[0] as int) ? 1.1 : 1,
                               duration: const Duration(milliseconds: 180),
                               curve: Curves.easeOutBack,
-                              child: Icon(on(it[0] as int) ? it[2] as IconData : it[1] as IconData,
+                              child: Ico(on(it[0] as int) ? it[2] as String : it[1] as String,
                                   size: 24, color: on(it[0] as int) ? p.ac : idle),
                             ),
                             if ((it[4] as int) > 0)

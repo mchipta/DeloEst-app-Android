@@ -545,7 +545,7 @@ class _ChatPageState extends State<ChatPage> {
     final act = await showMenu<String>(
       context: context,
       color: p.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       position: RelativeRect.fromLTRB(pos.dx, pos.dy, size.width - pos.dx, size.height - pos.dy),
       items: items,
     );
@@ -699,9 +699,9 @@ class _ChatPageState extends State<ChatPage> {
   Widget _emojiPanel(Pal p) => Container(
         height: 236,
         margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-        decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(22), border: Border.all(color: p.bd)),
+        decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(24), border: Border.all(color: p.bd)),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(24),
           child: GridView.count(
             crossAxisCount: 8,
             padding: const EdgeInsets.all(8),
@@ -830,7 +830,7 @@ class _ChatPageState extends State<ChatPage> {
     final src = await showModalBottomSheet<ImageSource>(
       context: context,
       backgroundColor: p.card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (c) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const SizedBox(height: 8),
@@ -1023,7 +1023,7 @@ class _ChatPageState extends State<ChatPage> {
             width: 58,
             height: 58,
             clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14)),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
             child: img.isEmpty || gone
                 ? ph
                 : ColorFiltered(
@@ -1091,7 +1091,7 @@ class _ChatPageState extends State<ChatPage> {
           margin: const EdgeInsets.symmetric(vertical: 3),
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: p.bd),
           ),
           child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -1121,8 +1121,8 @@ class _ChatPageState extends State<ChatPage> {
           color: mine ? null : p.card,
           border: mine ? null : Border.all(color: p.bd),
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(18),
-            topRight: const Radius.circular(18),
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
             bottomLeft: Radius.circular(mine ? 18 : 5),
             bottomRight: Radius.circular(mine ? 5 : 18),
           ),

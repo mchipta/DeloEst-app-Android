@@ -370,7 +370,7 @@ class _PostScreenState extends State<PostScreen> {
     final src = await showModalBottomSheet<ImageSource>(
       context: context,
       backgroundColor: pal(context).card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (c) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ListTile(leading: const Icon(Icons.photo_camera_outlined), title: const Text('Сделать фото'), onTap: () => Navigator.pop(c, ImageSource.camera)),
@@ -530,7 +530,7 @@ class _PostScreenState extends State<PostScreen> {
   InputDecoration _d(BuildContext c, {String? hint, String? error}) {
     final p = pal(c);
     OutlineInputBorder ob(Color col, [double w = 1]) =>
-        OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: col, width: w));
+        OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: col, width: w));
     return deco(c, null, hint: hint).copyWith(
       errorText: error,
       errorStyle: TextStyle(color: p.dng, fontWeight: FontWeight.w600),
@@ -565,7 +565,7 @@ class _PostScreenState extends State<PostScreen> {
         padding: pad ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           color: sel ? p.ac.withOpacity(.12) : p.card,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: sel ? p.ac : p.bd, width: sel ? 1.6 : 1),
         ),
         child: child,
@@ -661,7 +661,7 @@ class _PostScreenState extends State<PostScreen> {
         padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
         decoration: BoxDecoration(
           color: p.ac.withOpacity(.10),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: p.ac.withOpacity(.35)),
         ),
         child: Row(children: [
@@ -899,7 +899,7 @@ class _PostScreenState extends State<PostScreen> {
             child: Container(
               width: 84,
               height: 84,
-              decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
+              decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
               child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                 Icon(Icons.add_a_photo_outlined, color: p.mu),
                 const SizedBox(height: 4),
@@ -919,7 +919,7 @@ class _PostScreenState extends State<PostScreen> {
       child: Stack(children: [
         Positioned.fill(
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             child: ph.id != null
                 ? CachedNetworkImage(imageUrl: imgUrl(ph.id!, 200), fit: BoxFit.cover, placeholder: (c, u) => Container(color: p.bg2))
                 : Image.file(File(ph.file!.path), fit: BoxFit.cover, cacheWidth: 300),
@@ -1053,7 +1053,7 @@ class _PostScreenState extends State<PostScreen> {
           decoration: BoxDecoration(
             color: Color.alphaBlend(p.ac.withOpacity(.07), p.bg2),
             border: Border.all(color: p.bd),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
           ),
           alignment: Alignment.center,
           child: Icon(catIcon(cat), size: thumb * .35, color: p.ac.withOpacity(.75)),
@@ -1064,7 +1064,7 @@ class _PostScreenState extends State<PostScreen> {
     } else {
       final f = photos.first;
       cover = ClipRRect(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         child: Stack(fit: StackFit.expand, children: [
           f.id != null
               ? CachedNetworkImage(imageUrl: imgUrl(f.id!, 300), fit: BoxFit.cover, placeholder: (c, u) => Container(color: p.bg2), errorWidget: (c, u, e) => ph())
@@ -1089,7 +1089,7 @@ class _PostScreenState extends State<PostScreen> {
     final ph0 = normPhone(phone.text);
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: cardDeco(p, r: 20),
+      decoration: cardDeco(p, r: 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           SizedBox(width: thumb, height: thumb, child: cover),

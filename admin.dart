@@ -229,7 +229,7 @@ class _AdminPageState extends State<AdminPage> with SingleTickerProviderStateMix
         children: [
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: cardDeco(p, r: 18),
+            decoration: cardDeco(p, r: 16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Row(children: [
                 Icon(Icons.campaign_rounded, color: p.ac, size: 24),
