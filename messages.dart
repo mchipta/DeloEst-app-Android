@@ -242,6 +242,7 @@ class _MessagesPageState extends State<MessagesPage> {
     final text = (d['text'] ?? '').toString();
     return GestureDetector(
       onTap: () async {
+        haptic();
         await Navigator.push(
           context,
           MaterialPageRoute(
@@ -709,7 +710,7 @@ class _ChatPageState extends State<ChatPage> {
               for (final e in kEmoji)
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () => _addEmoji(e),
+                  onTap: () { haptic(); _addEmoji(e); },
                   child: Center(child: Text(e, style: const TextStyle(fontSize: 26))),
                 ),
             ],
@@ -1287,7 +1288,7 @@ class _ChatPageState extends State<ChatPage> {
                       ? const Padding(padding: EdgeInsets.all(11), child: CircularProgressIndicator(strokeWidth: 2.4))
                       : GestureDetector(
                           behavior: HitTestBehavior.opaque,
-                          onTap: _editId != null ? null : _attach,
+                          onTap: _editId != null ? null : () { haptic(); _attach(); },
                           child: Icon(Icons.attach_file_rounded, color: p.mu),
                         ),
                 ),
@@ -1297,6 +1298,7 @@ class _ChatPageState extends State<ChatPage> {
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () {
+                      haptic();
                       FocusManager.instance.primaryFocus?.unfocus();
                       setState(() => _emoji = !_emoji);
                     },
@@ -1331,7 +1333,7 @@ class _ChatPageState extends State<ChatPage> {
                 ),
                 const SizedBox(width: 4),
                 GestureDetector(
-                  onTap: can ? _send : _startVoice,
+                  onTap: () { haptic(); if (can) _send(); else _startVoice(); },
                   child: Container(
                     width: 44,
                     height: 44,

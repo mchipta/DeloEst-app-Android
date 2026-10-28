@@ -81,92 +81,90 @@ class _Tabs extends StatelessWidget {
     final idle = Color.lerp(p.mu, p.tx, .5)!;
     final glass = S.i.navTransparent;
     // плавающая панель: скруглённая «таблетка» с отступами от краёв, подсветка выбранной вкладки едет между пунктами
-    final bar = Container(
-      // вокруг панели ничего нет ни в стеклянном, ни в сплошном режиме
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 6, 14, 8),
-          child: _glass(glass, child: Container(
-            height: 66,
-            decoration: BoxDecoration(
-              color: glass ? p.card.withOpacity(.74) : p.card,
-              borderRadius: BorderRadius.circular(33),
-              border: Border.all(color: p.bd),
-                          ),
-            child: Stack(children: [
-              if (sel >= 0)
-                AnimatedAlign(
-                  duration: const Duration(milliseconds: 260),
-                  curve: Curves.easeOutCubic,
-                  alignment: Alignment(n == 1 ? 0 : -1 + 2 * sel / (n - 1), 0),
-                  child: FractionallySizedBox(
-                    widthFactor: 1 / n,
-                    heightFactor: 1,
-                    child: Padding(
-                      padding: const EdgeInsets.all(5),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(color: p.ac.withOpacity(.16), borderRadius: BorderRadius.circular(28)),
-                      ),
+    final bar = SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 6, 14, 8),
+        child: _glass(glass, child: Container(
+          height: 66,
+          decoration: BoxDecoration(
+            color: glass ? p.card.withOpacity(.74) : p.card,
+            borderRadius: BorderRadius.circular(33),
+            border: Border.all(color: p.bd),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(.14), blurRadius: 18, offset: const Offset(0, 6))],
+          ),
+          child: Stack(children: [
+            if (sel >= 0)
+              AnimatedAlign(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment(n == 1 ? 0 : -1 + 2 * sel / (n - 1), 0),
+                child: FractionallySizedBox(
+                  widthFactor: 1 / n,
+                  heightFactor: 1,
+                  child: Padding(
+                    padding: const EdgeInsets.all(5),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(color: p.ac.withOpacity(.16), borderRadius: BorderRadius.circular(28)),
                     ),
                   ),
                 ),
-              Row(children: [
-                for (final it in items)
-                  Expanded(
-                    child: Semantics(
-                      button: true,
-                      selected: on(it[0] as int),
-                      label: it[3] as String,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          final t = it[0] as int;
-                          if (t == 2 && !S.i.logged) {
-                            toast(context, 'Войдите, чтобы разместить объявление');
-                            S.i.goTab(3);
-                          } else {
-                            S.i.goTab(t);
-                          }
-                        },
-                        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          Stack(clipBehavior: Clip.none, children: [
-                            AnimatedScale(
-                              scale: on(it[0] as int) ? 1.1 : 1,
-                              duration: const Duration(milliseconds: 180),
-                              curve: Curves.easeOutBack,
-                              child: Ico(on(it[0] as int) ? it[2] as String : it[1] as String,
-                                  size: 24, color: on(it[0] as int) ? p.ac : idle),
-                            ),
-                            if ((it[4] as int) > 0)
-                              Positioned(
-                                right: -10,
-                                top: -6,
-                                child: Container(
-                                  constraints: const BoxConstraints(minWidth: 17),
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                  decoration: BoxDecoration(color: p.ac, borderRadius: BorderRadius.circular(99), border: Border.all(color: p.card, width: 1.5)),
-                                  child: Text((it[4] as int) > 99 ? '99+' : '${it[4]}',
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w800)),
-                                ),
-                              ),
-                          ]),
-                          const SizedBox(height: 3),
-                          AnimatedDefaultTextStyle(
+              ),
+            Row(children: [
+              for (final it in items)
+                Expanded(
+                  child: Semantics(
+                    button: true,
+                    selected: on(it[0] as int),
+                    label: it[3] as String,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        haptic();
+                        final t = it[0] as int;
+                        if (t == 2 && !S.i.logged) {
+                          toast(context, 'Войдите, чтобы разместить объявление');
+                          S.i.goTab(3);
+                        } else {
+                          S.i.goTab(t);
+                        }
+                      },
+                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        Stack(clipBehavior: Clip.none, children: [
+                          AnimatedScale(
+                            scale: on(it[0] as int) ? 1.1 : 1,
                             duration: const Duration(milliseconds: 180),
-                            style: TextStyle(fontSize: 11, fontWeight: on(it[0] as int) ? FontWeight.w800 : FontWeight.w600, color: on(it[0] as int) ? p.ac : idle),
-                            child: Text(it[3] as String, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            curve: Curves.easeOutBack,
+                            child: Ico(on(it[0] as int) ? it[2] as String : it[1] as String,
+                                size: 24, color: on(it[0] as int) ? p.ac : idle),
                           ),
+                          if ((it[4] as int) > 0)
+                            Positioned(
+                              right: -10,
+                              top: -6,
+                              child: Container(
+                                constraints: const BoxConstraints(minWidth: 17),
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(color: p.ac, borderRadius: BorderRadius.circular(99), border: Border.all(color: p.card, width: 1.5)),
+                                child: Text((it[4] as int) > 99 ? '99+' : '${it[4]}',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w800)),
+                              ),
+                            ),
                         ]),
-                      ),
+                        const SizedBox(height: 3),
+                        AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 180),
+                          style: TextStyle(fontSize: 11, fontWeight: on(it[0] as int) ? FontWeight.w800 : FontWeight.w600, color: on(it[0] as int) ? p.ac : idle),
+                          child: Text(it[3] as String, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
+                      ]),
                     ),
                   ),
-              ]),
+                ),
             ]),
-          )),
-        ),
+          ]),
+        )),
       ),
     );
     return bar;
@@ -179,7 +177,7 @@ class _Tabs extends StatelessWidget {
 }
 
 
-/// Короткое проявление при смене вкладки (вкладки при этом не пересоздаются)
+/// Плавный переход при смене главной вкладки (как на сайте #app.pin, но без пересоздания состояния вкладок)
 class _TabFade extends StatefulWidget {
   final int tab;
   final Widget child;
@@ -189,8 +187,8 @@ class _TabFade extends StatefulWidget {
 }
 
 class _TabFadeState extends State<_TabFade> with SingleTickerProviderStateMixin {
-  late final AnimationController c = AnimationController(vsync: this, duration: const Duration(milliseconds: 200), value: 1);
-  late final Animation<double> a = CurvedAnimation(parent: c, curve: Curves.easeOut);
+  late final AnimationController c = AnimationController(vsync: this, duration: const Duration(milliseconds: 280), value: 1);
+  late final Animation<double> a = CurvedAnimation(parent: c, curve: Curves.easeOutCubic);
 
   @override
   void didUpdateWidget(covariant _TabFade old) {
@@ -206,10 +204,13 @@ class _TabFadeState extends State<_TabFade> with SingleTickerProviderStateMixin 
 
   @override
   Widget build(BuildContext context) => FadeTransition(
-        opacity: Tween<double>(begin: .35, end: 1).animate(a),
+        opacity: Tween<double>(begin: 0.0, end: 1.0).animate(a),
         child: SlideTransition(
-          position: Tween<Offset>(begin: const Offset(0, .012), end: Offset.zero).animate(a),
-          child: widget.child,
+          position: Tween<Offset>(begin: const Offset(0, .032), end: Offset.zero).animate(a),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: .985, end: 1.0).animate(a),
+            child: widget.child,
+          ),
         ),
       );
 }

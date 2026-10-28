@@ -349,7 +349,7 @@ class _LegalPageState extends State<LegalPage> {
           Text(kLegalTitles[doc]!, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: p.tx, height: 1.25)),
           const SizedBox(height: 8),
           if (loading) LinearProgressIndicator(color: p.ac, backgroundColor: p.bd, minHeight: 2),
-          ..._body(p),
+          SmoothSwitch(child: KeyedSubtree(key: ValueKey(doc), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: _body(p)))),
         ]),
       ),
     );

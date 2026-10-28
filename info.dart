@@ -116,7 +116,7 @@ class _InfoPageState extends State<InfoPage> {
 
   Widget _contact(Pal p, IconData ic, String text, VoidCallback? f) {
     return GestureDetector(
-      onTap: f,
+      onTap: f == null ? null : () { haptic(); f(); },
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(14),
@@ -133,7 +133,7 @@ class _InfoPageState extends State<InfoPage> {
 
   Widget _contactW(Pal p, Widget lead, String text, VoidCallback? f) {
     return GestureDetector(
-      onTap: f,
+      onTap: f == null ? null : () { haptic(); f(); },
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(12),
@@ -164,7 +164,7 @@ class _InfoPageState extends State<InfoPage> {
         for (var i = 0; i < names.length; i++)
           Expanded(
             child: GestureDetector(
-              onTap: () => setState(() => sec = i),
+              onTap: () { haptic(); setState(() => sec = i); },
               child: Container(
                 height: 40,
                 alignment: Alignment.center,
@@ -304,7 +304,7 @@ class _InfoPageState extends State<InfoPage> {
                   style: TextStyle(color: p.dng, fontSize: 13)),
             ),
           if (widget.only == null) ...[_seg(p), const SizedBox(height: 16)],
-          ...(sec == 0 ? _about(p) : sec == 1 ? _faq(p) : sec == 2 ? _biz(p) : _contacts(p)),
+          SmoothSwitch(child: KeyedSubtree(key: ValueKey(sec), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: sec == 0 ? _about(p) : sec == 1 ? _faq(p) : sec == 2 ? _biz(p) : _contacts(p)))),
         ]),
       ),
     );

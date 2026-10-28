@@ -227,7 +227,7 @@ class _LandingPageState extends State<LandingPage> {
               Padding(
                 padding: const EdgeInsets.only(right: 7),
                 child: GestureDetector(
-                  onTap: () => _category(c.name),
+                  onTap: () { haptic(); _category(c.name); },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
                     decoration: BoxDecoration(color: p.card.withOpacity(.9), borderRadius: BorderRadius.circular(99), border: Border.all(color: p.bd)),
@@ -350,7 +350,7 @@ class _LandingPageState extends State<LandingPage> {
   Widget _modeButton(Pal p, String title, int n) {
     final selected = _mode == n;
     return GestureDetector(
-      onTap: () { setState(() => _mode = n); _q.clear(); FocusScope.of(context).unfocus(); },
+      onTap: () { haptic(); setState(() => _mode = n); _q.clear(); FocusScope.of(context).unfocus(); },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         alignment: Alignment.center,
@@ -432,7 +432,7 @@ class _LandingPageState extends State<LandingPage> {
               borderRadius: BorderRadius.circular(16),
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
-                onTap: () => _category(c.name),
+                onTap: () { haptic(); _category(c.name); },
                 child: Container(
                   constraints: const BoxConstraints(minHeight: 102),
                   padding: const EdgeInsets.all(14),

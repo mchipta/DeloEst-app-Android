@@ -14,6 +14,9 @@ import 'util.dart';
 
 String imgUrl(String id, int w) => 'https://lh3.googleusercontent.com/d/$id=w$w';
 
+/// Единый вызов лёгкой вибрации (для нажатий на кнопки, табы и сердечко)
+void haptic([bool strong = false]) => S.vibrate(strong);
+
 // Сообщения-подсказки (нужно ввести, не удалось и т.п.) показываем как ошибку, остальные как успех
 const _toastErrStarts = ['Не удалось', 'Не больше', 'Введите', 'Укажите', 'Напишите', 'Поставьте', 'Слишком', 'Разрешите', 'Сначала', 'Войдите'];
 
@@ -150,6 +153,7 @@ class _TopToastHostState extends State<TopToastHost> {
           if ((d.primaryVelocity ?? 0) < 0) _hide();
         },
         onTap: () {
+          haptic();
           final fn = e.onAction;
           _hide();
           if (fn != null) fn();
@@ -225,12 +229,13 @@ class _TopToastHostState extends State<TopToastHost> {
   }
 }
 
-/// Нажатие с лёгким «вдавливанием» (для кнопок и карточек)
+/// Нажатие с лёгким «вдавливанием» и мягкой вибрацией (для кнопок и карточек)
 class Tap extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
   final double scale;
-  const Tap({super.key, required this.child, this.onTap, this.scale = .97});
+  final bool strongHaptic;
+  const Tap({super.key, required this.child, this.onTap, this.scale = .97, this.strongHaptic = false});
   @override
   State<Tap> createState() => _TapState();
 }
@@ -247,7 +252,7 @@ class _TapState extends State<Tap> {
       onTapCancel: on ? () => setState(() => down = false) : null,
       onTap: on
           ? () {
-              HapticFeedback.selectionClick();
+              haptic(widget.strongHaptic);
               widget.onTap!();
             }
           : null,
@@ -256,6 +261,158 @@ class _TapState extends State<Tap> {
         duration: const Duration(milliseconds: 110),
         curve: Curves.easeOut,
         child: widget.child,
+      ),
+    );
+  }
+}
+
+/// Плавное переключение содержимого при смене вкладок, фильтров или загрузке (как на сайте #app.pin)
+class SmoothSwitch extends StatelessWidget {
+  final Widget child;
+  final Duration duration;
+  const SmoothSwitch({
+    super.key,
+    required this.child,
+    this.duration = const Duration(milliseconds: 260),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: duration,
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (currentChild, previousChildren) => Stack(
+        alignment: Alignment.topCenter,
+        children: <Widget>[
+          ...previousChildren,
+          if (currentChild != null) currentChild,
+        ],
+      ),
+      transitionBuilder: (c, a) => FadeTransition(
+        opacity: a,
+        child: SlideTransition(
+          position: Tween<Offset>(begin: const Offset(0, .03), end: Offset.zero).animate(a),
+          child: c,
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Анимированное сердечко «В избранное» с пружинящим увеличением, кольцом и вибрацией (как .fv.pop на сайте)
+class FavHeart extends StatefulWidget {
+  final String adId;
+  final double size;
+  final Color? inactiveColor;
+  final VoidCallback? onGuestTap;
+  const FavHeart({
+    super.key,
+    required this.adId,
+    this.size = 21,
+    this.inactiveColor,
+    this.onGuestTap,
+  });
+
+  @override
+  State<FavHeart> createState() => _FavHeartState();
+}
+
+class _FavHeartState extends State<FavHeart> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 420),
+  );
+  late final Animation<double> _scale = TweenSequence<double>([
+    TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.34).chain(CurveTween(curve: Curves.easeOut)), weight: 40),
+    TweenSequenceItem(tween: Tween(begin: 1.34, end: 0.92).chain(CurveTween(curve: Curves.easeInOut)), weight: 30),
+    TweenSequenceItem(tween: Tween(begin: 0.92, end: 1.0).chain(CurveTween(curve: Curves.easeOutBack)), weight: 30),
+  ]).animate(_c);
+  bool _lastFav = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastFav = S.i.isFav(widget.adId);
+  }
+
+  @override
+  void didUpdateWidget(covariant FavHeart oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final cur = S.i.isFav(widget.adId);
+    if (cur != _lastFav) {
+      _lastFav = cur;
+      _c.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  void _tap() {
+    if (!S.i.logged) {
+      haptic();
+      widget.onGuestTap?.call();
+      return;
+    }
+    S.i.toggleFav(widget.adId);
+    _lastFav = S.i.isFav(widget.adId);
+    _c.forward(from: 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    final fav = S.i.isFav(widget.adId);
+    if (fav != _lastFav) {
+      _lastFav = fav;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _c.forward(from: 0);
+      });
+    }
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _tap,
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (context, _) {
+          final ringT = _c.value;
+          return Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.none,
+            children: [
+              if (fav && ringT > 0 && ringT < 1)
+                IgnorePointer(
+                  child: Transform.scale(
+                    scale: 0.8 + ringT * 1.15,
+                    child: Container(
+                      width: widget.size + 6,
+                      height: widget.size + 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: p.ac.withOpacity((1 - ringT) * .55),
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              Transform.scale(
+                scale: _c.isAnimating ? _scale.value : 1.0,
+                child: Icon(
+                  fav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  color: fav ? p.ac : (widget.inactiveColor ?? p.mu),
+                  size: widget.size,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -342,12 +499,13 @@ class GradBtn extends StatelessWidget {
   final IconData? icon;
   final String? ico;
   final bool busy;
-  const GradBtn(this.text, {super.key, this.onTap, this.icon, this.ico, this.busy = false});
+  final double radius;
+  const GradBtn(this.text, {super.key, this.onTap, this.icon, this.ico, this.busy = false, this.radius = 12});
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
     return Opacity(
-      opacity: (onTap == null && !busy) ? .5 : 1,
+      opacity: (onTap == null && !busy) ? .55 : 1,
       child: Tap(
         onTap: busy ? null : onTap,
         scale: .96,
@@ -357,7 +515,7 @@ class GradBtn extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             gradient: LinearGradient(colors: [p.ac, p.ac2]),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(radius),
             boxShadow: [BoxShadow(color: p.ac.withOpacity(.16), blurRadius: 12, offset: const Offset(0, 4))],
           ),
           child: busy
@@ -366,7 +524,12 @@ class GradBtn extends StatelessWidget {
               : Row(mainAxisSize: MainAxisSize.min, children: [
                   if (ico != null) ...[Ico(ico!, color: Colors.white, size: 20), const SizedBox(width: 8)]
                   else if (icon != null) ...[Icon(icon, color: Colors.white, size: 21), const SizedBox(width: 8)],
-                  Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+                  Flexible(
+                    child: Text(text,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+                  ),
                 ]),
         ),
       ),
@@ -379,7 +542,8 @@ class OutBtn extends StatelessWidget {
   final VoidCallback? onTap;
   final IconData? icon;
   final Color? color;
-  const OutBtn(this.text, {super.key, this.onTap, this.icon, this.color});
+  final double radius;
+  const OutBtn(this.text, {super.key, this.onTap, this.icon, this.color, this.radius = 12});
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
@@ -393,7 +557,7 @@ class OutBtn extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           color: p.card,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(radius),
           border: Border.all(color: p.bd, width: 1),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -558,23 +722,9 @@ class AdCard extends StatelessWidget {
                     ),
                     if (showFav && S.i.logged) ...[
                       const SizedBox(width: 4),
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => S.i.toggleFav(ad.id),
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 3, top: 1),
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 220),
-                            switchInCurve: Curves.easeOutBack,
-                            transitionBuilder: (c, a) => ScaleTransition(scale: a, child: c),
-                            child: Icon(
-                              S.i.isFav(ad.id) ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                              key: ValueKey(S.i.isFav(ad.id)),
-                              color: S.i.isFav(ad.id) ? p.ac : p.mu,
-                              size: 21,
-                            ),
-                          ),
-                        ),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 3, top: 1),
+                        child: FavHeart(adId: ad.id, size: 21),
                       ),
                     ],
                   ]),
@@ -609,26 +759,15 @@ class AdCard extends StatelessWidget {
 
 
   Widget _heart(Pal p, {bool onPhoto = false}) {
-    final fav = S.i.isFav(ad.id);
-    final icon = AnimatedSwitcher(
-      duration: const Duration(milliseconds: 220),
-      switchInCurve: Curves.easeOutBack,
-      transitionBuilder: (c, a) => ScaleTransition(scale: a, child: c),
-      child: Icon(fav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-          key: ValueKey(fav), color: fav ? p.ac : p.mu, size: onPhoto ? 19 : 21),
-    );
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => S.i.toggleFav(ad.id),
-      child: onPhoto
-          ? Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(color: p.card.withOpacity(.88), shape: BoxShape.circle),
-              child: Center(child: icon),
-            )
-          : Padding(padding: const EdgeInsets.all(4), child: icon),
-    );
+    final heart = FavHeart(adId: ad.id, size: onPhoto ? 19 : 21);
+    return onPhoto
+        ? Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(color: p.card.withOpacity(.88), shape: BoxShape.circle),
+            child: Center(child: heart),
+          )
+        : Padding(padding: const EdgeInsets.all(4), child: heart);
   }
 
   String _shortDate() => siteShortAgo(ad.ts, S.i.timeZone);
@@ -782,6 +921,7 @@ class AdCard extends StatelessWidget {
 }
 
 void showVerifiedInfo(BuildContext context) {
+  haptic();
   showDialog<void>(
     context: context,
     builder: (c) {
@@ -793,7 +933,7 @@ void showVerifiedInfo(BuildContext context) {
         content: Text(
             'Администрация ДелоЕсть проверила документы этого человека и подтвердила его личность. Это снижает риск мошенничества, но деньги заранее всё равно лучше не переводить.',
             style: TextStyle(color: p.mu, height: 1.4)),
-        actions: [TextButton(onPressed: () => Navigator.pop(c), child: Text('Понятно', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)))],
+        actions: [TextButton(onPressed: () { haptic(); Navigator.pop(c); }, child: Text('Понятно', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)))],
       );
     },
   );
@@ -905,8 +1045,9 @@ Future<void> showReportSheet(BuildContext context, {required String id, String l
             const SizedBox(height: 12),
             Wrap(spacing: 8, runSpacing: 8, children: [
               for (final r in kReportReasons)
-                GestureDetector(
+                Tap(
                   onTap: () => setS(() => picked = r),
+                  scale: .96,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
@@ -962,9 +1103,9 @@ Future<void> toggleUserBlock(BuildContext context, {required String pid, require
           style: TextStyle(color: p.mu, height: 1.35),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: Text('Отмена', style: TextStyle(color: p.mu))),
+          TextButton(onPressed: () { haptic(); Navigator.pop(c, false); }, child: Text('Отмена', style: TextStyle(color: p.mu))),
           TextButton(
-            onPressed: () => Navigator.pop(c, true),
+            onPressed: () { haptic(); Navigator.pop(c, true); },
             child: Text('Заблокировать', style: TextStyle(color: p.dng, fontWeight: FontWeight.w800)),
           ),
         ],
@@ -1278,6 +1419,7 @@ class _CityFieldState extends State<CityField> {
   }
 
   void _pick(String c) {
+    haptic();
     widget.controller.value = TextEditingValue(text: c, selection: TextSelection.collapsed(offset: c.length));
     widget.onChanged?.call(c);
     widget.onPicked?.call(c);
@@ -1372,7 +1514,10 @@ Widget appContextMenu(BuildContext context, EditableTextState state) {
       for (final it in items)
         TextSelectionToolbarTextButton(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-          onPressed: it.onPressed,
+          onPressed: () {
+            haptic();
+            it.onPressed?.call();
+          },
           child: Text(
             AdaptiveTextSelectionToolbar.getButtonLabel(context, it),
             style: TextStyle(color: p.tx, fontSize: 14.5, fontWeight: FontWeight.w700),

@@ -98,11 +98,13 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
             ],
           ),
-          body: loading
-              ? Center(child: CircularProgressIndicator(color: p.ac))
-              : d == null
-                  ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(err ?? 'Не удалось загрузить профиль', style: TextStyle(color: p.mu))))
-                  : _body(p, d!),
+          body: SmoothSwitch(
+            child: loading
+                ? Center(key: const ValueKey('loading'), child: CircularProgressIndicator(color: p.ac))
+                : d == null
+                    ? Center(key: const ValueKey('err'), child: Padding(padding: const EdgeInsets.all(24), child: Text(err ?? 'Не удалось загрузить профиль', style: TextStyle(color: p.mu))))
+                    : KeyedSubtree(key: const ValueKey('body'), child: _body(p, d!)),
+          ),
         );
       },
     );
@@ -283,11 +285,13 @@ class _ReviewsPageState extends State<ReviewsPage> {
     final p = pal(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Отзывы')),
-      body: loading
-          ? Center(child: CircularProgressIndicator(color: p.ac))
-          : d == null
-              ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(err ?? 'Не удалось загрузить отзывы', style: TextStyle(color: p.mu))))
-              : _body(p, d!),
+      body: SmoothSwitch(
+        child: loading
+            ? Center(key: const ValueKey('loading'), child: CircularProgressIndicator(color: p.ac))
+            : d == null
+                ? Center(key: const ValueKey('err'), child: Padding(padding: const EdgeInsets.all(24), child: Text(err ?? 'Не удалось загрузить отзывы', style: TextStyle(color: p.mu))))
+                : KeyedSubtree(key: const ValueKey('body'), child: _body(p, d!)),
+      ),
     );
   }
 
@@ -325,7 +329,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
               Row(children: [
                 for (var i = 1; i <= 5; i++)
                   GestureDetector(
-                    onTap: () => setState(() => stars = i),
+                    onTap: () { haptic(); setState(() => stars = i); },
                     child: Padding(
                       padding: const EdgeInsets.only(right: 4),
                       child: Icon(i <= stars ? Icons.star_rounded : Icons.star_outline_rounded, size: 36, color: const Color(0xFFFFB400)),

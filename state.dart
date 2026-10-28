@@ -16,6 +16,22 @@ class S extends ChangeNotifier {
   S._();
 
   static const MethodChannel _notifyCh = MethodChannel('ru.deloest.delo_est/notify');
+  static int _lastVib = 0;
+
+  /// Лёгкая тактильная вибрация при нажатиях и переключениях (и чуть выразительнее на сердечке)
+  static void vibrate([bool strong = false]) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (!strong && now - _lastVib < 35) return;
+    _lastVib = now;
+    if (strong) {
+      HapticFeedback.mediumImpact();
+    } else {
+      HapticFeedback.lightImpact();
+    }
+    try {
+      _notifyCh.invokeMethod('haptic', strong);
+    } catch (_) {}
+  }
 
   late SharedPreferences prefs;
   Map<String, dynamic>? user;
@@ -269,12 +285,14 @@ class S extends ChangeNotifier {
   Future<void> hideSafe(String pid) => prefs.setBool('safe_${user?['pid'] ?? ''}_$pid', true);
 
   Future<void> setChatQuickSuggestionsEnabled(bool enabled) async {
+    vibrate();
     chatQuickSuggestionsEnabled = enabled;
     await prefs.setBool('chat_quick_suggestions', enabled);
     notifyListeners();
   }
 
   Future<void> setChatMuted(String pid, String name, bool muted) async {
+    vibrate();
     if (muted) {
       mutedChats[pid] = name;
     } else {
@@ -292,8 +310,9 @@ class S extends ChangeNotifier {
   }
 
   Future<void> toggleFav(String id) async {
-    HapticFeedback.lightImpact();
-    if (!fav.remove(id)) fav.add(id);
+    vibrate(true);
+    final added = !fav.remove(id);
+    if (added) fav.add(id);
     await prefs.setStringList('fav', fav.toList());
     notifyListeners();
   }
@@ -488,18 +507,21 @@ class S extends ChangeNotifier {
 
   Future<void> setFeedMode(int m) async {
     if (m == feedMode) return;
+    vibrate();
     feedMode = m;
     notifyListeners();
     await prefs.setInt('feed_mode', m);
   }
 
   Future<void> setNavTransparent(bool v) async {
+    vibrate();
     navTransparent = v;
     await prefs.setBool('nav_transparent', v);
     notifyListeners();
   }
 
   Future<void> setMessageNotificationsEnabled(bool enabled) async {
+    vibrate();
     messageNotificationsEnabled = enabled;
     await prefs.setBool('messages_notifications', enabled);
     if (enabled) await requestPushPermission();
@@ -508,18 +530,21 @@ class S extends ChangeNotifier {
   }
 
   Future<void> setTimeZone(String zone) async {
+    vibrate();
     timeZone = zone;
     await prefs.setString('timezone', zone);
     notifyListeners();
   }
 
   Future<void> setTheme(ThemeMode m) async {
+    vibrate();
     themeMode = m;
     await prefs.setString('theme', m == ThemeMode.dark ? 'dark' : m == ThemeMode.light ? 'light' : 'system');
     notifyListeners();
   }
 
   void goTab(int t) {
+    if (tab != t) vibrate();
     tab = t;
     if (t == 3) cabTick++;
     if (t == 4) msgTick++;

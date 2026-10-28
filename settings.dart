@@ -219,7 +219,7 @@ class _SettingsBodyState extends State<SettingsBody> {
 
   Widget _tile(Pal p, IconData icon, String title, String value, VoidCallback f, {Color? color}) {
     return GestureDetector(
-      onTap: busy ? null : f,
+      onTap: busy ? null : () { haptic(); f(); },
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -255,7 +255,7 @@ class _SettingsBodyState extends State<SettingsBody> {
         return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           if (busy) LinearProgressIndicator(color: p.ac, backgroundColor: p.bd, minHeight: 3),
           if (widget.profileOnly) GestureDetector(
-            onTap: busy ? null : _avatar,
+            onTap: busy ? null : () { haptic(); _avatar(); },
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: cardDeco(p),

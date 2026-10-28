@@ -1,11 +1,11 @@
 """Настройка сгенерированного Android-проекта (запускается из папки shell).
 
 Что делает:
-  1. добавляет разрешения INTERNET, RECORD_AUDIO, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED, WAKE_LOCK и запросы для звонков/ссылок;
+  1. добавляет разрешения INTERNET, RECORD_AUDIO, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED, WAKE_LOCK, VIBRATE и запросы для звонков/ссылок;
   2. ставит название приложения «ДелоЕсть»;
   3. создаёт алиас значка (оранжевый) и векторную иконку уведомлений ic_stat_deloest (галочка ДелоЕсть + цветная крупная иконка приложения);
   4. подключает Firebase Cloud Messaging (сервис DeloEstFcmService): пуши приходят от сервера даже когда приложение полностью закрыто;
-  5. пишет MainActivity с MethodChannel 'ru.deloest.delo_est/launcher_icon', 'ru.deloest.delo_est/notify', ярлыками значка и записью/воспроизведением голоса.
+  5. пишет MainActivity с MethodChannel 'ru.deloest.delo_est/launcher_icon', 'ru.deloest.delo_est/notify' (включая нативную лёгкую вибрацию 'haptic'), ярлыками значка и записью/воспроизведением голоса.
 Любая ошибка останавливает сборку с понятным сообщением.
 """
 import re
@@ -174,6 +174,9 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -497,6 +500,27 @@ class MainActivity : FlutterActivity() {
         playDone = false
     }
 
+    private fun doHaptic(strong: Boolean) {
+        try {
+            val vib: Vibrator? = if (Build.VERSION.SDK_INT >= 31) {
+                (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
+            if (vib != null && vib.hasVibrator()) {
+                val ms = if (strong) 16L else 9L
+                val amp = if (strong) 130 else 75
+                if (Build.VERSION.SDK_INT >= 26) {
+                    vib.vibrate(VibrationEffect.createOneShot(ms, amp))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vib.vibrate(ms)
+                }
+            }
+        } catch (e: Exception) { }
+    }
+
     private fun startRec(result: MethodChannel.Result) {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             pendingPerm = result
@@ -592,6 +616,11 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "ru.deloest.delo_est/notify")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
+                    "haptic" -> {
+                        val strong = (call.arguments as? Boolean) ?: false
+                        doHaptic(strong)
+                        result.success(true)
+                    }
                     "request" -> {
                         if (Build.VERSION.SDK_INT >= 33 &&
                             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -750,4 +779,4 @@ sc_xml.append('</shortcuts>')
 (res_dir / 'values' / 'shortcut_strings.xml').write_text('\n'.join(strings) + '\n', encoding='utf-8')
 (res_dir / 'xml' / 'shortcuts.xml').write_text('\n'.join(sc_xml) + '\n', encoding='utf-8')
 
-print('Android настроен: пакет %s, значок, фоновые пуш-уведомления, ярлыки, MainActivity' % pkg)
+print('Android настроен: пакет %s, значок, фоновые пуш-уведомления, вибрация, ярлыки, MainActivity' % pkg)

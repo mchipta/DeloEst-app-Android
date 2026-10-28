@@ -503,6 +503,7 @@ class _FeedPageState extends State<FeedPage> {
                 )),
             ]),
             onPressed: () {
+              haptic();
               if (!S.i.logged) {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
               } else {
@@ -548,6 +549,7 @@ class _FeedPageState extends State<FeedPage> {
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () {
+                    haptic();
                     _q.clear();
                     setState(() {});
                   },
@@ -600,6 +602,7 @@ class _FeedPageState extends State<FeedPage> {
                         GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: () {
+                            haptic();
                             _q.value = TextEditingValue(
                               text: sugs[i],
                               selection: TextSelection.collapsed(offset: sugs[i].length),
@@ -642,7 +645,7 @@ class _FeedPageState extends State<FeedPage> {
           child: Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
             for (final t in tags) _tagChip(p, t[0] as String, t[1] as VoidCallback),
             GestureDetector(
-              onTap: _resetFilters,
+              onTap: () { haptic(); _resetFilters(); },
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 child: Text('Сбросить всё', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700, fontSize: 12.5)),

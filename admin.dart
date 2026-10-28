@@ -83,6 +83,7 @@ class _AdminPageState extends State<AdminPage> with SingleTickerProviderStateMix
       await Api.call('sendPush', {
         'title': _pushTitle.text.trim().isEmpty ? 'ДелоЕсть' : _pushTitle.text.trim(),
         'body': body,
+        'target': _pushTo.text.trim().isEmpty ? 'all' : _pushTo.text.trim(),
         'to': _pushTo.text.trim(),
       });
       _pushBody.clear();
@@ -109,8 +110,9 @@ class _AdminPageState extends State<AdminPage> with SingleTickerProviderStateMix
     return r == true;
   }
 
-  Widget _small(Pal p, String t, VoidCallback f, {Color? color}) => GestureDetector(
+  Widget _small(Pal p, String t, VoidCallback f, {Color? color}) => Tap(
         onTap: f,
+        scale: .96,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
@@ -146,7 +148,7 @@ class _AdminPageState extends State<AdminPage> with SingleTickerProviderStateMix
         if (login.isNotEmpty)
           _small(p, 'Бан автора', () async {
             if (await _confirm('Заблокировать аккаунт $login и скрыть его объявления?')) {
-              await _do('ban', {'login': login, 'on': true}, 'Пользователь заблокирован');
+              await _do('ban', {'login': login, 'ban': true, 'on': true}, 'Пользователь заблокирован');
             }
           }, color: p.dng),
         _small(p, 'Удалить', () async {
@@ -296,7 +298,7 @@ class _AdminPageState extends State<AdminPage> with SingleTickerProviderStateMix
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(8)),
                     child: Text(
-                      (item['to'] ?? '').toString().isEmpty ? 'Всем пользователям' : 'Адресно: ${item['to']}',
+                      ((item['target'] ?? item['to'] ?? '').toString().isEmpty || (item['target'] ?? item['to']) == 'all') ? 'Всем пользователям' : 'Адресно: ${item['target'] ?? item['to']}',
                       style: TextStyle(color: p.ac, fontSize: 12, fontWeight: FontWeight.w700),
                     ),
                   ),

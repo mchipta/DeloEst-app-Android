@@ -129,6 +129,7 @@ class _PostScreenState extends State<PostScreen> {
   }
 
   void _set(VoidCallback f) {
+    haptic();
     setState(f);
     _saveSoon();
   }
@@ -592,7 +593,7 @@ class _PostScreenState extends State<PostScreen> {
             ),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => _go(i),
+            onTap: () { haptic(); _go(i); },
             child: SizedBox(
               width: 72,
               child: Column(children: [
@@ -633,8 +634,8 @@ class _PostScreenState extends State<PostScreen> {
       children: [
         _stepper(p),
         if (_restored && step == 0 && !_isEdit) _draftBanner(p),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 220),
+        SmoothSwitch(
+          duration: const Duration(milliseconds: 260),
           child: KeyedSubtree(
             key: ValueKey(step),
             child: SizedBox(

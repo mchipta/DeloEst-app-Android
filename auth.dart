@@ -114,7 +114,7 @@ class _AuthPageState extends State<AuthPage> {
             height: 24,
             child: Checkbox(
               value: v,
-              onChanged: (x) => f(x ?? false),
+              onChanged: (x) { haptic(); f(x ?? false); },
               activeColor: p.ac,
               visualDensity: VisualDensity.compact,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -123,7 +123,7 @@ class _AuthPageState extends State<AuthPage> {
           const SizedBox(width: 10),
           Expanded(
             child: GestureDetector(
-              onTap: () => f(!v),
+              onTap: () { haptic(); f(!v); },
               child: Text.rich(TextSpan(style: TextStyle(color: p.mu, fontSize: 13.5, height: 1.4), children: spans)),
             ),
           ),
@@ -134,11 +134,14 @@ class _AuthPageState extends State<AuthPage> {
 
   String get _em => email.text.trim().toLowerCase();
 
-  void _mode(AMode x) => setState(() {
-        m = x;
-        err = null;
-        info = null;
-      });
+  void _mode(AMode x) {
+    haptic();
+    setState(() {
+      m = x;
+      err = null;
+      info = null;
+    });
+  }
 
   Future<void> _run(Future<void> Function() f) async {
     setState(() {
@@ -271,7 +274,9 @@ class _AuthPageState extends State<AuthPage> {
     return Scaffold(
       appBar: AppBar(),
       body: SafeArea(
-        child: ListView(padding: const EdgeInsets.fromLTRB(20, 0, 20, 24), children: [
+        child: SmoothSwitch(
+          child: ListView(
+            key: ValueKey(m),padding: const EdgeInsets.fromLTRB(20, 0, 20, 24), children: [
           const Align(alignment: Alignment.centerLeft, child: Logo(size: 48)),
           const SizedBox(height: 16),
           Text(titles[m]!, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: p.tx)),
@@ -330,6 +335,7 @@ class _AuthPageState extends State<AuthPage> {
           ] else
             Center(child: TextButton(onPressed: () => _mode(AMode.login), child: Text('Назад ко входу', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700)))),
         ]),
+        ),
       ),
     );
   }
@@ -424,7 +430,7 @@ class _AuthPageState extends State<AuthPage> {
           suffix: secret
               ? IconButton(
                   icon: Icon(show ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: p.mu),
-                  onPressed: () => setState(() => show = !show))
+                  onPressed: () { haptic(); setState(() => show = !show); })
               : null,
         ),
       ),

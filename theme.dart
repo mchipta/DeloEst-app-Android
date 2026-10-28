@@ -71,7 +71,11 @@ ThemeData buildTheme(Brightness b) {
     ),
     pageTransitionsTheme: const PageTransitionsTheme(builders: {
       TargetPlatform.android: QuickPageTransitions(),
-      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.iOS: QuickPageTransitions(),
+      TargetPlatform.linux: QuickPageTransitions(),
+      TargetPlatform.macOS: QuickPageTransitions(),
+      TargetPlatform.windows: QuickPageTransitions(),
+      TargetPlatform.fuchsia: QuickPageTransitions(),
     }),
     textSelectionTheme: TextSelectionThemeData(cursorColor: p.ac, selectionColor: p.ac.withOpacity(.28), selectionHandleColor: p.ac),
     snackBarTheme: SnackBarThemeData(
@@ -113,23 +117,49 @@ InputDecoration deco(BuildContext c, String? label, {String? hint, Widget? suffi
 }
 
 
-/// Переход между экранами: системный слайд (с жестом «свайп назад» от левого края,
-/// палец ведёт экран) + короткое проявление. Длительность задаёт маршрут, ~0,3 с.
+/// Плавный переход между экранами (как на сайте + жест «свайп назад» от левого края):
+/// мягкое проявление, лёгкий подъём/сдвиг и масштабирование.
 class QuickPageTransitions extends PageTransitionsBuilder {
   const QuickPageTransitions();
-  static const PageTransitionsBuilder _base = CupertinoPageTransitionsBuilder();
+  static const PageTransitionsBuilder _cupertino = CupertinoPageTransitionsBuilder();
 
   @override
   Widget buildTransitions<T>(PageRoute<T> route, BuildContext context, Animation<double> animation,
       Animation<double> secondaryAnimation, Widget child) {
+    // Если пользователь тянет экран пальцем от левого края (свайп назад) — используем нативный жест
+    if (route.popGestureInProgress) {
+      return _cupertino.buildTransitions<T>(route, context, animation, secondaryAnimation, child);
+    }
+    final curved = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
     final fade = CurvedAnimation(
       parent: animation,
-      curve: const Interval(0, .55, curve: Curves.easeOut),
-      reverseCurve: const Interval(.2, 1, curve: Curves.easeIn),
+      curve: const Interval(0, .75, curve: Curves.easeOut),
+      reverseCurve: const Interval(.15, 1, curve: Curves.easeIn),
     );
-    return FadeTransition(
-      opacity: Tween<double>(begin: 0, end: 1).animate(fade),
-      child: _base.buildTransitions<T>(route, context, animation, secondaryAnimation, child),
+    final outCurve = CurvedAnimation(
+      parent: secondaryAnimation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    return SlideTransition(
+      position: Tween<Offset>(begin: Offset.zero, end: const Offset(-.04, 0)).animate(outCurve),
+      child: ScaleTransition(
+        scale: Tween<double>(begin: 1.0, end: .975).animate(outCurve),
+        child: FadeTransition(
+          opacity: Tween<double>(begin: 0.0, end: 1.0).animate(fade),
+          child: SlideTransition(
+            position: Tween<Offset>(begin: const Offset(.06, .018), end: Offset.zero).animate(curved),
+            child: ScaleTransition(
+              scale: Tween<double>(begin: .975, end: 1.0).animate(curved),
+              child: child,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

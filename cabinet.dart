@@ -139,7 +139,7 @@ class _CabinetPageState extends State<CabinetPage> {
             actions: S.i.logged ? [
               IconButton(
                 tooltip: 'Настройки приложения',
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage())),
+                onPressed: () { haptic(); Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage())); },
                 icon: Icon(Icons.settings_outlined, color: pal(context).ac),
               ),
             ] : null,
@@ -160,7 +160,7 @@ class _CabinetPageState extends State<CabinetPage> {
                         Padding(padding: const EdgeInsets.all(40), child: Center(child: CircularProgressIndicator(color: p.ac))),
                       if (ct != 'set' && err != null && data == null)
                         Padding(padding: const EdgeInsets.all(24), child: Text(err!, textAlign: TextAlign.center, style: TextStyle(color: p.mu))),
-                      if (data != null || ct == 'set') ..._content(p),
+                      if (data != null || ct == 'set') SmoothSwitch(child: KeyedSubtree(key: ValueKey('$ct-$caf-${loading && data == null}'), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: _content(p)))),
                     ],
                   ),
                 )
@@ -260,7 +260,7 @@ class _CabinetPageState extends State<CabinetPage> {
           const SizedBox(width: 8),
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: () => confirmLogout(context),
+              onPressed: () { haptic(); confirmLogout(context); },
               icon: const Icon(Icons.logout_rounded, size: 17),
               label: const Text('Выйти'),
               style: OutlinedButton.styleFrom(
@@ -278,7 +278,7 @@ class _CabinetPageState extends State<CabinetPage> {
         if (S.i.user?['admin'] == true) ...[
           const SizedBox(height: 8),
           OutlinedButton.icon(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPage())),
+            onPressed: () { haptic(); Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPage())); },
             icon: const Icon(Icons.admin_panel_settings_outlined, size: 18),
             label: const Text('Админ-панель'),
             style: OutlinedButton.styleFrom(
@@ -406,7 +406,7 @@ class _CabinetPageState extends State<CabinetPage> {
           Expanded(
             child: GestureDetector(
               onTap: () {
-                HapticFeedback.selectionClick();
+                haptic();
                 setState(() => ct = t[0] as String);
                 _markSeen();
               },
@@ -492,7 +492,7 @@ class _CabinetPageState extends State<CabinetPage> {
       return Padding(
         padding: const EdgeInsets.only(right: 8),
         child: GestureDetector(
-          onTap: () => setState(() => caf = key),
+          onTap: () { haptic(); setState(() => caf = key); },
           child: Container(
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
