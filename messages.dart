@@ -1008,7 +1008,7 @@ class _ChatPageState extends State<ChatPage> {
     final priceText = gone ? 'Объявление удалено' : (pay.isEmpty ? 'Договорная' : pay);
     final muted = gone || closed;
     final ph = Container(
-      decoration: BoxDecoration(gradient: LinearGradient(colors: [Color.alphaBlend(p.ac.withOpacity(.16), p.bg2), p.bg2])),
+      color: Color.alphaBlend(p.ac.withOpacity(.13), p.card),
       child: Icon(gone || catName.isEmpty ? Icons.sell_outlined : catIcon(catName), color: p.ac.withOpacity(.85), size: 26),
     );
     return GestureDetector(
@@ -1022,7 +1022,7 @@ class _ChatPageState extends State<ChatPage> {
             width: 58,
             height: 58,
             clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14)),
             child: img.isEmpty || gone
                 ? ph
                 : ColorFiltered(
