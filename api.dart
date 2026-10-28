@@ -34,22 +34,44 @@ class Api {
     } catch (_) {}
   }
 
+  // Одно общее соединение: не тратим время на новое подключение при каждом запросе
+  static final http.Client _client = http.Client();
+  // Запросы только на чтение можно безопасно повторить, если сервер Apps Script «просыпается» или занят
+  static const _safe = {'ads', 'pushes', 'unread', 'dialogs', 'thread', 'profile', 'site', 'legal', 'posts'};
+
   static Future<Map<String, dynamic>> call(String a, [Map<String, dynamic>? data]) async {
+    final retry = _safe.contains(a) ? 2 : 0;
+    ApiError? last;
+    for (var attempt = 0; attempt <= retry; attempt++) {
+      if (attempt > 0) await Future.delayed(Duration(milliseconds: 1200 * attempt));
+      try {
+        return await _once(a, data);
+      } on ApiError catch (e) {
+        last = e;
+        final m = e.message.toLowerCase();
+        final transient = m.contains('нет соединения') || m.contains('некорректно') || m.contains('lock') || m.contains('блокир');
+        if (!transient) rethrow;
+      }
+    }
+    throw last ?? ApiError('Нет соединения. Проверьте интернет');
+  }
+
+  static Future<Map<String, dynamic>> _once(String a, Map<String, dynamic>? data) async {
     final body = jsonEncode(<String, dynamic>{'a': a, 't': token, 'dev': deviceName, 'ip': ip, 'geo': geo, ...?data});
     late http.Response res;
     try {
-      res = await http
+      res = await _client
           .post(Uri.parse(apiUrl),
               headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: body)
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 40));
       // Apps Script отвечает редиректом — Dart не следует ему для POST, делаем вручную
       var hops = 0;
       while ({301, 302, 303, 307, 308}.contains(res.statusCode) &&
           res.headers['location'] != null &&
           hops < 5) {
-        res = await http
+        res = await _client
             .get(Uri.parse(res.headers['location']!))
-            .timeout(const Duration(seconds: 60));
+            .timeout(const Duration(seconds: 40));
         hops++;
       }
     } catch (_) {

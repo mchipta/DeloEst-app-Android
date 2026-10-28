@@ -124,11 +124,14 @@ class S extends ChangeNotifier {
     await requestPushPermission();
     Api.loadNetInfo();
     await i.syncBgPushState();
-    i.syncFcm();
-    i._timer = Timer.periodic(const Duration(seconds: 20), (_) => i.refreshUnread());
-    i.refreshUnread();
-    if (i.logged) i.syncBlocks();
-    Future.delayed(const Duration(seconds: 3), () => i.checkAppUpdate(silent: true));
+    // Главное при запуске — объявления. Остальные запросы к серверу начинаем позже, чтобы они не вставали в очередь перед лентой
+    Future.delayed(const Duration(seconds: 4), () {
+      i.syncFcm();
+      i.refreshUnread();
+      if (i.logged) i.syncBlocks();
+    });
+    i._timer = Timer.periodic(const Duration(seconds: 30), (_) => i.refreshUnread());
+    Future.delayed(const Duration(seconds: 8), () => i.checkAppUpdate(silent: true));
   }
 
   static Future<void> requestPushPermission() async {
@@ -294,11 +297,11 @@ class S extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> refreshUnread() async {
+  bool _refreshing = false;
+
+  // Обработка серверных Push-уведомлений (рассылки админа и события по сделкам)
+  Future<void> _handlePushes(dynamic plist) async {
     try {
-      // Проверяем серверные Push-уведомления (рассылки админа и события по сделкам)
-      final pj = await Api.call('pushes', {'after': lastPushTs});
-      final plist = pj['list'];
       if (plist is List && plist.isNotEmpty) {
         var maxTs = lastPushTs;
         for (final raw in plist) {
@@ -319,6 +322,26 @@ class S extends ChangeNotifier {
         }
       }
     } catch (_) {}
+  }
+
+  Future<void> refreshUnread() async {
+    if (_refreshing) return; // предыдущая проверка ещё идёт: не копим запросы к медленному серверу
+    _refreshing = true;
+    try {
+      await _refreshUnread();
+    } finally {
+      _refreshing = false;
+    }
+  }
+
+  Future<void> _refreshUnread() async {
+    // Вошедшему пользователю пуши приходят вместе с «unread», отдельный запрос не нужен
+    if (!logged || mutedChats.isNotEmpty) {
+      try {
+        final pj = await Api.call('pushes', {'after': lastPushTs});
+        await _handlePushes(pj['list']);
+      } catch (_) {}
+    }
 
     if (!logged) {
       if (unread != 0) {
@@ -331,7 +354,8 @@ class S extends ChangeNotifier {
     try {
       int n;
       if (mutedChats.isEmpty) {
-        final j = await Api.call('unread');
+        final j = await Api.call('unread', {'pAfter': lastPushTs});
+        await _handlePushes(j['pushes']);
         n = (j['n'] as num?)?.toInt() ?? 0;
       } else {
         // Когда есть отключённые диалоги, считаем непрочитанное по диалогам,
