@@ -28,6 +28,23 @@ IconData catIcon(String name) {
   return Icons.more_horiz;
 }
 
+// Цвет категории: те же шесть оттенков, что и на сайте (по порядку категорий)
+const kCatHues = <Color>[
+  Color(0xFFF08A24),
+  Color(0xFF2F9BFF),
+  Color(0xFFA26BFF),
+  Color(0xFF22B573),
+  Color(0xFFE8508F),
+  Color(0xFF14B8C4),
+];
+
+Color catHue(String name) {
+  for (var i = 0; i < kCats.length; i++) {
+    if (kCats[i].name == name) return kCatHues[i % kCatHues.length];
+  }
+  return kCatHues[0];
+}
+
 double? _dbl(dynamic v) {
   if (v == null) return null;
   if (v is num) return v.toDouble();

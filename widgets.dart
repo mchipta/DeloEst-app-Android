@@ -593,13 +593,24 @@ class PriceTag extends StatelessWidget {
   final String pay;
   final double size;
   final bool dense;
-  const PriceTag(this.pay, {super.key, this.size = 17, this.dense = false});
+  final bool plain; // без плашки: крупный текст (список объявлений)
+  const PriceTag(this.pay, {super.key, this.size = 17, this.dense = false, this.plain = false});
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
     final text = payF(pay);
     final fixed = RegExp(r'\d').hasMatch(text);
     final col = fixed ? p.ok : p.mu;
+    if (plain) {
+      return Text(text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+              fontSize: fixed ? size + 3 : size - 2,
+              fontWeight: fixed ? FontWeight.w800 : FontWeight.w600,
+              color: col,
+              height: 1.2));
+    }
     return Container(
       padding: EdgeInsets.symmetric(horizontal: dense ? 8 : 10, vertical: dense ? 1 : 3),
       decoration: BoxDecoration(color: col.withOpacity(.13), borderRadius: BorderRadius.circular(R.s)),
@@ -709,17 +720,7 @@ class AdCard extends StatelessWidget {
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Expanded(
-                      child: Wrap(
-                        spacing: 5,
-                        runSpacing: 5,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          typeTag(context, ad.type),
-                          _categoryTag(p, ad.category),
-                        ],
-                      ),
-                    ),
+                    Expanded(child: _tagLine(p)),
                     if (showFav && S.i.logged) ...[
                       const SizedBox(width: 4),
                       Padding(
@@ -734,19 +735,17 @@ class AdCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, height: 1.18, color: p.tx)),
                   const SizedBox(height: 4),
-                  PriceTag(ad.pay, size: 17),
+                  PriceTag(ad.pay, size: 17, plain: true),
                   const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 2,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Ico('pin', size: 14, color: p.mu),
-                      Text(adLoc(ad).isEmpty ? 'Город не указан' : adLoc(ad),
+                  Row(children: [
+                    Ico('pin', size: 14, color: p.mu),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(adLoc(ad).isEmpty ? 'Город не указан' : adLoc(ad),
                           style: TextStyle(fontSize: 12, color: p.mu), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      Text('· ${siteShortAgo(ad.ts, S.i.timeZone)}', style: TextStyle(fontSize: 12, color: p.mu)),
-                    ],
-                  ),
+                    ),
+                    Text(' · ${siteShortAgo(ad.ts, S.i.timeZone)}', style: TextStyle(fontSize: 12, color: p.mu)),
+                  ]),
                 ]),
               ),
             ]),
@@ -757,6 +756,24 @@ class AdCard extends StatelessWidget {
     );
   }
 
+
+  // Одна строка: цветная точка и тип, дальше категория тихим серым
+  Widget _tagLine(Pal p) {
+    final need = ad.type == kTypes[0];
+    final col = need ? p.ac : p.ok;
+    return Row(children: [
+      Container(width: 7, height: 7, decoration: BoxDecoration(color: col, shape: BoxShape.circle)),
+      const SizedBox(width: 6),
+      Text(ad.type, maxLines: 1, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: col)),
+      if (ad.category.isNotEmpty)
+        Flexible(
+          child: Text(' · ${ad.category}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: p.mu)),
+        ),
+    ]);
+  }
 
   Widget _heart(Pal p, {bool onPhoto = false}) {
     final heart = FavHeart(adId: ad.id, size: onPhoto ? 19 : 21);
@@ -863,35 +880,18 @@ class AdCard extends StatelessWidget {
     );
   }
 
-  Widget _categoryTag(Pal p, String category) {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 132),
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: p.bg2,
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: p.bd),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(catIcon(category), size: 12, color: p.mu),
-        const SizedBox(width: 3),
-        Flexible(child: Text(category, maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 10.5, color: p.mu, fontWeight: FontWeight.w600))),
-      ]),
-    );
-  }
-
   Widget _cover(Pal p, double size) => ClipRRect(borderRadius: BorderRadius.circular(12), child: _coverBody(p, size));
 
   Widget _coverBody(Pal p, double size, {bool flat = false}) {
+    final hue = catHue(ad.category);
     Widget ph() => Container(
           decoration: BoxDecoration(
-            color: Color.alphaBlend(p.ac.withOpacity(.07), p.bg2),
-            border: flat ? null : Border.all(color: p.bd),
+            color: Color.alphaBlend(hue.withOpacity(.14), p.card),
+            border: flat ? null : Border.all(color: hue.withOpacity(.26)),
             borderRadius: flat ? null : BorderRadius.circular(12),
           ),
           alignment: Alignment.center,
-          child: Icon(catIcon(ad.category), size: size * .35, color: p.ac.withOpacity(.75)),
+          child: Icon(catIcon(ad.category), size: size * .35, color: hue),
         );
     return Stack(fit: StackFit.expand, children: [
         ad.imgs.isEmpty

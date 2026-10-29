@@ -45,7 +45,6 @@ class _FeedPageState extends State<FeedPage> {
 
   int get _activeFilters =>
       (_type.isNotEmpty ? 1 : 0) +
-      (_cat.isNotEmpty ? 1 : 0) +
       (_city.trim().isNotEmpty ? 1 : 0) +
       (_min.isNotEmpty ? 1 : 0) +
       (_max.isNotEmpty ? 1 : 0) +
@@ -380,26 +379,141 @@ class _FeedPageState extends State<FeedPage> {
     );
   }
 
-  Widget _catChip(Pal p, String label, IconData icon, bool sel, VoidCallback onTap) {
+  String get _sortLabel => _sort == 'hi' ? 'Дороже' : _sort == 'lo' ? 'Дешевле' : 'Новые';
+
+  Future<void> _pickCity() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: pal(context).card,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (c) => StatefulBuilder(
+        builder: (c, setS) {
+          final p = pal(c);
+          return Padding(
+            padding: EdgeInsets.fromLTRB(16, 18, 16, 16 + MediaQuery.of(c).viewInsets.bottom),
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Город', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: p.tx)),
+                const SizedBox(height: 14),
+                CityField(
+                  controller: _cityC,
+                  decoration: deco(c, 'Город'),
+                  onChanged: (v) {
+                    setState(() => _city = v);
+                    setS(() {});
+                  },
+                ),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(
+                    child: OutBtn('Все города', onTap: () {
+                      setState(() {
+                        _city = '';
+                        _cityC.clear();
+                      });
+                      Navigator.pop(c);
+                    }),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(flex: 2, child: GradBtn('Показать (${_filtered().length})', onTap: () => Navigator.pop(c))),
+                ]),
+              ]),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _chipBox(Pal p, Widget child) => Container(
+        padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+        decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
+        child: child,
+      );
+
+  // Город: нажатие открывает выбор города
+  Widget _cityChip(Pal p) {
+    return Flexible(
+      child: Tap(
+        onTap: _pickCity,
+        scale: .96,
+        child: _chipBox(
+          p,
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.location_on_outlined, size: 18, color: p.ac),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(_city.trim().isEmpty ? 'Все города' : _city.trim(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: p.tx)),
+            ),
+            const SizedBox(width: 2),
+            Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: p.mu),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  // Сортировка: короткая подпись и меню из трёх пунктов
+  Widget _sortChip(Pal p) {
+    return PopupMenuButton<String>(
+      tooltip: 'Сортировка',
+      initialValue: _sort,
+      color: p.card,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: p.bd)),
+      onSelected: (v) {
+        haptic();
+        setState(() => _sort = v);
+      },
+      itemBuilder: (c) => <PopupMenuEntry<String>>[
+        PopupMenuItem<String>(value: '', child: Text('Сначала новые', style: TextStyle(color: p.tx))),
+        PopupMenuItem<String>(value: 'hi', child: Text('Сначала с высокой оплатой', style: TextStyle(color: p.tx))),
+        PopupMenuItem<String>(value: 'lo', child: Text('Сначала с низкой оплатой', style: TextStyle(color: p.tx))),
+      ],
+      child: _chipBox(
+        p,
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(_sortLabel, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: p.tx)),
+          const SizedBox(width: 2),
+          Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: p.mu),
+        ]),
+      ),
+    );
+  }
+
+  // Категория: круглая цветная плитка и подпись под ней (цвета как на сайте)
+  Widget _catTile(Pal p, String label, IconData icon, Color hue, bool sel, VoidCallback onTap) {
     return Padding(
-      padding: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.only(right: 4),
       child: Tap(
         onTap: onTap,
-        scale: .96,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 13),
-          decoration: BoxDecoration(
-            gradient: sel ? LinearGradient(colors: [p.ac, p.ac2]) : null,
-            color: sel ? null : p.card,
-            borderRadius: BorderRadius.circular(99),
-            border: sel ? null : Border.all(color: p.bd),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 17, color: sel ? Colors.white : p.mu),
-            const SizedBox(width: 6),
+        scale: .94,
+        child: SizedBox(
+          width: 84,
+          child: Column(children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                gradient: sel ? LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight) : null,
+                color: sel ? null : Color.alphaBlend(hue.withOpacity(.15), p.card),
+                borderRadius: BorderRadius.circular(19),
+                boxShadow: sel ? [BoxShadow(color: p.ac.withOpacity(.35), blurRadius: 16, offset: const Offset(0, 6))] : null,
+              ),
+              child: Icon(icon, size: 24, color: sel ? Colors.white : hue),
+            ),
+            const SizedBox(height: 7),
             Text(label,
-                style: TextStyle(fontSize: 13.5, fontWeight: sel ? FontWeight.w800 : FontWeight.w600, color: sel ? Colors.white : p.tx)),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11.5, height: 1.2, fontWeight: sel ? FontWeight.w800 : FontWeight.w600, color: sel ? p.tx : p.mu)),
           ]),
         ),
       ),
@@ -450,14 +564,6 @@ class _FeedPageState extends State<FeedPage> {
         : const <String>[];
     final tags = <List<Object>>[
       if (_type.isNotEmpty) [_type, () => setState(() => _type = '')],
-      if (_city.trim().isNotEmpty)
-        [
-          _city.trim(),
-          () => setState(() {
-                _city = '';
-                _cityC.clear();
-              })
-        ],
       if (_min.isNotEmpty)
         [
           'от $_min ₽',
@@ -474,8 +580,6 @@ class _FeedPageState extends State<FeedPage> {
                 _maxC.clear();
               })
         ],
-      if (_sort == 'hi') ['Сначала дороже', () => setState(() => _sort = '')],
-      if (_sort == 'lo') ['Сначала дешевле', () => setState(() => _sort = '')],
     ];
     OutlineInputBorder none = const OutlineInputBorder(borderSide: BorderSide.none);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -512,13 +616,19 @@ class _FeedPageState extends State<FeedPage> {
             },
           ),
         ]),
+          const SizedBox(height: 10),
+          Row(children: [
+            _cityChip(p),
+            const SizedBox(width: 8),
+            _sortChip(p),
+          ]),
           const SizedBox(height: 12),
           // поиск и фильтры в одной «капсуле»
           Container(
-            height: 54,
+            height: 58,
             decoration: BoxDecoration(
               color: p.card,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(color: p.bd),
               boxShadow: [BoxShadow(color: p.ac.withOpacity(.07), blurRadius: 16, offset: const Offset(0, 5))],
             ),
@@ -558,26 +668,34 @@ class _FeedPageState extends State<FeedPage> {
                     child: Icon(Icons.cancel_rounded, size: 20, color: p.mu.withOpacity(.7)),
                   ),
                 ),
-              Container(width: 1, height: 26, color: p.bd),
               Tap(
                 onTap: _openFilters,
                 scale: .92,
-                child: SizedBox(
-                  width: 56,
-                  height: 54,
-                  child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 4, right: 7),
+                  child: SizedBox(
+                    width: 44,
+                    height: 44,
                     child: Stack(clipBehavior: Clip.none, children: [
-                      Icon(Icons.tune_rounded, size: 24, color: af > 0 ? p.ac : p.mu),
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: const Icon(Icons.tune_rounded, size: 22, color: Colors.white),
+                      ),
                       if (af > 0)
                         Positioned(
-                          right: -9,
-                          top: -7,
+                          right: -6,
+                          top: -6,
                           child: Container(
-                            constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
+                            constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                             alignment: Alignment.center,
                             padding: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(gradient: LinearGradient(colors: [p.ac, p.ac2]), borderRadius: BorderRadius.circular(99)),
-                            child: Text('$af', style: const TextStyle(color: Colors.white, fontSize: 10, height: 1.1, fontWeight: FontWeight.w800)),
+                            decoration: BoxDecoration(color: p.tx, borderRadius: BorderRadius.circular(99), border: Border.all(color: p.card, width: 2)),
+                            child: Text('$af', style: TextStyle(color: p.bg, fontSize: 11, height: 1.1, fontWeight: FontWeight.w800)),
                           ),
                         ),
                     ]),
@@ -627,15 +745,16 @@ class _FeedPageState extends State<FeedPage> {
         ]),
       ),
       const SizedBox(height: 10),
-      // быстрые категории
+      // быстрые категории: цветные плитки
       SizedBox(
-        height: 38,
+        height: 96,
         child: ListView(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
           children: [
-            _catChip(p, 'Все', Icons.apps_rounded, _cat.isEmpty, () => setState(() => _cat = '')),
-            for (final k in kCats) _catChip(p, k.name, k.icon, _cat == k.name, () => setState(() => _cat = _cat == k.name ? '' : k.name)),
+            _catTile(p, 'Все', Icons.apps_rounded, p.ac, _cat.isEmpty, () => setState(() => _cat = '')),
+            for (final k in kCats)
+              _catTile(p, k.name, k.icon, catHue(k.name), _cat == k.name, () => setState(() => _cat = _cat == k.name ? '' : k.name)),
           ],
         ),
       ),
