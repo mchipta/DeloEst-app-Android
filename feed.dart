@@ -375,145 +375,48 @@ class _FeedPageState extends State<FeedPage> {
             textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 16, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
         Text('Потяните вниз, чтобы обновить', style: TextStyle(color: p.mu, fontSize: 13)),
+        if (S.i.loadError == null) ...[
+          const SizedBox(height: 14),
+          OutBtn('Сбросить поиск и фильтры', onTap: () {
+            _q.clear();
+            _resetFilters();
+          }),
+        ],
       ]),
     );
   }
 
-  String get _sortLabel => _sort == 'hi' ? 'Дороже' : _sort == 'lo' ? 'Дешевле' : 'Новые';
-
-  Future<void> _pickCity() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: pal(context).card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (c) => StatefulBuilder(
-        builder: (c, setS) {
-          final p = pal(c);
-          return Padding(
-            padding: EdgeInsets.fromLTRB(16, 18, 16, 16 + MediaQuery.of(c).viewInsets.bottom),
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Город', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: p.tx)),
-                const SizedBox(height: 14),
-                CityField(
-                  controller: _cityC,
-                  decoration: deco(c, 'Город'),
-                  onChanged: (v) {
-                    setState(() => _city = v);
-                    setS(() {});
-                  },
-                ),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(
-                    child: OutBtn('Все города', onTap: () {
-                      setState(() {
-                        _city = '';
-                        _cityC.clear();
-                      });
-                      Navigator.pop(c);
-                    }),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(flex: 2, child: GradBtn('Показать (${_filtered().length})', onTap: () => Navigator.pop(c))),
-                ]),
-              ]),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _chipBox(Pal p, Widget child) => Container(
-        padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
-        decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
-        child: child,
-      );
-
-  // Город: нажатие открывает выбор города
-  Widget _cityChip(Pal p) {
-    return Flexible(
-      child: Tap(
-        onTap: _pickCity,
-        scale: .96,
-        child: _chipBox(
-          p,
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.location_on_outlined, size: 18, color: p.ac),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(_city.trim().isEmpty ? 'Все города' : _city.trim(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: p.tx)),
-            ),
-            const SizedBox(width: 2),
-            Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: p.mu),
-          ]),
-        ),
-      ),
-    );
-  }
-
-  // Сортировка: короткая подпись и меню из трёх пунктов
-  Widget _sortChip(Pal p) {
-    return PopupMenuButton<String>(
-      tooltip: 'Сортировка',
-      initialValue: _sort,
-      color: p.card,
-      surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: p.bd)),
-      onSelected: (v) {
-        haptic();
-        setState(() => _sort = v);
-      },
-      itemBuilder: (c) => <PopupMenuEntry<String>>[
-        PopupMenuItem<String>(value: '', child: Text('Сначала новые', style: TextStyle(color: p.tx))),
-        PopupMenuItem<String>(value: 'hi', child: Text('Сначала с высокой оплатой', style: TextStyle(color: p.tx))),
-        PopupMenuItem<String>(value: 'lo', child: Text('Сначала с низкой оплатой', style: TextStyle(color: p.tx))),
-      ],
-      child: _chipBox(
-        p,
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          Text(_sortLabel, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: p.tx)),
-          const SizedBox(width: 2),
-          Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: p.mu),
-        ]),
-      ),
-    );
-  }
+  String _shortCat(String n) => n == 'Строительство и ремонт' ? 'Стройка и ремонт' : n == 'Репетиторство' ? 'Репетиторы' : n;
 
   // Категория: круглая цветная плитка и подпись под ней (цвета как на сайте)
   Widget _catTile(Pal p, String label, IconData icon, Color hue, bool sel, VoidCallback onTap) {
     return Padding(
-      padding: const EdgeInsets.only(right: 4),
+      padding: const EdgeInsets.only(right: 2),
       child: Tap(
         onTap: onTap,
         scale: .94,
         child: SizedBox(
-          width: 84,
+          width: 74,
           child: Column(children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOut,
-              width: 54,
-              height: 54,
+              width: 56,
+              height: 56,
               decoration: BoxDecoration(
                 gradient: sel ? LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight) : null,
-                color: sel ? null : Color.alphaBlend(hue.withOpacity(.15), p.card),
+                color: sel ? null : Color.alphaBlend(hue.withOpacity(.24), p.card),
                 borderRadius: BorderRadius.circular(19),
                 boxShadow: sel ? [BoxShadow(color: p.ac.withOpacity(.35), blurRadius: 16, offset: const Offset(0, 6))] : null,
               ),
-              child: Icon(icon, size: 24, color: sel ? Colors.white : hue),
+              child: Icon(icon, size: 26, color: sel ? Colors.white : hue),
             ),
             const SizedBox(height: 7),
-            Text(label,
+            Text(_shortCat(label),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11.5, height: 1.2, fontWeight: sel ? FontWeight.w800 : FontWeight.w600, color: sel ? p.tx : p.mu)),
+                style: TextStyle(fontSize: 11.5, height: 1.2, fontWeight: sel ? FontWeight.w800 : FontWeight.w600, color: p.tx)),
           ]),
         ),
       ),
@@ -564,6 +467,14 @@ class _FeedPageState extends State<FeedPage> {
         : const <String>[];
     final tags = <List<Object>>[
       if (_type.isNotEmpty) [_type, () => setState(() => _type = '')],
+      if (_city.trim().isNotEmpty)
+        [
+          _city.trim(),
+          () => setState(() {
+                _city = '';
+                _cityC.clear();
+              })
+        ],
       if (_min.isNotEmpty)
         [
           'от $_min ₽',
@@ -580,6 +491,8 @@ class _FeedPageState extends State<FeedPage> {
                 _maxC.clear();
               })
         ],
+      if (_sort == 'hi') ['Сначала дороже', () => setState(() => _sort = '')],
+      if (_sort == 'lo') ['Сначала дешевле', () => setState(() => _sort = '')],
     ];
     OutlineInputBorder none = const OutlineInputBorder(borderSide: BorderSide.none);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -616,12 +529,6 @@ class _FeedPageState extends State<FeedPage> {
             },
           ),
         ]),
-          const SizedBox(height: 10),
-          Row(children: [
-            _cityChip(p),
-            const SizedBox(width: 8),
-            _sortChip(p),
-          ]),
           const SizedBox(height: 12),
           // поиск и фильтры в одной «капсуле»
           Container(
@@ -644,7 +551,7 @@ class _FeedPageState extends State<FeedPage> {
                   onSubmitted: (_) => FocusScope.of(context).unfocus(),
                   style: TextStyle(color: p.tx, fontSize: 15.5),
                   decoration: InputDecoration(
-                    hintText: 'Поиск: грузчик, уборка…',
+                    hintText: 'Грузчик, уборка, ремонт…',
                     hintStyle: TextStyle(color: p.mu.withOpacity(.75)),
                     filled: false,
                     isDense: true,
@@ -747,10 +654,10 @@ class _FeedPageState extends State<FeedPage> {
       const SizedBox(height: 10),
       // быстрые категории: цветные плитки
       SizedBox(
-        height: 96,
+        height: 94,
         child: ListView(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+          padding: const EdgeInsets.fromLTRB(12, 2, 12, 0),
           children: [
             _catTile(p, 'Все', Icons.apps_rounded, p.ac, _cat.isEmpty, () => setState(() => _cat = '')),
             for (final k in kCats)

@@ -556,6 +556,21 @@ class _PostScreenState extends State<PostScreen> {
         ]),
       );
 
+  // Цветная плитка с иконкой: в цвете категории, выбранная — акцентным градиентом
+  Widget _iconTile(Pal p, IconData icon, Color hue, bool sel, {double size = 36}) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: sel ? LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight) : null,
+        color: sel ? null : Color.alphaBlend(hue.withOpacity(.2), p.card),
+        borderRadius: BorderRadius.circular(size * .34),
+      ),
+      child: Icon(icon, size: size * .55, color: sel ? Colors.white : hue),
+    );
+  }
+
   Widget _choice(Pal p, {required bool sel, required VoidCallback onTap, required Widget child, EdgeInsets? pad, Alignment? align}) {
     return Tap(
       onTap: onTap,
@@ -706,7 +721,7 @@ class _PostScreenState extends State<PostScreen> {
         onTap: () => _set(() => type = i),
         pad: const EdgeInsets.fromLTRB(12, 12, 10, 12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(ic, size: 26, color: sel ? p.ac : p.mu),
+          _iconTile(p, ic, i == 0 ? p.ac : p.ok, sel, size: 42),
           const SizedBox(height: 8),
           Text(name, style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: p.tx, height: 1.15)),
           const SizedBox(height: 3),
@@ -739,8 +754,8 @@ class _PostScreenState extends State<PostScreen> {
                 pad: const EdgeInsets.symmetric(horizontal: 12),
                 onTap: () => _set(() => cat = k.name),
                 child: Row(children: [
-                  Icon(k.icon, size: 20, color: cat == k.name ? p.ac : p.mu),
-                  const SizedBox(width: 8),
+                  _iconTile(p, k.icon, catHue(k.name), cat == k.name, size: 38),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(k.name,
                         maxLines: 2,
@@ -1050,14 +1065,15 @@ class _PostScreenState extends State<PostScreen> {
     final pay = payStr(payA.text, unit, payRaw);
     final d = desc.text.trim();
     const thumb = 92.0;
+    final hue = catHue(cat);
     Widget ph() => Container(
           decoration: BoxDecoration(
-            color: Color.alphaBlend(p.ac.withOpacity(.07), p.bg2),
-            border: Border.all(color: p.bd),
+            color: Color.alphaBlend(hue.withOpacity(.14), p.card),
+            border: Border.all(color: hue.withOpacity(.26)),
             borderRadius: BorderRadius.circular(12),
           ),
           alignment: Alignment.center,
-          child: Icon(catIcon(cat), size: thumb * .35, color: p.ac.withOpacity(.75)),
+          child: Icon(catIcon(cat), size: thumb * .35, color: hue),
         );
     Widget cover;
     if (photos.isEmpty) {
@@ -1097,17 +1113,12 @@ class _PostScreenState extends State<PostScreen> {
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Wrap(spacing: 5, runSpacing: 5, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                typeTag(context, kTypes[type]),
-                Container(
-                  constraints: const BoxConstraints(maxWidth: 132),
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(99), border: Border.all(color: p.bd)),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(catIcon(cat), size: 12, color: p.mu),
-                    const SizedBox(width: 3),
-                    Flexible(child: Text(cat, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, color: p.mu, fontWeight: FontWeight.w600))),
-                  ]),
+              Row(children: [
+                Container(width: 7, height: 7, decoration: BoxDecoration(color: type == 0 ? p.ac : p.ok, shape: BoxShape.circle)),
+                const SizedBox(width: 6),
+                Text(kTypes[type], maxLines: 1, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: type == 0 ? p.ac : p.ok)),
+                Flexible(
+                  child: Text(' · $cat', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: p.mu)),
                 ),
               ]),
               const SizedBox(height: 6),
