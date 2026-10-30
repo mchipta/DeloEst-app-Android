@@ -703,7 +703,11 @@ class _CabinetPageState extends State<CabinetPage> {
   // Статус отклика: тонкая обводка цвета статуса (как .st2 на сайте)
   Widget _statePill(String text, Color c) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(99), border: Border.all(color: c)),
+        decoration: BoxDecoration(
+          color: c.withOpacity(.10),
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(color: c.withOpacity(.30)),
+        ),
         child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: c)),
       );
 

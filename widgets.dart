@@ -575,15 +575,14 @@ class Tag extends StatelessWidget {
   const Tag(this.text, this.color, {super.key});
   @override
   Widget build(BuildContext context) {
-    final p = pal(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
-        color: p.bg2,
+        color: color.withOpacity(.10),
         borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: p.bd),
+        border: Border.all(color: color.withOpacity(.25)),
       ),
-      child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+      child: Text(text, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: color)),
     );
   }
 }

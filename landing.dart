@@ -29,10 +29,6 @@ class _LandingPageState extends State<LandingPage> {
   bool _siteLoading = true;
   Map<String, String> _site = {
     ...kSiteDefaults,
-    'pill': 'Более 27 000 выполненных дел с 2021 года',
-    'h1a': 'Подработка рядом —',
-    'h1b': 'за пару минут',
-    'lead': 'Находите заказы на день или исполнителей на час. Без комиссии, без посредников, прямо в вашем городе.',
   };
 
   @override
