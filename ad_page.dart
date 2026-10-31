@@ -9,6 +9,7 @@ import 'auth.dart';
 import 'map_page.dart';
 import 'messages.dart';
 import 'models.dart';
+import 'near.dart';
 import 'profile.dart';
 import 'share.dart';
 import 'state.dart';
@@ -221,6 +222,8 @@ class _AdPageState extends State<AdPage> {
                           Expanded(
                               child: Text(adLoc(ad).isEmpty ? 'Город не указан' : adLoc(ad),
                                   style: TextStyle(color: p.mu, fontSize: 14))),
+                          if (Near.i.dist(ad) != null)
+                            Text('  ·  ${Near.i.dist(ad)!.label}', style: TextStyle(color: p.ac, fontSize: 14, fontWeight: FontWeight.w700)),
                         ]),
                         const SizedBox(height: 2),
                         Row(children: [

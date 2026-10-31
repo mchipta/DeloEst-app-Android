@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart' show Geolocator;
 import 'ad_page.dart';
 import 'auth.dart';
 import 'favorites.dart';
 import 'map_page.dart';
+import 'near.dart';
 import 'models.dart';
 import 'state.dart';
 import 'skeleton.dart';
@@ -22,7 +24,8 @@ class _FeedPageState extends State<FeedPage> {
   final _cityC = TextEditingController();
   final _minC = TextEditingController();
   final _maxC = TextEditingController();
-  String _cat = '', _type = '', _city = '', _min = '', _max = '', _sort = '';
+  String _cat = '', _type = '', _city = '', _min = '', _max = '', _sort = '', _rad = '';
+  bool _auto = false;
 
   @override
   void initState() {
@@ -30,7 +33,7 @@ class _FeedPageState extends State<FeedPage> {
     _qFocus.addListener(() {
       if (mounted) setState(() {});
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => S.i.loadAds());
+    WidgetsBinding.instance.addPostFrameCallback((_) => S.i.loadAds().then((_) => Near.i.fill(S.i.ads)));
   }
 
   @override
@@ -48,7 +51,8 @@ class _FeedPageState extends State<FeedPage> {
       (_city.trim().isNotEmpty ? 1 : 0) +
       (_min.isNotEmpty ? 1 : 0) +
       (_max.isNotEmpty ? 1 : 0) +
-      (_sort.isNotEmpty ? 1 : 0);
+      (_sort.isNotEmpty ? 1 : 0) +
+      (Near.i.has && _rad.isNotEmpty ? 1 : 0);
 
   String get _filterSummary => [
         if (_type.isNotEmpty) _type,
@@ -65,6 +69,7 @@ class _FeedPageState extends State<FeedPage> {
     final c = _city.trim().toLowerCase();
     final mn = int.tryParse(digitsOnly(_min)) ?? 0;
     final mx = int.tryParse(digitsOnly(_max)) ?? 0;
+    final rad = Near.i.has ? (int.tryParse(_rad) ?? 0) : 0;
     final r = S.i.ads.where((a) {
       if (S.i.isBlocked(a.pid)) return false;
       final n = payNum(a.pay);
@@ -74,14 +79,22 @@ class _FeedPageState extends State<FeedPage> {
       if (q.isNotEmpty && !smartMatchAd(q, a.title, a.desc, a.category, a.city, a.addr)) return false;
       if (mn > 0 && (n == null || n < mn)) return false;
       if (mx > 0 && (n == null || n > mx)) return false;
+      if (rad > 0) {
+        final d = Near.i.dist(a);
+        if (d == null || d.km > rad) return false;
+      }
       return true;
     }).toList();
+    final byNear = Near.i.has && (_sort.isEmpty || _sort == 'near');
     r.sort((a, b) {
-      if (_sort.isNotEmpty) {
+      if (_sort == 'hi' || _sort == 'lo') {
         final p = payNum(a.pay), t = payNum(b.pay);
         if (p == null && t != null) return 1;
         if (t == null && p != null) return -1;
         if (p != null && t != null && p != t) return _sort == 'hi' ? t.compareTo(p) : p.compareTo(t);
+      } else if (byNear) {
+        final x = Near.i.kmOr(a), y = Near.i.kmOr(b);
+        if (x != y) return x.compareTo(y);
       }
       return b.ts.compareTo(a.ts);
     });
@@ -97,6 +110,7 @@ class _FeedPageState extends State<FeedPage> {
       (s['min'] ?? '').isEmpty ? '' : 'от ${s['min']} ₽',
       (s['max'] ?? '').isEmpty ? '' : 'до ${s['max']} ₽',
       s['sort'] == 'hi' ? 'дороже' : s['sort'] == 'lo' ? 'дешевле' : '',
+      (s['rad'] ?? '').isEmpty ? '' : 'до ${s['rad']} км',
     ].where((e) => e.isNotEmpty).toList();
     return parts.join(' · ');
   }
@@ -109,6 +123,7 @@ class _FeedPageState extends State<FeedPage> {
         'min': _min,
         'max': _max,
         'sort': _sort,
+        'rad': _rad,
       };
 
   void _saveSearch() {
@@ -136,6 +151,7 @@ class _FeedPageState extends State<FeedPage> {
       _min = s['min'] ?? '';
       _max = s['max'] ?? '';
       _sort = s['sort'] ?? '';
+      _rad = s['rad'] ?? '';
       _cityC.text = _city;
       _minC.text = _min;
       _maxC.text = _max;
@@ -150,6 +166,7 @@ class _FeedPageState extends State<FeedPage> {
       _min = '';
       _max = '';
       _sort = '';
+      _rad = '';
       _cityC.clear();
       _minC.clear();
       _maxC.clear();
@@ -200,6 +217,8 @@ class _FeedPageState extends State<FeedPage> {
                     },
                   ),
                 ),
+                if (Near.i.has)
+                  dd('Радиус', _rad, [['', 'Любое расстояние'], for (final k in const [3, 5, 10, 25, 50]) ['$k', 'до $k км']], (v) => _rad = v),
                 Row(children: [
                   Expanded(
                     child: Padding(
@@ -232,7 +251,12 @@ class _FeedPageState extends State<FeedPage> {
                     ),
                   ),
                 ]),
-                dd('Сортировка', _sort, [['', 'Сначала новые'], ['hi', 'Сначала с высокой оплатой'], ['lo', 'Сначала с низкой оплатой']], (v) => _sort = v),
+                dd('Сортировка', (_sort == 'new' && !Near.i.has) ? '' : _sort, [
+                  if (Near.i.has) ['', 'Сначала ближайшие'] else ['', 'Сначала новые'],
+                  if (Near.i.has) ['new', 'Сначала новые'],
+                  ['hi', 'Сначала с высокой оплатой'],
+                  ['lo', 'Сначала с низкой оплатой'],
+                ], (v) => _sort = v),
                 const SizedBox(height: 4),
                 Row(children: [
                   Expanded(
@@ -255,9 +279,17 @@ class _FeedPageState extends State<FeedPage> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: S.i,
+      listenable: Listenable.merge([S.i, Near.i]),
       builder: (context, _) {
         final p = pal(context);
+        // как только открыта вкладка «Поиск» — определяем место (один раз за запуск)
+        if (S.i.tab == 1 && !_auto) {
+          _auto = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            await Near.i.auto();
+            Near.i.fill(S.i.ads);
+          });
+        }
         final pend = S.i.pendingSearch;
         if (pend != null) {
           S.i.pendingSearch = null;
@@ -290,6 +322,53 @@ class _FeedPageState extends State<FeedPage> {
         );
       },
     );
+  }
+
+  // кнопка «Рядом со мной»: определить место и показать ближайшие объявления
+  Future<void> _locate() async {
+    haptic();
+    final r = await Near.i.locate();
+    if (!mounted) return;
+    switch (r) {
+      case NearResult.ok:
+        setState(() => _sort = '');
+        Near.i.fill(S.i.ads);
+        toast(context, 'Показываем ближайшие объявления');
+        break;
+      case NearResult.off:
+        _askSettings('Включите геолокацию на телефоне, чтобы видеть объявления рядом с вами.', false);
+        break;
+      case NearResult.forever:
+        _askSettings('Доступ к геолокации выключен. Разрешите его в настройках приложения.', true);
+        break;
+      case NearResult.denied:
+        toast(context, 'Разрешите доступ к геолокации, чтобы видеть ближайшие объявления');
+        break;
+      case NearResult.fail:
+        toast(context, nearMsg(r), err: true);
+        break;
+    }
+  }
+
+  Future<void> _askSettings(String text, bool app) async {
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Геолокация выключена'),
+        content: Text(text),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Не сейчас')),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Открыть настройки')),
+        ],
+      ),
+    );
+    if (go == true) {
+      if (app) {
+        await Geolocator.openAppSettings();
+      } else {
+        await Geolocator.openLocationSettings();
+      }
+    }
   }
 
   Widget _rows(BuildContext context, List<Ad> list) => SliverList(
@@ -493,6 +572,7 @@ class _FeedPageState extends State<FeedPage> {
         ],
       if (_sort == 'hi') ['Сначала дороже', () => setState(() => _sort = '')],
       if (_sort == 'lo') ['Сначала дешевле', () => setState(() => _sort = '')],
+      if (Near.i.has && _rad.isNotEmpty) ['до $_rad км', () => setState(() => _rad = '')],
     ];
     OutlineInputBorder none = const OutlineInputBorder(borderSide: BorderSide.none);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -575,6 +655,20 @@ class _FeedPageState extends State<FeedPage> {
                     child: Icon(Icons.cancel_rounded, size: 20, color: p.mu.withOpacity(.7)),
                   ),
                 ),
+              Tap(
+                onTap: _locate,
+                scale: .9,
+                child: SizedBox(
+                  width: 40,
+                  height: 44,
+                  child: Center(
+                    child: Near.i.busy
+                        ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: p.ac))
+                        : Icon(Near.i.has ? Icons.my_location_rounded : Icons.location_searching_rounded,
+                            size: 22, color: Near.i.has ? p.ac : p.mu),
+                  ),
+                ),
+              ),
               Tap(
                 onTap: _openFilters,
                 scale: .92,

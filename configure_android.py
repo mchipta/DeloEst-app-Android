@@ -1,7 +1,7 @@
 """Настройка сгенерированного Android-проекта (запускается из папки shell).
 
 Что делает:
-  1. добавляет разрешения INTERNET, RECORD_AUDIO, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED, WAKE_LOCK, VIBRATE и запросы для звонков/ссылок;
+  1. добавляет разрешения INTERNET, ACCESS_COARSE/FINE_LOCATION (геолокация «рядом»), RECORD_AUDIO, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED, WAKE_LOCK, VIBRATE и запросы для звонков/ссылок;
   2. ставит название приложения «ДелоЕсть»;
   3. создаёт алиас значка (оранжевый) и векторную иконку уведомлений ic_stat_deloest (галочка ДелоЕсть + цветная крупная иконка приложения);
   4. подключает Firebase Cloud Messaging (сервис DeloEstFcmService): пуши приходят от сервера даже когда приложение полностью закрыто;
@@ -37,6 +37,8 @@ perm = (
     '<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>\n'
     '<uses-permission android:name="android.permission.WAKE_LOCK"/>\n'
     '<uses-permission android:name="android.permission.VIBRATE"/>\n'
+    '<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n'
+    '<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n'
     '    <queries>\n'
     '        <intent><action android:name="android.intent.action.DIAL"/><data android:scheme="tel"/></intent>\n'
     '        <intent><action android:name="android.intent.action.SENDTO"/><data android:scheme="mailto"/></intent>\n'

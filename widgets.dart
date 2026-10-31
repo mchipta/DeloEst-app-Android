@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'cities.dart';
 import 'icons.dart';
 import 'models.dart';
+import 'near.dart';
 import 'state.dart';
 import 'theme.dart';
 import 'util.dart';
@@ -743,6 +744,8 @@ class AdCard extends StatelessWidget {
                       child: Text(adLoc(ad).isEmpty ? 'Город не указан' : adLoc(ad),
                           style: TextStyle(fontSize: 12, color: p.mu), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
+                    if (Near.i.dist(ad) != null)
+                      Text(' · ${Near.i.dist(ad)!.label}', style: TextStyle(fontSize: 12, color: p.ac, fontWeight: FontWeight.w700)),
                     Text(' · ${siteShortAgo(ad.ts, S.i.timeZone)}', style: TextStyle(fontSize: 12, color: p.mu)),
                   ]),
                 ]),
@@ -788,6 +791,22 @@ class AdCard extends StatelessWidget {
 
   String _shortDate() => siteShortAgo(ad.ts, S.i.timeZone);
 
+  // «Город, адрес · 800 м · 3 ч назад» (расстояние — акцентом)
+  Widget _locLine(Pal p, double size) {
+    final d = Near.i.dist(ad);
+    final loc = adLoc(ad).isEmpty ? 'Город не указан' : adLoc(ad);
+    return Text.rich(
+      TextSpan(children: [
+        TextSpan(text: loc),
+        if (d != null) TextSpan(text: ' · ${d.label}', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700)),
+        TextSpan(text: ' · ${_shortDate()}'),
+      ]),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(fontSize: size, color: p.mu),
+    );
+  }
+
   // Плитка: крупное фото сверху, под ним цена, заголовок и город
   Widget _tile(BuildContext context, Pal p) {
     return Appear(
@@ -831,8 +850,7 @@ class AdCard extends StatelessWidget {
                 Text(ad.title, maxLines: 2, overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, height: 1.2, color: p.tx)),
                 const SizedBox(height: 4),
-                Text('${adLoc(ad).isEmpty ? 'Город не указан' : adLoc(ad)} · ${_shortDate()}',
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: p.mu)),
+                _locLine(p, 11.5),
               ]),
             ),
           ]),
@@ -866,8 +884,7 @@ class AdCard extends StatelessWidget {
                   Container(width: 7, height: 7, decoration: BoxDecoration(color: need ? p.ac : p.ok, shape: BoxShape.circle)),
                   const SizedBox(width: 5),
                   Expanded(
-                    child: Text('${adLoc(ad).isEmpty ? 'Город не указан' : adLoc(ad)} · ${_shortDate()}',
-                        maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: p.mu)),
+                    child: _locLine(p, 11.5),
                   ),
                 ]),
               ]),

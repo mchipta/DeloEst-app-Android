@@ -8,6 +8,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'ad_page.dart';
 import 'models.dart';
+import 'near.dart';
 import 'state.dart';
 import 'theme.dart';
 import 'util.dart';
@@ -113,6 +114,13 @@ class Geo {
     } catch (_) {}
   }
 
+  /// Центр города из кэша (без сети), если уже известен
+  static LatLng? cityCached(String c) {
+    _load();
+    final v = _city[_key(c)];
+    return v == null ? null : LatLng(v[0], v[1]);
+  }
+
   static bool hasCity(String c) {
     _load();
     return _city.containsKey(_key(c));
@@ -175,6 +183,15 @@ Widget _attribution() => RichAttributionWidget(
       ],
     );
 
+Widget _meDot() => Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF2F80ED),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 3),
+        boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 6)],
+      ),
+    );
+
 Widget _pin(Color c, {double size = 40}) => Icon(Icons.location_on_rounded, size: size, color: c, shadows: const [Shadow(blurRadius: 5, color: Colors.black45, offset: Offset(0, 1))]);
 
 class _Pt {
@@ -199,10 +216,37 @@ class _MapPageState extends State<MapPage> {
   bool _ready = false;
   bool _busy = false;
   bool _dead = false;
+  LatLng? _lp;
+
+  void _onNear() {
+    if (!mounted) return;
+    setState(() {});
+    final p = Near.i.pos;
+    if (!identical(p, _lp)) {
+      _lp = p;
+      _fit();
+    }
+  }
+
+  Future<void> _me() async {
+    haptic();
+    final r = await Near.i.locate();
+    if (!mounted) return;
+    final me = Near.i.pos;
+    if (r == NearResult.ok && me != null) {
+      try {
+        _mc.move(me, 14);
+      } catch (_) {}
+    } else if (r != NearResult.ok) {
+      toast(context, nearMsg(r), err: true);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _lp = Near.i.pos;
+    Near.i.addListener(_onNear);
     for (final a in widget.ads) {
       final p = adPoint(a);
       if (p != null) _pts.add(_Pt(a, p, false));
@@ -213,6 +257,7 @@ class _MapPageState extends State<MapPage> {
   @override
   void dispose() {
     _dead = true;
+    Near.i.removeListener(_onNear);
     super.dispose();
   }
 
@@ -239,12 +284,21 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _fit() {
-    if (!_ready || _pts.isEmpty) return;
+    if (!_ready) return;
+    final me = Near.i.pos;
+    var pts = [for (final t in _pts) t.p];
+    if (me != null) {
+      // с местом: показываем объявления в радиусе 30 км и себя
+      final nr = pts.where((q) => kmBetween(me, q) <= 30).toList();
+      if (nr.isNotEmpty) pts = nr;
+      pts = [...pts, me];
+    }
+    if (pts.isEmpty) return;
     try {
-      if (_pts.length == 1) {
-        _mc.move(_pts.first.p, 14);
+      if (pts.length == 1) {
+        _mc.move(pts.first, _pts.isEmpty ? 12 : 14);
       } else {
-        _mc.fitCamera(CameraFit.bounds(bounds: LatLngBounds.fromPoints([for (final t in _pts) t.p]), padding: const EdgeInsets.all(56), maxZoom: 14));
+        _mc.fitCamera(CameraFit.bounds(bounds: LatLngBounds.fromPoints(pts), padding: const EdgeInsets.all(56), maxZoom: 14));
       }
     } catch (_) {}
   }
@@ -266,8 +320,8 @@ class _MapPageState extends State<MapPage> {
         FlutterMap(
           mapController: _mc,
           options: MapOptions(
-            initialCenter: _pts.isNotEmpty ? _pts.first.p : _moscow,
-            initialZoom: _pts.isNotEmpty ? 11 : 4,
+            initialCenter: _pts.isNotEmpty ? _pts.first.p : (Near.i.pos ?? _moscow),
+            initialZoom: _pts.isNotEmpty ? 11 : (Near.i.has ? 11 : 4),
             minZoom: 3,
             interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
             onMapReady: () {
@@ -278,6 +332,18 @@ class _MapPageState extends State<MapPage> {
           ),
           children: [
             _tiles(dark),
+            if (Near.i.pos != null && Near.i.acc > 30)
+              CircleLayer(circles: [
+                CircleMarker(
+                  point: Near.i.pos!,
+                  radius: Near.i.acc > 2000 ? 2000.0 : Near.i.acc,
+                  useRadiusInMeter: true,
+                  color: const Color(0xFF2F80ED).withOpacity(.10),
+                  borderColor: const Color(0xFF2F80ED).withOpacity(.35),
+                  borderStrokeWidth: 1,
+                ),
+              ]),
+            if (Near.i.pos != null) MarkerLayer(markers: [Marker(point: Near.i.pos!, width: 24, height: 24, child: _meDot())]),
             MarkerLayer(markers: [
               for (final t in _pts)
                 Marker(
@@ -308,6 +374,27 @@ class _MapPageState extends State<MapPage> {
                   ? 'Нет объявлений'
                   : 'На карте: ${_pts.length} из ${widget.ads.length}${_busy ? ' · ищем города…' : ''}',
               style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 13),
+            ),
+          ),
+        ),
+        Positioned(
+          right: 12,
+          bottom: _sel != null ? 132 : 46,
+          child: Tap(
+            onTap: _me,
+            scale: .92,
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: p.card,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: p.bd),
+                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 3))],
+              ),
+              child: Near.i.busy
+                  ? Padding(padding: const EdgeInsets.all(13), child: CircularProgressIndicator(strokeWidth: 2.2, color: p.ac))
+                  : Icon(Near.i.has ? Icons.my_location_rounded : Icons.location_searching_rounded, color: p.ac),
             ),
           ),
         ),
@@ -460,7 +547,7 @@ class AdMiniMap extends StatelessWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(loc.isEmpty ? 'Место на карте' : loc, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.tx)),
                 const SizedBox(height: 2),
-                Text('Показать на карте', style: TextStyle(fontSize: 12.5, color: p.mu)),
+                Text('Показать на карте${Near.i.dist(ad) == null ? '' : ' · ${Near.i.dist(ad)!.label} от вас'}', style: TextStyle(fontSize: 12.5, color: p.mu)),
               ]),
             ),
             Icon(Icons.chevron_right_rounded, color: p.mu),
@@ -510,6 +597,9 @@ class _AdLocationPageState extends State<AdLocationPage> {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final pt = _pt;
     final loc = adLoc(a);
+    final me = Near.i.pos;
+    final d = Near.i.dist(a);
+    final both = me != null && pt != null && !_approx && kmBetween(me, pt) <= 50;
     return Scaffold(
       backgroundColor: p.bg,
       appBar: AppBar(
@@ -524,11 +614,13 @@ class _AdLocationPageState extends State<AdLocationPage> {
             options: MapOptions(
               initialCenter: pt,
               initialZoom: _approx ? 11 : 16,
+              initialCameraFit: both ? CameraFit.bounds(bounds: LatLngBounds.fromPoints([pt, me!]), padding: const EdgeInsets.all(70), maxZoom: 16) : null,
               minZoom: 3,
               interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
             ),
             children: [
               _tiles(dark),
+              if (both) MarkerLayer(markers: [Marker(point: me!, width: 24, height: 24, child: _meDot())]),
               MarkerLayer(markers: [
                 Marker(point: pt, width: 48, height: 48, alignment: Alignment.topCenter, child: _pin((a.type == kTypes[1] ? p.ac2 : p.ac).withOpacity(_approx ? .7 : 1), size: 44)),
               ]),
@@ -562,6 +654,10 @@ class _AdLocationPageState extends State<AdLocationPage> {
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(loc.isEmpty ? 'Место на карте' : loc, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.tx)),
+                    if (d != null) ...[
+                      const SizedBox(height: 2),
+                      Text('${d.label} от вас', style: TextStyle(fontSize: 13, color: p.ac, fontWeight: FontWeight.w700)),
+                    ],
                     if (_approx) ...[
                       const SizedBox(height: 2),
                       Text('Точный адрес не указан — метка в центре города', style: TextStyle(fontSize: 12.5, color: p.mu)),
