@@ -194,7 +194,7 @@ class _CabinetPageState extends State<CabinetPage> {
                 onRefresh: _load,
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, 96 + navPad(context)),
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 120 + navPad(context)),
                   children: [
                     ..._alerts(p),
                     Appear(child: _chips(p)),
@@ -211,8 +211,9 @@ class _CabinetPageState extends State<CabinetPage> {
               Positioned(
                 left: 16,
                 right: 16,
-                bottom: navPad(context) + 2,
-                child: GradBtn('Разместить объявление', icon: Icons.add_rounded, onTap: () { haptic(); S.i.goTab(2); }),
+                bottom: navPad(context) + 16,
+                // отдельный слой: кнопка закреплена и не перерисовывается при смене вкладок списка
+                child: RepaintBoundary(child: GradBtn('Разместить объявление', icon: Icons.add_rounded, radius: 18, onTap: () { haptic(); S.i.goTab(2); })),
               ),
             ]),
     );

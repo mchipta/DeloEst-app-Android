@@ -115,7 +115,7 @@ class _Tabs extends StatelessWidget {
                   widthFactor: 1 / n,
                   heightFactor: 1,
                   child: Padding(
-                    padding: const EdgeInsets.all(5),
+                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 5),
                     child: DecoratedBox(
                       decoration: BoxDecoration(color: p.ac.withOpacity(.16), borderRadius: BorderRadius.circular(28)),
                     ),
@@ -171,9 +171,9 @@ class _Tabs extends StatelessWidget {
                         const SizedBox(height: 2),
                         AnimatedDefaultTextStyle(
                           duration: const Duration(milliseconds: 180),
-                          style: TextStyle(fontSize: 10.5, fontWeight: on(it[0] as int) ? FontWeight.w800 : FontWeight.w600, color: on(it[0] as int) ? p.ac : idle),
+                          style: TextStyle(fontSize: 10, fontWeight: on(it[0] as int) ? FontWeight.w700 : FontWeight.w600, color: on(it[0] as int) ? p.ac : idle),
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
                             child: FittedBox(fit: BoxFit.scaleDown, child: Text(it[3] as String, maxLines: 1)),
                           ),
                         ),
