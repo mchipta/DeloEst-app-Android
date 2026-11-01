@@ -137,15 +137,10 @@ class _LandingPageState extends State<LandingPage> {
                   _sectionTitle(p, 'Работа на любой вкус', 'Выберите направление и смотрите свежие объявления.'),
                   _categories(p),
                   if (!S.i.logged) ...[
-                    _sectionTitle(p, 'Как это работает', 'Три простых шага — и дело найдено.'),
-                    _how(p),
+                    _noFee(p),
                     _business(p),
                   ],
-                  if (!S.i.logged) ...[
-                    _sectionTitle(p, 'Частые вопросы', 'Коротко о самом важном.'),
-                    _faq(p, faq),
-                  ],
-                  _footer(p),
+                  _footerMini(p),
                 ],
               ),
             ),
@@ -450,7 +445,7 @@ class _LandingPageState extends State<LandingPage> {
 
   Widget _how(Pal p) {
     const steps = [
-      ['Создайте аккаунт', 'Регистрация занимает минуту: логин, имя и телефон.', Icons.person_outline_rounded],
+      ['Создайте аккаунт', 'Регистрация занимает минуту: почта, пароль и телефон.', Icons.person_outline_rounded],
       ['Найдите или разместите', 'Откликайтесь на объявления или публикуйте своё.', Icons.search_rounded],
       ['Договоритесь напрямую', 'Обсудите оплату и сроки. Мы не берём комиссию.', Icons.chat_bubble_outline_rounded],
     ];
@@ -554,6 +549,36 @@ class _LandingPageState extends State<LandingPage> {
         ]),
       );
 
+  // вместо большого подвала: в приложении разделы и контакты уже есть в настройках, оставляем только документы
+  Widget _footerMini(Pal p) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+        child: Column(children: [
+          Wrap(alignment: WrapAlignment.center, spacing: 8, runSpacing: 8, children: [
+            _footerLink('Пользовательское соглашение', () => openLegal(context, 'offer'), p),
+            _footerLink('Политика конфиденциальности', () => openLegal(context, 'privacy'), p),
+            _footerLink('Согласие на обработку данных', () => openLegal(context, 'consent'), p),
+          ]),
+          const SizedBox(height: 10),
+          Text('© ДелоЕсть', style: TextStyle(color: p.mu, fontSize: 12)),
+        ]),
+      );
+
+  Widget _noFee(Pal p) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: cardDeco(p),
+          child: Row(children: [
+            Icon(Icons.verified_user_outlined, color: p.ac, size: 26),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text('Без комиссии: договаривайтесь напрямую. Регистрация — почта, пароль и телефон.',
+                  style: TextStyle(color: p.tx, fontWeight: FontWeight.w600, height: 1.35)),
+            ),
+          ]),
+        ),
+      );
+
   Widget _footer(Pal p) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -573,7 +598,7 @@ class _LandingPageState extends State<LandingPage> {
             _footerLink('Все объявления', () => S.i.goTab(1), p),
             _footerLink('Для бизнеса', () => _openInfo(section: 2, title: 'Для бизнеса'), p),
             _footerLink('О нас', () => _openInfo(section: 0, title: 'О нас'), p),
-            _footerLink('Личный кабинет', () => S.i.goTab(3), p),
+            _footerLink('Профиль', () => S.i.goTab(3), p),
             _footerLink('Частые вопросы', () => _openInfo(section: 1, title: 'Частые вопросы'), p),
           ]),
           const SizedBox(height: 12),

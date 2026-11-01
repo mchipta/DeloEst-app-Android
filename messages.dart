@@ -44,6 +44,7 @@ class _MessagesPageState extends State<MessagesPage> {
   List<Map<String, dynamic>> list = [];
   bool loading = false;
   bool loaded = false;
+  bool _onlyUnread = false; // фильтр «Непрочитанные»
   String? err;
   int _tick = -1;
   Timer? _t;
@@ -138,13 +139,35 @@ class _MessagesPageState extends State<MessagesPage> {
                         Skeleton(child: Column(children: List.generate(6, (_) => const DialogSkeleton()))),
                       if (err != null && !loaded)
                         Padding(padding: const EdgeInsets.all(24), child: Text(err!, textAlign: TextAlign.center, style: TextStyle(color: p.mu))),
+                      if (loaded && list.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Row(children: [
+                            _filterChip(p, 'Все', !_onlyUnread, () => setState(() => _onlyUnread = false)),
+                            const SizedBox(width: 8),
+                            _filterChip(p, 'Непрочитанные', _onlyUnread, () => setState(() => _onlyUnread = true)),
+                          ]),
+                        ),
                       if (loaded && list.isEmpty)
                         Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Text('Диалогов пока нет.\nОткройте объявление и нажмите «Написать».',
-                              textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 15)),
+                          padding: const EdgeInsets.fromLTRB(32, 56, 32, 24),
+                          child: Column(children: [
+                            Icon(Icons.chat_bubble_outline_rounded, size: 52, color: p.mu),
+                            const SizedBox(height: 12),
+                            Text('Диалогов пока нет', textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: p.tx)),
+                            const SizedBox(height: 6),
+                            Text('Откройте объявление и нажмите «Написать» — переписка появится здесь.',
+                                textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 14.5, height: 1.35)),
+                            const SizedBox(height: 16),
+                            SizedBox(width: 220, child: GradBtn('Найти объявление', onTap: () => S.i.goTab(1))),
+                          ]),
                         ),
-                      for (final d in list) _dismiss(p, d),
+                      if (loaded && list.isNotEmpty && _onlyUnread && !list.any((d) => _n(d['n']) > 0))
+                        Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Text('Непрочитанных сообщений нет', textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 15)),
+                        ),
+                      for (final d in list.where((d) => !_onlyUnread || _n(d['n']) > 0)) _dismiss(p, d),
                     ],
                   ),
                 ),
@@ -152,6 +175,20 @@ class _MessagesPageState extends State<MessagesPage> {
       },
     );
   }
+
+  Widget _filterChip(Pal p, String label, bool on, VoidCallback f) => Tap(
+        onTap: () {
+          haptic();
+          f();
+        },
+        scale: .96,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(color: on ? p.tx : p.bg2, borderRadius: BorderRadius.circular(14)),
+          child: Text(label, style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: on ? p.bg : p.tx)),
+        ),
+      );
 
   // Свайп влево удаляет переписку (только у вас)
   Widget _dismiss(Pal p, Map<String, dynamic> d) {
@@ -259,11 +296,11 @@ class _MessagesPageState extends State<MessagesPage> {
         S.i.refreshUnread();
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
         decoration: cardDeco(p, r: 16),
         child: Row(children: [
-          Avatar((d['name'] ?? '').toString(), data: (d['avatar'] ?? '').toString(), size: 50),
+          Avatar((d['name'] ?? '').toString(), data: (d['avatar'] ?? '').toString(), size: 46),
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

@@ -329,45 +329,25 @@ class _CabinetPageState extends State<CabinetPage> {
           ),
         ]),
         const SizedBox(height: 16),
-        Row(children: [
-          Expanded(
-            child: Tap(
-              onTap: openProfile,
-              scale: .97,
-              child: Container(
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [BoxShadow(color: p.ac.withOpacity(.30), blurRadius: 12, offset: const Offset(0, 4))],
-                ),
-                child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.person_outline_rounded, size: 18, color: Colors.white),
-                  SizedBox(width: 6),
-                  Text('Мой профиль', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13.5)),
-                ]),
-              ),
+        // «Выйти» перенесено вниз настроек; здесь только просмотр публичного профиля
+        Tap(
+          onTap: openProfile,
+          scale: .98,
+          child: Container(
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [BoxShadow(color: p.ac.withOpacity(.30), blurRadius: 12, offset: const Offset(0, 4))],
             ),
+            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.person_outline_rounded, size: 18, color: Colors.white),
+              SizedBox(width: 6),
+              Text('Как меня видят другие', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13.5)),
+            ]),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () { haptic(); confirmLogout(context); },
-              icon: const Icon(Icons.logout_rounded, size: 17),
-              label: const Text('Выйти'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: p.tx,
-                backgroundColor: p.bg2,
-                side: BorderSide(color: p.bd, width: 1),
-                minimumSize: const Size(0, 44),
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
-              ),
-            ),
-          ),
-        ]),
+        ),
         if (S.i.user?['admin'] == true) ...[
           const SizedBox(height: 8),
           OutlinedButton.icon(

@@ -252,7 +252,7 @@ class _AdPageState extends State<AdPage> {
                           Container(
                             padding: const EdgeInsets.all(14),
                             decoration: cardDeco(p),
-                            child: Text('Это ваше объявление. Управлять им и откликами можно в кабинете.',
+                            child: Text('Это ваше объявление. Управлять им и откликами можно в разделе «Объявления».',
                                 style: TextStyle(color: p.mu)),
                           )
                         else if (ad.status == 'closed')

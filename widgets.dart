@@ -730,13 +730,14 @@ class AdCard extends StatelessWidget {
                     ],
                   ]),
                   const SizedBox(height: 6),
+                  // сначала оплата — по ней человек решает, читать ли дальше
+                  PriceTag(ad.pay, size: 19, plain: true),
+                  const SizedBox(height: 3),
                   Text(ad.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, height: 1.18, color: p.tx)),
-                  const SizedBox(height: 4),
-                  PriceTag(ad.pay, size: 17, plain: true),
-                  const SizedBox(height: 4),
+                      style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, height: 1.2, color: p.tx)),
+                  const SizedBox(height: 5),
                   Row(children: [
                     Ico('pin', size: 14, color: p.mu),
                     const SizedBox(width: 4),
