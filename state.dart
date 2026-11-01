@@ -546,7 +546,7 @@ class S extends ChangeNotifier {
   void goTab(int t) {
     if (tab != t) vibrate();
     tab = t;
-    if (t == 3) cabTick++;
+    if (t == 3 || t == 6) cabTick++;
     if (t == 4) msgTick++;
     notifyListeners();
   }

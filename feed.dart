@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart' show Geolocator;
 import 'ad_page.dart';
 import 'auth.dart';
-import 'favorites.dart';
 import 'map_page.dart';
 import 'near.dart';
 import 'models.dart';
@@ -173,107 +172,135 @@ class _FeedPageState extends State<FeedPage> {
     });
   }
 
+  Widget _fChip(Pal p, String label, bool on, VoidCallback f) => Tap(
+        onTap: f,
+        scale: .96,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          decoration: BoxDecoration(
+            color: on ? p.tx : p.bg2,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Text(label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: on ? p.bg : p.tx)),
+        ),
+      );
+
+  // Фильтры открываются отдельным экраном, как в Авито: категория, тип, где искать, оплата, сортировка
   Future<void> _openFilters() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: pal(context).card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    FocusScope.of(context).unfocus();
+    await Navigator.of(context).push<void>(MaterialPageRoute(
+      fullscreenDialog: true,
       builder: (c) => StatefulBuilder(
         builder: (c, setS) {
           final p = pal(c);
-          Widget dd(String label, String value, List<List<String>> items, void Function(String) f) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: PickerField(
-                label: label,
-                value: value,
-                items: [for (final it in items) PickItem(it[0], it[1])],
-                onChanged: (v) {
-                  f(v);
-                  setS(() {});
-                  setState(() {});
-                },
-              ),
-            );
+          void upd(VoidCallback f) {
+            setState(f);
+            setS(() {});
           }
 
-          return Padding(
-            padding: EdgeInsets.fromLTRB(16, 18, 16, 16 + MediaQuery.of(c).viewInsets.bottom),
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Фильтры', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: p.tx)),
-                const SizedBox(height: 14),
-                dd('Тип', _type, [['', 'Все типы'], [kTypes[0], kTypes[0]], [kTypes[1], kTypes[1]]], (v) => _type = v),
-                dd('Категория', _cat, [['', 'Все категории'], for (final k in kCats) [k.name, k.name]], (v) => _cat = v),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: CityField(
+          Widget title(String t) => Padding(
+                padding: const EdgeInsets.only(top: 26, bottom: 12),
+                child: Text(t, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: p.tx)),
+              );
+
+          final sortItems = <List<String>>[
+            if (Near.i.has) ['', 'Сначала ближайшие'] else ['', 'Сначала новые'],
+            if (Near.i.has) ['new', 'Сначала новые'],
+            ['hi', 'Сначала с высокой оплатой'],
+            ['lo', 'Сначала с низкой оплатой'],
+          ];
+          final curSort = (_sort == 'new' && !Near.i.has) ? '' : _sort;
+          final n = _filtered().length;
+          return Scaffold(
+            appBar: AppBar(
+              leading: IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.pop(c)),
+              title: const Text('Фильтры'),
+              centerTitle: true,
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    haptic();
+                    upd(() {
+                      _resetFilters();
+                      _cat = '';
+                    });
+                  },
+                  child: Text('Сбросить', style: TextStyle(color: p.mu, fontWeight: FontWeight.w700, fontSize: 15)),
+                ),
+              ],
+            ),
+            body: Stack(children: [
+              SingleChildScrollView(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 110 + MediaQuery.of(c).viewInsets.bottom),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Все категории', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: p.tx)),
+                  const SizedBox(height: 12),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    for (final k in kCats) _fChip(p, k.name, _cat == k.name, () => upd(() => _cat = _cat == k.name ? '' : k.name)),
+                  ]),
+                  title('Что нужно'),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    _fChip(p, 'Любое', _type.isEmpty, () => upd(() => _type = '')),
+                    for (final t in kTypes) _fChip(p, t, _type == t, () => upd(() => _type = _type == t ? '' : t)),
+                  ]),
+                  title('Где искать'),
+                  CityField(
                     controller: _cityC,
                     decoration: deco(c, 'Город'),
-                    onChanged: (v) {
-                      setState(() => _city = v);
-                      setS(() {});
-                    },
+                    onChanged: (v) => upd(() => _city = v),
                   ),
-                ),
-                if (Near.i.has)
-                  dd('Радиус', _rad, [['', 'Любое расстояние'], for (final k in const [3, 5, 10, 25, 50]) ['$k', 'до $k км']], (v) => _rad = v),
-                Row(children: [
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 12, right: 6),
-                      child: TextField(contextMenuBuilder: appContextMenu, 
+                  if (Near.i.has) ...[
+                    const SizedBox(height: 12),
+                    Wrap(spacing: 8, runSpacing: 8, children: [
+                      _fChip(p, 'Любое расстояние', _rad.isEmpty, () => upd(() => _rad = '')),
+                      for (final k in const [3, 5, 10, 25, 50]) _fChip(p, 'до $k км', _rad == '$k', () => upd(() => _rad = _rad == '$k' ? '' : '$k')),
+                    ]),
+                  ],
+                  title('Оплата'),
+                  Row(children: [
+                    Expanded(
+                      child: TextField(
+                        contextMenuBuilder: appContextMenu,
                         controller: _minC,
                         keyboardType: TextInputType.number,
                         style: TextStyle(color: p.tx),
-                        decoration: deco(c, 'Оплата от, ₽'),
-                        onChanged: (v) {
-                          setState(() => _min = digitsOnly(v));
-                          setS(() {});
-                        },
+                        decoration: deco(c, 'от, ₽'),
+                        onChanged: (v) => upd(() => _min = digitsOnly(v)),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 12, left: 6),
-                      child: TextField(contextMenuBuilder: appContextMenu, 
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        contextMenuBuilder: appContextMenu,
                         controller: _maxC,
                         keyboardType: TextInputType.number,
                         style: TextStyle(color: p.tx),
                         decoration: deco(c, 'до, ₽'),
-                        onChanged: (v) {
-                          setState(() => _max = digitsOnly(v));
-                          setS(() {});
-                        },
+                        onChanged: (v) => upd(() => _max = digitsOnly(v)),
                       ),
                     ),
-                  ),
+                  ]),
+                  title('Сортировка'),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    for (final it in sortItems) _fChip(p, it[1], curSort == it[0], () => upd(() => _sort = it[0])),
+                  ]),
                 ]),
-                dd('Сортировка', (_sort == 'new' && !Near.i.has) ? '' : _sort, [
-                  if (Near.i.has) ['', 'Сначала ближайшие'] else ['', 'Сначала новые'],
-                  if (Near.i.has) ['new', 'Сначала новые'],
-                  ['hi', 'Сначала с высокой оплатой'],
-                  ['lo', 'Сначала с низкой оплатой'],
-                ], (v) => _sort = v),
-                const SizedBox(height: 4),
-                Row(children: [
-                  Expanded(
-                    child: OutBtn('Сбросить', onTap: () {
-                      _resetFilters();
-                      setS(() {});
-                    }),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(flex: 2, child: GradBtn('Показать (${_filtered().length})', onTap: () => Navigator.pop(c))),
-                ]),
-              ]),
-            ),
+              ),
+              // кнопка прижата к низу, как «Показать больше 1 тыс. объявлений» в Авито
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 12 + MediaQuery.of(c).viewPadding.bottom,
+                child: GradBtn(n == 0 ? 'Ничего не найдено' : 'Показать $n ${plural(n, 'объявление', 'объявления', 'объявлений')}', radius: 18, onTap: () => Navigator.pop(c)),
+              ),
+            ]),
           );
         },
       ),
-    );
+    ));
+    if (mounted) setState(() {});
   }
 
   @override
@@ -577,134 +604,105 @@ class _FeedPageState extends State<FeedPage> {
     OutlineInputBorder none = const OutlineInputBorder(borderSide: BorderSide.none);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // как в Авито: вытянутая капсула поиска и отдельная кнопка фильтров справа
           Row(children: [
-          const Logo(),
-          const SizedBox(width: 10),
-          Text('Дело', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: p.tx)),
-          const GradText('Есть', size: 22),
-          const Spacer(),
-          IconButton(
-            tooltip: 'Избранное',
-            icon: Stack(clipBehavior: Clip.none, children: [
-              Icon(Icons.favorite_border_rounded, color: p.ac),
-              if (S.i.logged && S.i.fav.isNotEmpty)
-                Positioned(right: -7, top: -6, child: Container(
-                  constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(gradient: LinearGradient(colors: [p.ac, p.ac2]), borderRadius: BorderRadius.circular(99)),
-                  child: Text(S.i.fav.length > 99 ? '99+' : '${S.i.fav.length}',
-                    style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
-                )),
-            ]),
-            onPressed: () {
-              haptic();
-              if (!S.i.logged) {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
-              } else {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const FavoritesPage()));
-              }
-            },
-          ),
-        ]),
-          const SizedBox(height: 12),
-          // поиск и фильтры в одной «капсуле»
-          Container(
-            height: 58,
-            decoration: BoxDecoration(
-              color: p.card,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: p.bd),
-              boxShadow: [BoxShadow(color: p.ac.withOpacity(.07), blurRadius: 16, offset: const Offset(0, 5))],
-            ),
-            child: Row(children: [
-              const SizedBox(width: 14),
-              Icon(Icons.search_rounded, color: p.mu),
-              Expanded(
-                child: TextField(contextMenuBuilder: appContextMenu, 
-                  controller: _q,
-                  focusNode: _qFocus,
-                  onChanged: (_) => setState(() {}),
-                  textInputAction: TextInputAction.search,
-                  onSubmitted: (_) => FocusScope.of(context).unfocus(),
-                  style: TextStyle(color: p.tx, fontSize: 15.5),
-                  decoration: InputDecoration(
-                    hintText: 'Грузчик, уборка, ремонт…',
-                    hintStyle: TextStyle(color: p.mu.withOpacity(.75)),
-                    filled: false,
-                    isDense: true,
-                    border: none,
-                    enabledBorder: none,
-                    focusedBorder: none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-                  ),
+            Expanded(
+              child: Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  color: p.card,
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(color: _qFocus.hasFocus ? p.ac : p.bd, width: _qFocus.hasFocus ? 1.6 : 1),
                 ),
-              ),
-              if (_q.text.isNotEmpty)
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    haptic();
-                    _q.clear();
-                    setState(() {});
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Icon(Icons.cancel_rounded, size: 20, color: p.mu.withOpacity(.7)),
-                  ),
-                ),
-              Tap(
-                onTap: _locate,
-                scale: .9,
-                child: SizedBox(
-                  width: 40,
-                  height: 44,
-                  child: Center(
-                    child: Near.i.busy
-                        ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: p.ac))
-                        : Icon(Near.i.has ? Icons.my_location_rounded : Icons.location_searching_rounded,
-                            size: 22, color: Near.i.has ? p.ac : p.mu),
-                  ),
-                ),
-              ),
-              Tap(
-                onTap: _openFilters,
-                scale: .92,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 4, right: 7),
-                  child: SizedBox(
-                    width: 44,
-                    height: 44,
-                    child: Stack(clipBehavior: Clip.none, children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: const Icon(Icons.tune_rounded, size: 22, color: Colors.white),
+                child: Row(children: [
+                  const SizedBox(width: 16),
+                  Icon(Icons.search_rounded, color: p.tx, size: 24),
+                  Expanded(
+                    child: TextField(contextMenuBuilder: appContextMenu,
+                      controller: _q,
+                      focusNode: _qFocus,
+                      onChanged: (_) => setState(() {}),
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (_) => FocusScope.of(context).unfocus(),
+                      style: TextStyle(color: p.tx, fontSize: 16),
+                      decoration: InputDecoration(
+                        hintText: 'Найти подработку или услугу',
+                        hintStyle: TextStyle(color: p.mu.withOpacity(.85)),
+                        filled: false,
+                        isDense: true,
+                        border: none,
+                        enabledBorder: none,
+                        focusedBorder: none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
                       ),
-                      if (af > 0)
-                        Positioned(
-                          right: -6,
-                          top: -6,
-                          child: Container(
-                            constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                            alignment: Alignment.center,
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(color: p.tx, borderRadius: BorderRadius.circular(99), border: Border.all(color: p.card, width: 2)),
-                            child: Text('$af', style: TextStyle(color: p.bg, fontSize: 11, height: 1.1, fontWeight: FontWeight.w800)),
-                          ),
-                        ),
-                    ]),
+                    ),
                   ),
-                ),
+                  if (_q.text.isNotEmpty)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        haptic();
+                        _q.clear();
+                        setState(() {});
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: Icon(Icons.cancel_rounded, size: 20, color: p.mu.withOpacity(.7)),
+                      ),
+                    ),
+                  Tap(
+                    onTap: _locate,
+                    scale: .9,
+                    child: SizedBox(
+                      width: 44,
+                      height: 48,
+                      child: Center(
+                        child: Near.i.busy
+                            ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: p.ac))
+                            : Icon(Near.i.has ? Icons.my_location_rounded : Icons.location_searching_rounded,
+                                size: 22, color: Near.i.has ? p.ac : p.mu),
+                      ),
+                    ),
+                  ),
+                ]),
               ),
-            ]),
-          ),
+            ),
+            const SizedBox(width: 10),
+            Tap(
+              onTap: _openFilters,
+              scale: .92,
+              child: SizedBox(
+                width: 52,
+                height: 52,
+                child: Stack(clipBehavior: Clip.none, children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: af > 0 ? p.ac : p.card,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: af > 0 ? p.ac : p.bd),
+                    ),
+                    child: Icon(Icons.tune_rounded, size: 24, color: af > 0 ? Colors.white : p.tx),
+                  ),
+                  if (af > 0)
+                    Positioned(
+                      right: -4,
+                      top: -4,
+                      child: Container(
+                        constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(color: p.tx, borderRadius: BorderRadius.circular(99), border: Border.all(color: p.bg, width: 2)),
+                        child: Text('$af', style: TextStyle(color: p.bg, fontSize: 11, height: 1.1, fontWeight: FontWeight.w800)),
+                      ),
+                    ),
+                ]),
+              ),
+            ),
+          ]),
           // Выпадающие подсказки умного поиска при вводе
           AnimatedSize(
             duration: const Duration(milliseconds: 180),

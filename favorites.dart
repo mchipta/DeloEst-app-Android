@@ -6,9 +6,49 @@ import 'theme.dart';
 import 'util.dart';
 import 'widgets.dart';
 
-// Избранное: сохранённые поиски и избранные объявления (как на сайте)
-class FavoritesPage extends StatelessWidget {
-  const FavoritesPage({super.key});
+// Избранное, как в Авито: вкладка нижнего меню, сверху переключатель «Объявления / Поиски»
+class FavoritesPage extends StatefulWidget {
+  final bool embedded;
+  const FavoritesPage({super.key, this.embedded = false});
+  @override
+  State<FavoritesPage> createState() => _FavoritesPageState();
+}
+
+class _FavoritesPageState extends State<FavoritesPage> {
+  int _t = 0; // 0 — объявления, 1 — сохранённые поиски
+
+  Widget _tab(Pal p, String text, int n, int i) {
+    final on = _t == i;
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          haptic();
+          setState(() => _t = i);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: on ? p.tx : p.bd, width: on ? 2.5 : 1))),
+          alignment: Alignment.center,
+          child: Text.rich(TextSpan(children: [
+            TextSpan(text: text, style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: on ? p.tx : p.mu)),
+            if (n > 0) TextSpan(text: '  $n', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: p.mu)),
+          ])),
+        ),
+      ),
+    );
+  }
+
+  Widget _empty(Pal p, IconData icon, String title, String text) => Padding(
+        padding: const EdgeInsets.fromLTRB(32, 56, 32, 24),
+        child: Column(children: [
+          Icon(icon, size: 52, color: p.mu),
+          const SizedBox(height: 12),
+          Text(title, textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: p.tx)),
+          const SizedBox(height: 6),
+          Text(text, textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 14.5, height: 1.35)),
+        ]),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -17,57 +57,65 @@ class FavoritesPage extends StatelessWidget {
       builder: (context, _) {
         final p = pal(context);
         final ads = S.i.ads.where((a) => S.i.isFav(a.id)).toList();
+        final ss = List<Map<String, String>>.of(S.i.ss);
         return Scaffold(
-          appBar: AppBar(title: const Text('Избранное')),
+          appBar: AppBar(
+            automaticallyImplyLeading: !widget.embedded,
+            title: const Text('Избранное'),
+          ),
           body: !S.i.logged
               ? const NeedAuth(
                   icon: Icons.favorite_border,
                   title: 'Избранное',
                   text: 'Войдите, чтобы добавлять объявления в избранное и сохранять поиски.')
-              : ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
-                  if (S.i.ss.isNotEmpty) ...[
-                    Text('Сохранённые поиски', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx)),
-                    const SizedBox(height: 10),
-                    Wrap(spacing: 8, runSpacing: 8, children: [
-                      for (final s in List<Map<String, String>>.of(S.i.ss))
-                        Container(
-                          padding: const EdgeInsets.only(left: 12, right: 4, top: 4, bottom: 4),
-                          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(99), border: Border.all(color: p.bd)),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            GestureDetector(
+              : ListView(padding: EdgeInsets.fromLTRB(16, 0, 16, 24 + (widget.embedded ? navPad(context) : 0)), children: [
+                  Row(children: [_tab(p, 'Объявления', ads.length, 0), _tab(p, 'Поиски', ss.length, 1)]),
+                  const SizedBox(height: 14),
+                  if (_t == 0) ...[
+                    if (ads.isEmpty)
+                      _empty(p, Icons.favorite_border_rounded, 'Здесь пока пусто',
+                          'Нажмите на сердечко ♡ на карточке объявления, чтобы сохранить его сюда.'),
+                    for (final a in ads)
+                      AdCard(ad: a, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: a)))),
+                  ] else ...[
+                    if (ss.isEmpty)
+                      _empty(p, Icons.bookmark_border_rounded, 'Сохранённых поисков нет',
+                          'В поиске задайте запрос или фильтры и нажмите «Сохранить поиск».'),
+                    for (final s in ss)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
+                        child: Row(children: [
+                          Expanded(
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
                               onTap: () {
+                                haptic();
                                 S.i.pendingSearch = s;
-                                Navigator.pop(context);
+                                if (!widget.embedded) Navigator.pop(context);
                                 S.i.goTab(1);
                               },
-                              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                Icon(Icons.search, size: 15, color: p.ac),
-                                const SizedBox(width: 4),
-                                Text(ssLabel(s), style: TextStyle(fontSize: 13, color: p.tx, fontWeight: FontWeight.w600)),
-                              ]),
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(14, 14, 6, 14),
+                                child: Row(children: [
+                                  Icon(Icons.search_rounded, size: 20, color: p.ac),
+                                  const SizedBox(width: 10),
+                                  Expanded(child: Text(ssLabel(s), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: p.tx))),
+                                ]),
+                              ),
                             ),
-                            GestureDetector(
-                              onTap: () {
-                                S.i.ss.remove(s);
-                                S.i.saveSS();
-                              },
-                              child: Padding(padding: const EdgeInsets.all(6), child: Icon(Icons.close, size: 16, color: p.mu)),
-                            ),
-                          ]),
-                        ),
-                    ]),
-                    const SizedBox(height: 20),
+                          ),
+                          IconButton(
+                            tooltip: 'Удалить поиск',
+                            icon: Icon(Icons.close_rounded, size: 20, color: p.mu),
+                            onPressed: () {
+                              S.i.ss.remove(s);
+                              S.i.saveSS();
+                            },
+                          ),
+                        ]),
+                      ),
                   ],
-                  Text('Избранные объявления', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx)),
-                  const SizedBox(height: 10),
-                  if (ads.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 28),
-                      child: Text('Здесь пока пусто.\nЧтобы добавить объявление, нажмите на сердечко ♡ на его карточке в разделе «Объявления».',
-                          textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 15)),
-                    ),
-                  for (final a in ads)
-                    AdCard(ad: a, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: a)))),
                 ]),
         );
       },

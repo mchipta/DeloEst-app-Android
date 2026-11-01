@@ -2,6 +2,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'cabinet.dart';
+import 'favorites.dart';
 import 'icons.dart';
 import 'feed.dart';
 import 'landing.dart';
@@ -38,7 +39,7 @@ class HomeShell extends StatelessWidget {
             onPopInvoked: (didPop) {
               if (didPop) return;
               if (S.i.tab == 2 && (S.i.postBack?.call() ?? false)) return;
-              S.i.goTab(S.i.rootTab);
+              S.i.goTab(S.i.tab == 2 && S.i.logged ? 6 : S.i.rootTab);
             },
             child: Scaffold(
               extendBody: true,
@@ -46,7 +47,15 @@ class HomeShell extends StatelessWidget {
                 tab: S.i.tab,
                 child: IndexedStack(
                   index: S.i.tab,
-                  children: const [LandingPage(), FeedPage(), PostScreen(), CabinetPage(), MessagesPage(embedded: true)],
+                  children: const [
+                    LandingPage(),
+                    FeedPage(),
+                    PostScreen(),
+                    CabinetPage(),
+                    MessagesPage(embedded: true),
+                    FavoritesPage(embedded: true),
+                    CabinetPage(mode: 'ads'),
+                  ],
                 ),
               ),
               bottomNavigationBar: _Tabs(p: p),
@@ -64,18 +73,21 @@ class _Tabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // как в Авито: Поиск · Избранное · Объявления · Сообщения · Профиль
     // [индекс вкладки, иконка, иконка выбранной, подпись, бейдж]
     final items = <List<Object>>[
       // не вошедшему поиск доступен на «Главной», вошедшему «Главная» не нужна
-      if (!S.i.logged) [0, 'home', 'home', 'Главная', 0],
-      if (S.i.logged) [1, 'search', 'search', 'Поиск', 0],
-      [2, 'plus', 'plus', 'Разместить', 0],
+      if (!S.i.logged) [0, Icons.home_outlined, Icons.home_rounded, 'Главная', 0],
+      if (S.i.logged) [1, Icons.search_rounded, Icons.search_rounded, 'Поиск', 0],
+      [5, Icons.favorite_border_rounded, Icons.favorite_rounded, 'Избранное', 0],
+      [6, Icons.add_box_outlined, Icons.add_box_rounded, 'Объявления', 0],
       // «Сообщения» видны только вошедшему в аккаунт
-      if (S.i.logged) [4, 'chat', 'chat', 'Сообщения', S.i.unread],
-      [3, 'user', 'user', S.i.logged ? 'Кабинет' : 'Войти', 0],
+      if (S.i.logged) [4, Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded, 'Сообщения', S.i.unread],
+      [3, Icons.person_outline_rounded, Icons.person_rounded, S.i.logged ? 'Профиль' : 'Войти', 0],
     ];
-    // у не вошедшего результаты поиска (вкладка 1) открываются из «Главной», подсвечиваем её
-    bool on(int i) => S.i.tab == i || (!S.i.logged && i == 0 && S.i.tab == 1);
+    // у не вошедшего результаты поиска (вкладка 1) открываются из «Главной», подсвечиваем её;
+    // экран «Разместить» (вкладка 2) открывается из «Объявлений»
+    bool on(int i) => S.i.tab == i || (!S.i.logged && i == 0 && S.i.tab == 1) || (i == 6 && S.i.tab == 2);
     final n = items.length;
     final sel = items.indexWhere((it) => on(it[0] as int));
     final idle = Color.lerp(p.mu, p.tx, .5)!;
@@ -84,7 +96,7 @@ class _Tabs extends StatelessWidget {
     final bar = SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 6, 14, 8),
+        padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
         child: _glass(glass, child: Container(
           height: 66,
           decoration: BoxDecoration(
@@ -122,12 +134,7 @@ class _Tabs extends StatelessWidget {
                       onTap: () {
                         haptic();
                         final t = it[0] as int;
-                        if (t == 2 && !S.i.logged) {
-                          toast(context, 'Войдите, чтобы разместить объявление');
-                          S.i.goTab(3);
-                        } else {
-                          S.i.goTab(t);
-                        }
+                        S.i.goTab(t);
                       },
                       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                         Stack(clipBehavior: Clip.none, children: [
@@ -135,8 +142,15 @@ class _Tabs extends StatelessWidget {
                             scale: on(it[0] as int) ? 1.1 : 1,
                             duration: const Duration(milliseconds: 180),
                             curve: Curves.easeOutBack,
-                            child: Ico(on(it[0] as int) ? it[2] as String : it[1] as String,
-                                size: 24, color: on(it[0] as int) ? p.ac : idle),
+                            child: (it[0] == 3 && S.i.logged && (S.i.user?['avatar'] ?? '').toString().isNotEmpty)
+                                // в «Профиле» вместо значка — аватарка, как в Авито
+                                ? Container(
+                                    padding: const EdgeInsets.all(1.5),
+                                    decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: on(3) ? p.ac : Colors.transparent, width: 1.5)),
+                                    child: Avatar(S.i.name, data: (S.i.user?['avatar'] ?? '').toString(), size: 22),
+                                  )
+                                : Icon(on(it[0] as int) ? it[2] as IconData : it[1] as IconData,
+                                    size: 25, color: on(it[0] as int) ? p.ac : idle),
                           ),
                           if ((it[4] as int) > 0)
                             Positioned(
@@ -155,7 +169,7 @@ class _Tabs extends StatelessWidget {
                         const SizedBox(height: 3),
                         AnimatedDefaultTextStyle(
                           duration: const Duration(milliseconds: 180),
-                          style: TextStyle(fontSize: 11, fontWeight: on(it[0] as int) ? FontWeight.w800 : FontWeight.w600, color: on(it[0] as int) ? p.ac : idle),
+                          style: TextStyle(fontSize: 10.5, fontWeight: on(it[0] as int) ? FontWeight.w800 : FontWeight.w600, color: on(it[0] as int) ? p.ac : idle),
                           child: Text(it[3] as String, maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                       ]),

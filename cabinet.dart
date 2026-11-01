@@ -18,8 +18,10 @@ import 'util.dart';
 import 'widgets.dart';
 
 // Кабинет — одна прокручиваемая страница, как на сайте: шапка, вкладки-чипы, содержимое, внизу «О сервисе» и «О приложении»
+// mode: 'profile' — «Профиль» (шапка, рейтинг, отзывы, ссылки), 'ads' — «Объявления» (мои объявления и отклики, как в Авито)
 class CabinetPage extends StatefulWidget {
-  const CabinetPage({super.key});
+  final String mode;
+  const CabinetPage({super.key, this.mode = 'profile'});
   @override
   State<CabinetPage> createState() => _CabinetPageState();
 }
@@ -33,9 +35,12 @@ class _CabinetPageState extends State<CabinetPage> {
   String caf = 'all'; // all, open, closed
   final Set<String> _fresh = {};
 
+  bool get _adsMode => widget.mode == 'ads';
+
   @override
   void initState() {
     super.initState();
+    ct = _adsMode ? 'ads' : 'rev';
     S.i.addListener(_onState);
     WidgetsBinding.instance.addPostFrameCallback((_) => _onState());
   }
@@ -53,6 +58,8 @@ class _CabinetPageState extends State<CabinetPage> {
       _tick = -1;
       return;
     }
+    // данные грузит только та вкладка, которая сейчас открыта (сервер и так медленный)
+    if (S.i.tab != (_adsMode ? 6 : 3)) return;
     if (S.i.cabTick != _tick) {
       _tick = S.i.cabTick;
       _load();
@@ -133,9 +140,10 @@ class _CabinetPageState extends State<CabinetPage> {
       listenable: S.i,
       builder: (context, _) {
         final p = pal(context);
+        if (_adsMode) return _buildAds(p);
         return Scaffold(
           appBar: AppBar(
-            title: Text(S.i.logged ? 'Кабинет' : 'Профиль'),
+            title: Text(S.i.logged ? 'Профиль' : 'Войти'),
             actions: S.i.logged ? [
               IconButton(
                 tooltip: 'Настройки приложения',
@@ -153,24 +161,110 @@ class _CabinetPageState extends State<CabinetPage> {
                     padding: EdgeInsets.fromLTRB(16, 4, 16, 24 + navPad(context)),
                     children: [
                       Appear(child: _header(p)),
-                      ..._alerts(p),
-                      Appear(delay: 70, child: _chips(p)),
-                      const SizedBox(height: 12),
-                      if (ct != 'set' && loading && data == null)
+                      Appear(delay: 70, child: _ratingRow(p)),
+                      const SizedBox(height: 18),
+                      Text('Отзывы обо мне', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: p.tx)),
+                      const SizedBox(height: 10),
+                      if (loading && data == null)
                         Padding(padding: const EdgeInsets.all(40), child: Center(child: CircularProgressIndicator(color: p.ac))),
-                      if (ct != 'set' && err != null && data == null)
+                      if (err != null && data == null)
                         Padding(padding: const EdgeInsets.all(24), child: Text(err!, textAlign: TextAlign.center, style: TextStyle(color: p.mu))),
-                      if (data != null || ct == 'set') SmoothSwitch(child: KeyedSubtree(key: ValueKey('$ct-$caf-${loading && data == null}'), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: _content(p)))),
+                      if (data != null) ..._reviews(p),
+                      const SizedBox(height: 8),
+                      const BottomLinks(),
                     ],
                   ),
                 )
               : ListView(padding: EdgeInsets.fromLTRB(16, 0, 16, 24 + navPad(context)), children: [
-                  SizedBox(height: 360, child: const NeedAuth(icon: Icons.person_outline, title: 'Ваш кабинет', text: 'Войдите, чтобы видеть свои объявления, отклики и управлять ими.')),
+                  SizedBox(height: 360, child: const NeedAuth(icon: Icons.person_outline, title: 'Ваш профиль', text: 'Войдите, чтобы видеть свои объявления, отклики и управлять ими.')),
                   const BottomLinks(support: true),
                 ]),
         );
       },
     );
+  }
+
+  // Вкладка «Объявления»: мои объявления, отклики мне, мои отклики + кнопка «Разместить объявление»
+  Widget _buildAds(Pal p) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Мои объявления'), centerTitle: true),
+      body: !S.i.logged
+          ? const NeedAuth(icon: Icons.add_box_outlined, title: 'Мои объявления', text: 'Войдите, чтобы размещать объявления и видеть отклики на них.')
+          : Stack(children: [
+              RefreshIndicator(
+                color: p.ac,
+                onRefresh: _load,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 76 + navPad(context)),
+                  children: [
+                    ..._alerts(p),
+                    Appear(child: _chips(p)),
+                    const SizedBox(height: 14),
+                    if (loading && data == null)
+                      Padding(padding: const EdgeInsets.all(40), child: Center(child: CircularProgressIndicator(color: p.ac))),
+                    if (err != null && data == null)
+                      Padding(padding: const EdgeInsets.all(24), child: Text(err!, textAlign: TextAlign.center, style: TextStyle(color: p.mu))),
+                    if (data != null)
+                      SmoothSwitch(child: KeyedSubtree(key: ValueKey('$ct-$caf'), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: _content(p)))),
+                  ],
+                ),
+              ),
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: navPad(context) - 8,
+                child: GradBtn('Разместить объявление', icon: Icons.add_rounded, onTap: () { haptic(); S.i.goTab(2); }),
+              ),
+            ]),
+    );
+  }
+
+  // Рейтинг и число отзывов — две плитки, как в Авито
+  Widget _ratingRow(Pal p) {
+    final rs = _list('reviews');
+    var avg = 0.0;
+    if (rs.isNotEmpty) {
+      var sum = 0.0;
+      for (final r in rs) {
+        sum += ((r['rating'] as num?) ?? 0).toDouble();
+      }
+      avg = sum / rs.length;
+    }
+    final ads = _list('ads');
+    final open = ads.where((a) => a['status'] == 'open').length;
+    Widget box(Widget top, String sub, VoidCallback? f) => Expanded(
+          child: Tap(
+            onTap: f ?? () {},
+            scale: .98,
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(18), border: Border.all(color: p.bd)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                top,
+                const SizedBox(height: 4),
+                Text(sub, style: TextStyle(color: p.mu, fontSize: 13)),
+              ]),
+            ),
+          ),
+        );
+    return Row(children: [
+      box(
+        Row(children: [
+          Text(rs.isEmpty ? '—' : avg.toStringAsFixed(1).replaceAll('.', ','), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: p.tx)),
+          const SizedBox(width: 6),
+          Icon(Icons.star_rounded, color: const Color(0xFFFFB300), size: 24),
+        ]),
+        rs.isEmpty ? 'Отзывов пока нет' : '${rs.length} ${plural(rs.length, 'отзыв', 'отзыва', 'отзывов')}',
+        null,
+      ),
+      const SizedBox(width: 10),
+      box(
+        Text('$open', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: p.tx)),
+        'активных объявлений',
+        () { haptic(); S.i.goTab(6); },
+      ),
+    ]);
   }
 
   Widget _header(Pal p) {
@@ -392,52 +486,37 @@ class _CabinetPageState extends State<CabinetPage> {
 
   Widget _chips(Pal p) {
     final pend = _pend;
-    final tabs = <List<Object>>[
-      ['ads', 'Мои объявления', 'work'],
-      ['in', 'Отклики мне', 'bolt'],
-      ['out', 'Мои отклики', 'send'],
-      ['rev', 'Отзывы', 'star'],
+    final tabs = <List<String>>[
+      ['ads', 'Мои объявления'],
+      ['in', 'Отклики мне'],
+      ['out', 'Мои отклики'],
     ];
-    return Container(
-      padding: const EdgeInsets.all(5),
-      decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(24), border: Border.all(color: p.bd)),
-      child: Row(children: [
-        for (final t in tabs)
-          Expanded(
-            child: GestureDetector(
+    return SizedBox(
+      height: 46,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          for (final t in tabs)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: () {
                 haptic();
-                setState(() => ct = t[0] as String);
+                setState(() => ct = t[0]);
                 _markSeen();
               },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                constraints: const BoxConstraints(minHeight: 66),
-                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
-                decoration: BoxDecoration(
-                  gradient: ct == t[0] ? LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight) : null,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: ct == t[0] ? [BoxShadow(color: p.ac.withOpacity(.32), blurRadius: 12, offset: const Offset(0, 4))] : null,
-                ),
-                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Stack(clipBehavior: Clip.none, children: [
-                    Ico(t[2] as String, size: 21, color: ct == t[0] ? Colors.white : p.mu),
-                    if ((t[0] == 'in' ? pend : (t[0] == 'rev' ? _unans : 0)) > 0)
-                      Positioned(right: -10, top: -7, child: Container(
-                        constraints: const BoxConstraints(minWidth: 16),
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                        decoration: BoxDecoration(color: ct == t[0] ? Colors.white : p.ac, borderRadius: BorderRadius.circular(99)),
-                        child: Text('${t[0] == 'in' ? pend : _unans}', style: TextStyle(color: ct == t[0] ? p.ac : Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
-                      )),
-                  ]),
-                  const SizedBox(height: 5),
-                  Text(t[1] as String, maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 10.5, height: 1.05, color: ct == t[0] ? Colors.white : p.mu)),
-                ]),
+              child: Container(
+                margin: const EdgeInsets.only(right: 22),
+                decoration: BoxDecoration(border: Border(bottom: BorderSide(color: ct == t[0] ? p.tx : Colors.transparent, width: 2.5))),
+                alignment: Alignment.center,
+                child: Text.rich(TextSpan(children: [
+                  TextSpan(text: t[1], style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: ct == t[0] ? p.tx : p.mu)),
+                  if (t[0] == 'in' && pend > 0)
+                    TextSpan(text: '  $pend', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: p.ac)),
+                ])),
               ),
             ),
-          ),
-      ]),
+        ],
+      ),
     );
   }
 
@@ -518,7 +597,7 @@ class _CabinetPageState extends State<CabinetPage> {
     }
     if (shown.isEmpty) {
       items.add(_empty(p, all.isEmpty
-          ? 'У вас пока нет объявлений. Нажмите «Разместить» в нижнем меню, чтобы опубликовать первое.'
+          ? 'У вас пока нет объявлений. Нажмите «Разместить объявление» ниже, чтобы опубликовать первое.'
           : 'В этой группе ничего нет'));
     }
     for (final m in shown) {

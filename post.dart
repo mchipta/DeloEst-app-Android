@@ -496,7 +496,7 @@ class _PostScreenState extends State<PostScreen> {
         _clearDraft();
         _resetFields();
         _autoCity();
-        S.i.goTab(1);
+        S.i.goTab(6);
         toast(context, 'Объявление опубликовано');
       }
     } catch (e) {
