@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'home.dart';
+import 'near.dart';
+import 'state.dart';
 import 'shortcuts.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -20,6 +22,8 @@ class _SplashGateState extends State<SplashGate> {
     super.initState();
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) setState(() => done = true);
+      // сразу при запуске просим доступ к геолокации (если ещё не спрашивали), чтобы показывать ближайшие объявления
+      Near.i.auto().then((_) => Near.i.fill(S.i.ads), onError: (_) {});
     });
   }
 

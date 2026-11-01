@@ -170,8 +170,6 @@ class _CabinetPageState extends State<CabinetPage> {
                       if (err != null && data == null)
                         Padding(padding: const EdgeInsets.all(24), child: Text(err!, textAlign: TextAlign.center, style: TextStyle(color: p.mu))),
                       if (data != null) ..._reviews(p),
-                      const SizedBox(height: 8),
-                      const BottomLinks(),
                     ],
                   ),
                 )
@@ -196,7 +194,7 @@ class _CabinetPageState extends State<CabinetPage> {
                 onRefresh: _load,
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, 76 + navPad(context)),
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 96 + navPad(context)),
                   children: [
                     ..._alerts(p),
                     Appear(child: _chips(p)),
@@ -213,7 +211,7 @@ class _CabinetPageState extends State<CabinetPage> {
               Positioned(
                 left: 16,
                 right: 16,
-                bottom: navPad(context) - 8,
+                bottom: navPad(context) + 2,
                 child: GradBtn('Разместить объявление', icon: Icons.add_rounded, onTap: () { haptic(); S.i.goTab(2); }),
               ),
             ]),
@@ -248,7 +246,7 @@ class _CabinetPageState extends State<CabinetPage> {
             ),
           ),
         );
-    return Row(children: [
+    return IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       box(
         Row(children: [
           Text(rs.isEmpty ? '—' : avg.toStringAsFixed(1).replaceAll('.', ','), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: p.tx)),
@@ -261,10 +259,10 @@ class _CabinetPageState extends State<CabinetPage> {
       const SizedBox(width: 10),
       box(
         Text('$open', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: p.tx)),
-        'активных объявлений',
+        'объявлений',
         () { haptic(); S.i.goTab(6); },
       ),
-    ]);
+    ]));
   }
 
   Widget _header(Pal p) {

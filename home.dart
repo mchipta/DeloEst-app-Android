@@ -137,7 +137,7 @@ class _Tabs extends StatelessWidget {
                         S.i.goTab(t);
                       },
                       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Stack(clipBehavior: Clip.none, children: [
+                        SizedBox(height: 27, child: Center(child: Stack(clipBehavior: Clip.none, children: [
                           AnimatedScale(
                             scale: on(it[0] as int) ? 1.1 : 1,
                             duration: const Duration(milliseconds: 180),
@@ -145,9 +145,11 @@ class _Tabs extends StatelessWidget {
                             child: (it[0] == 3 && S.i.logged && (S.i.user?['avatar'] ?? '').toString().isNotEmpty)
                                 // в «Профиле» вместо значка — аватарка, как в Авито
                                 ? Container(
-                                    padding: const EdgeInsets.all(1.5),
+                                    width: 25,
+                                    height: 25,
+                                    alignment: Alignment.center,
                                     decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: on(3) ? p.ac : Colors.transparent, width: 1.5)),
-                                    child: Avatar(S.i.name, data: (S.i.user?['avatar'] ?? '').toString(), size: 22),
+                                    child: Avatar(S.i.name, data: (S.i.user?['avatar'] ?? '').toString(), size: 21),
                                   )
                                 : Icon(on(it[0] as int) ? it[2] as IconData : it[1] as IconData,
                                     size: 25, color: on(it[0] as int) ? p.ac : idle),
@@ -165,12 +167,15 @@ class _Tabs extends StatelessWidget {
                                     style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w800)),
                               ),
                             ),
-                        ]),
-                        const SizedBox(height: 3),
+                        ]))),
+                        const SizedBox(height: 2),
                         AnimatedDefaultTextStyle(
                           duration: const Duration(milliseconds: 180),
                           style: TextStyle(fontSize: 10.5, fontWeight: on(it[0] as int) ? FontWeight.w800 : FontWeight.w600, color: on(it[0] as int) ? p.ac : idle),
-                          child: Text(it[3] as String, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: FittedBox(fit: BoxFit.scaleDown, child: Text(it[3] as String, maxLines: 1)),
+                          ),
                         ),
                       ]),
                     ),

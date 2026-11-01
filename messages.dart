@@ -268,14 +268,19 @@ class _MessagesPageState extends State<MessagesPage> {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                Flexible(
-                  child: Text((d['name'] ?? '').toString(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: p.tx)),
+                // имя занимает всё свободное место, поэтому дата всегда прижата к правому краю
+                Expanded(
+                  child: Row(children: [
+                    Flexible(
+                      child: Text((d['name'] ?? '').toString(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: p.tx)),
+                    ),
+                    if (d['ver'] == true) ...[const SizedBox(width: 5), Icon(Icons.verified, size: 16, color: p.ok)],
+                  ]),
                 ),
-                if (d['ver'] == true) ...[const SizedBox(width: 5), Icon(Icons.verified, size: 16, color: p.ok)],
-                const Spacer(),
+                const SizedBox(width: 8),
                 Text(siteListTime(_n(d['ts']), S.i.timeZone), style: TextStyle(color: p.mu, fontSize: 11.5)),
               ]),
               const SizedBox(height: 2),
