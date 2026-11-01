@@ -24,6 +24,8 @@ class _FeedPageState extends State<FeedPage> {
   final _minC = TextEditingController();
   final _maxC = TextEditingController();
   String _cat = '', _type = '', _city = '', _min = '', _max = '', _sort = '', _rad = '';
+  String _pt = '', _wh = ''; // тип оплаты и когда нужно (today / tomorrow / week)
+  bool _urg = false; // только срочные
   bool _auto = false;
 
   @override
@@ -51,6 +53,9 @@ class _FeedPageState extends State<FeedPage> {
       (_min.isNotEmpty ? 1 : 0) +
       (_max.isNotEmpty ? 1 : 0) +
       (_sort.isNotEmpty ? 1 : 0) +
+      (_pt.isNotEmpty ? 1 : 0) +
+      (_wh.isNotEmpty ? 1 : 0) +
+      (_urg ? 1 : 0) +
       (Near.i.has && _rad.isNotEmpty ? 1 : 0);
 
   String get _filterSummary => [
@@ -61,7 +66,16 @@ class _FeedPageState extends State<FeedPage> {
         if (_max.isNotEmpty) 'до $_max ₽',
         if (_sort == 'hi') 'Сначала дороже',
         if (_sort == 'lo') 'Сначала дешевле',
+        if (_sort == 'soon') 'Сначала ближайшие по дате',
+        if (_pt.isNotEmpty) payTypeLabel(_pt),
+        if (_wh.isNotEmpty) _whLabel(_wh),
+        if (_urg) 'Срочно',
       ].join(' · ');
+
+  static String _whLabel(String w) => w == 'today' ? 'Сегодня' : w == 'tomorrow' ? 'Завтра' : w == 'week' ? 'На неделе' : '';
+
+  static String _ptOf(Ad a) =>
+      a.payType.isNotEmpty ? a.payType : (const {'h': 'hour', 'd': 'day', 't': 'job', 'm': 'month', 'n': 'neg'}[payParse(a.pay).p] ?? '');
 
   List<Ad> _filtered() {
     final q = _q.text.trim();
@@ -71,13 +85,25 @@ class _FeedPageState extends State<FeedPage> {
     final rad = Near.i.has ? (int.tryParse(_rad) ?? 0) : 0;
     final r = S.i.ads.where((a) {
       if (S.i.isBlocked(a.pid)) return false;
-      final n = payNum(a.pay);
+      final amt = adAmt(a);
+      final n = amt > 0 ? amt.toDouble() : null;
       if (_type.isNotEmpty && a.type != _type) return false;
       if (_cat.isNotEmpty && a.category != _cat) return false;
       if (c.isNotEmpty && !a.city.toLowerCase().contains(c)) return false;
       if (q.isNotEmpty && !smartMatchAd(q, a.title, a.desc, a.category, a.city, a.addr)) return false;
       if (mn > 0 && (n == null || n < mn)) return false;
       if (mx > 0 && (n == null || n > mx)) return false;
+      if (_urg && !a.urgent) return false;
+      if (_pt.isNotEmpty && _ptOf(a) != _pt) return false;
+      if (_wh.isNotEmpty) {
+        final w = adWhen(a);
+        if (w == null) return false;
+        final now = DateTime.now(), t0 = DateTime(now.year, now.month, now.day);
+        final df = DateTime(w.year, w.month, w.day).difference(t0).inDays;
+        if (_wh == 'today' && df != 0) return false;
+        if (_wh == 'tomorrow' && df != 1) return false;
+        if (_wh == 'week' && (df < 0 || df > 7)) return false;
+      }
       if (rad > 0) {
         final d = Near.i.dist(a);
         if (d == null || d.km > rad) return false;
@@ -87,15 +113,21 @@ class _FeedPageState extends State<FeedPage> {
     final byNear = Near.i.has && (_sort.isEmpty || _sort == 'near');
     r.sort((a, b) {
       if (_sort == 'hi' || _sort == 'lo') {
-        final p = payNum(a.pay), t = payNum(b.pay);
+        final p = adAmt(a) > 0 ? adAmt(a) : null, t = adAmt(b) > 0 ? adAmt(b) : null;
         if (p == null && t != null) return 1;
         if (t == null && p != null) return -1;
         if (p != null && t != null && p != t) return _sort == 'hi' ? t.compareTo(p) : p.compareTo(t);
+      } else if (_sort == 'soon') {
+        final x = adWhen(a), y = adWhen(b);
+        if (x == null && y != null) return 1;
+        if (y == null && x != null) return -1;
+        if (x != null && y != null && x != y) return x.compareTo(y);
       } else if (byNear) {
         final x = Near.i.kmOr(a), y = Near.i.kmOr(b);
         if (x != y) return x.compareTo(y);
       }
-      return b.ts.compareTo(a.ts);
+      if (a.urgent != b.urgent && _sort.isEmpty) return a.urgent ? -1 : 1;
+      return b.up.compareTo(a.up);
     });
     return r;
   }
@@ -110,6 +142,9 @@ class _FeedPageState extends State<FeedPage> {
       (s['max'] ?? '').isEmpty ? '' : 'до ${s['max']} ₽',
       s['sort'] == 'hi' ? 'дороже' : s['sort'] == 'lo' ? 'дешевле' : '',
       (s['rad'] ?? '').isEmpty ? '' : 'до ${s['rad']} км',
+      (s['pt'] ?? '').isEmpty ? '' : payTypeLabel(s['pt']!),
+      (s['wh'] ?? '').isEmpty ? '' : _whLabel(s['wh']!),
+      s['urg'] == '1' ? 'Срочно' : '',
     ].where((e) => e.isNotEmpty).toList();
     return parts.join(' · ');
   }
@@ -123,6 +158,9 @@ class _FeedPageState extends State<FeedPage> {
         'max': _max,
         'sort': _sort,
         'rad': _rad,
+        'pt': _pt,
+        'wh': _wh,
+        'urg': _urg ? '1' : '',
       };
 
   void _saveSearch() {
@@ -136,9 +174,8 @@ class _FeedPageState extends State<FeedPage> {
       toast(context, 'Такой поиск уже сохранён');
       return;
     }
-    S.i.ss.add(s);
-    S.i.saveSS();
-    toast(context, 'Поиск сохранён в избранном');
+    S.i.addSS(s);
+    toast(context, S.i.logged ? 'Поиск сохранён. Пришлём push, когда появится новое' : 'Поиск сохранён в избранном');
   }
 
   void _useSearch(Map<String, String> s) {
@@ -151,6 +188,9 @@ class _FeedPageState extends State<FeedPage> {
       _max = s['max'] ?? '';
       _sort = s['sort'] ?? '';
       _rad = s['rad'] ?? '';
+      _pt = s['pt'] ?? '';
+      _wh = s['wh'] ?? '';
+      _urg = s['urg'] == '1';
       _cityC.text = _city;
       _minC.text = _min;
       _maxC.text = _max;
@@ -166,6 +206,9 @@ class _FeedPageState extends State<FeedPage> {
       _max = '';
       _sort = '';
       _rad = '';
+      _pt = '';
+      _wh = '';
+      _urg = false;
       _cityC.clear();
       _minC.clear();
       _maxC.clear();
@@ -207,6 +250,7 @@ class _FeedPageState extends State<FeedPage> {
           final sortItems = <List<String>>[
             if (Near.i.has) ['', 'Сначала ближайшие'] else ['', 'Сначала новые'],
             if (Near.i.has) ['new', 'Сначала новые'],
+            ['soon', 'Сначала ближайшие по дате'],
             ['hi', 'Сначала с высокой оплатой'],
             ['lo', 'Сначала с низкой оплатой'],
           ];
@@ -281,6 +325,17 @@ class _FeedPageState extends State<FeedPage> {
                         onChanged: (v) => upd(() => _max = digitsOnly(v)),
                       ),
                     ),
+                  ]),
+                  const SizedBox(height: 12),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    _fChip(p, 'Любая оплата', _pt.isEmpty, () => upd(() => _pt = '')),
+                    for (final t in kPayTypes) _fChip(p, t[1], _pt == t[0], () => upd(() => _pt = _pt == t[0] ? '' : t[0])),
+                  ]),
+                  title('Когда'),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    _fChip(p, 'Любое время', _wh.isEmpty, () => upd(() => _wh = '')),
+                    for (final w in const ['today', 'tomorrow', 'week']) _fChip(p, _whLabel(w), _wh == w, () => upd(() => _wh = _wh == w ? '' : w)),
+                    _fChip(p, 'Только срочные', _urg, () => upd(() => _urg = !_urg)),
                   ]),
                   title('Сортировка'),
                   Wrap(spacing: 8, runSpacing: 8, children: [
@@ -599,6 +654,10 @@ class _FeedPageState extends State<FeedPage> {
         ],
       if (_sort == 'hi') ['Сначала дороже', () => setState(() => _sort = '')],
       if (_sort == 'lo') ['Сначала дешевле', () => setState(() => _sort = '')],
+      if (_sort == 'soon') ['Ближайшие по дате', () => setState(() => _sort = '')],
+      if (_pt.isNotEmpty) [payTypeLabel(_pt), () => setState(() => _pt = '')],
+      if (_wh.isNotEmpty) [_whLabel(_wh), () => setState(() => _wh = '')],
+      if (_urg) ['Срочно', () => setState(() => _urg = false)],
       if (Near.i.has && _rad.isNotEmpty) ['до $_rad км', () => setState(() => _rad = '')],
     ];
     OutlineInputBorder none = const OutlineInputBorder(borderSide: BorderSide.none);

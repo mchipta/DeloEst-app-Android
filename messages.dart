@@ -122,7 +122,22 @@ class _MessagesPageState extends State<MessagesPage> {
       builder: (context, _) {
         final p = pal(context);
         return Scaffold(
-          appBar: AppBar(title: const Text('Сообщения'), automaticallyImplyLeading: !widget.embedded),
+          appBar: AppBar(
+            title: const Text('Сообщения'),
+            automaticallyImplyLeading: !widget.embedded,
+            actions: S.i.logged
+                ? [
+                    IconButton(
+                      tooltip: 'Поиск по сообщениям',
+                      icon: Icon(Icons.search_rounded, color: p.ac),
+                      onPressed: () {
+                        haptic();
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const MsgSearchPage()));
+                      },
+                    ),
+                  ]
+                : null,
+          ),
           body: !S.i.logged
               ? const NeedAuth(
                   icon: Icons.chat_bubble_outline,
@@ -149,19 +164,12 @@ class _MessagesPageState extends State<MessagesPage> {
                           ]),
                         ),
                       if (loaded && list.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(32, 56, 32, 24),
-                          child: Column(children: [
-                            Icon(Icons.chat_bubble_outline_rounded, size: 52, color: p.mu),
-                            const SizedBox(height: 12),
-                            Text('Диалогов пока нет', textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: p.tx)),
-                            const SizedBox(height: 6),
-                            Text('Откройте объявление и нажмите «Написать» — переписка появится здесь.',
-                                textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 14.5, height: 1.35)),
-                            const SizedBox(height: 16),
-                            SizedBox(width: 220, child: GradBtn('Найти объявление', onTap: () => S.i.goTab(1))),
-                          ]),
-                        ),
+                        EmptyState(
+                          icon: Icons.chat_bubble_outline_rounded,
+                          title: 'Диалогов пока нет',
+                          text: 'Откройте объявление и нажмите «Написать» — переписка появится здесь.',
+                          button: 'Найти объявление',
+                          onTap: () => S.i.goTab(1)),
                       if (loaded && list.isNotEmpty && _onlyUnread && !list.any((d) => _n(d['n']) > 0))
                         Padding(
                           padding: const EdgeInsets.all(32),
@@ -408,6 +416,7 @@ class _ChatPageState extends State<ChatPage> {
   Timer? _recT;
   String? err;
   Map<String, dynamic>? adCard; // карточка объявления, по которому идёт диалог
+  Map<String, dynamic>? choice; // выбор исполнителя (только у автора объявления): st — none/new/chosen/done, rid — id отклика
   DateTime _lastTyping = DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
@@ -456,6 +465,7 @@ class _ChatPageState extends State<ChatPage> {
         typing = j['ty'] == true;
         seen = _n(j['seen']);
         if (j['ad'] is Map) adCard = Map<String, dynamic>.from(j['ad'] as Map);
+        if (j.containsKey('choice')) choice = j['choice'] is Map ? Map<String, dynamic>.from(j['choice'] as Map) : null;
         if (o.isNotEmpty) {
           name = (o['name'] ?? name).toString();
           ver = o['ver'] == true;
@@ -991,6 +1001,7 @@ class _ChatPageState extends State<ChatPage> {
       ),
       body: Column(children: [
         if (adCard != null) _adHeader(p),
+        if (choice != null && choice!['can'] == true && widget.adId.isNotEmpty) _choiceBar(p),
         if (!_safeOff) _safeBanner(p),
         Expanded(child: Stack(children: [
         Positioned.fill(
@@ -1039,6 +1050,58 @@ class _ChatPageState extends State<ChatPage> {
     if (found == null && c['full'] is Map) found = Ad.fromJson(Map<String, dynamic>.from(c['full'] as Map));
     final target = found;
     if (target != null) Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: target)));
+  }
+
+  // «Выбрать исполнителем» прямо в чате; потом — «Работа выполнена» (после неё можно оставить отзыв)
+  Future<void> _choose() async {
+    haptic();
+    try {
+      final r = await Api.call('chooseChat', {'ad': widget.adId, 'pid': widget.pid});
+      if (mounted) {
+        setState(() => choice = {'can': true, 'st': r['st'] ?? 'chosen', 'rid': r['rid'] ?? ''});
+        toast(context, 'Исполнитель выбран. Ему отправлено уведомление');
+        S.i.bumpCab();
+      }
+    } catch (e) {
+      if (mounted) toast(context, S.i.fail(e), err: true);
+    }
+  }
+
+  Future<void> _finish() async {
+    haptic();
+    try {
+      await Api.call('fin', {'rid': choice!['rid']});
+      if (mounted) {
+        setState(() => choice = {...choice!, 'st': 'done'});
+        toast(context, 'Работа отмечена выполненной');
+        S.i.bumpCab();
+      }
+    } catch (e) {
+      if (mounted) toast(context, S.i.fail(e), err: true);
+    }
+  }
+
+  Widget _choiceBar(Pal p) {
+    final st = (choice!['st'] ?? '').toString();
+    final done = st == 'done', chosen = st == 'chosen';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+      decoration: BoxDecoration(color: p.bg2, border: Border(bottom: BorderSide(color: p.bd))),
+      child: Row(children: [
+        Icon(done ? Icons.verified_outlined : chosen ? Icons.check_circle_outline_rounded : Icons.person_add_alt_1_outlined, size: 20, color: done || chosen ? p.ok : p.ac),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(done ? 'Работа выполнена' : chosen ? 'Исполнитель выбран' : 'Договорились? Выберите исполнителем',
+              style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 13.5)),
+        ),
+        if (!done)
+          TextButton(
+            onPressed: chosen ? _finish : _choose,
+            child: Text(chosen ? 'Выполнено' : 'Выбрать', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
+          ),
+      ]),
+    );
   }
 
   // Карточка объявления над перепиской, как в Авито (оформление такое же, как на сайте)
@@ -1406,3 +1469,135 @@ const List<String> kEmoji = [
   '💳', '📞', '📍', '🕒', '📅', '🚗', '🚚', '🏠', '🔧', '🛠️', '🔨', '🧹', '🧰', '📦', '🎁', '🍕',
   '☕', '🌞', '🌧️', '🐶', '🐱',
 ];
+
+
+// ---------- Поиск по сообщениям ----------
+class MsgSearchPage extends StatefulWidget {
+  const MsgSearchPage({super.key});
+  @override
+  State<MsgSearchPage> createState() => _MsgSearchPageState();
+}
+
+class _MsgSearchPageState extends State<MsgSearchPage> {
+  final _q = TextEditingController();
+  Timer? _deb;
+  List<Map<String, dynamic>> res = [];
+  bool busy = false, done = false;
+  String? err;
+  int _seq = 0;
+
+  @override
+  void dispose() {
+    _deb?.cancel();
+    _q.dispose();
+    super.dispose();
+  }
+
+  void _onChanged(String v) {
+    _deb?.cancel();
+    if (v.trim().length < 2) {
+      setState(() {
+        res = [];
+        done = false;
+        err = null;
+      });
+      return;
+    }
+    _deb = Timer(const Duration(milliseconds: 450), _run);
+  }
+
+  Future<void> _run() async {
+    final q = _q.text.trim();
+    final my = ++_seq;
+    setState(() {
+      busy = true;
+      err = null;
+    });
+    try {
+      final j = await Api.call('msgSearch', {'q': q});
+      if (!mounted || my != _seq) return;
+      setState(() {
+        res = (j['list'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        done = true;
+      });
+    } catch (e) {
+      if (mounted && my == _seq) setState(() => err = S.i.fail(e));
+    }
+    if (mounted && my == _seq) setState(() => busy = false);
+  }
+
+  // Слово из запроса выделяем в тексте найденного сообщения
+  Widget _hit(Pal p, String text) {
+    final q = _q.text.trim().toLowerCase();
+    final i = q.isEmpty ? -1 : text.toLowerCase().indexOf(q);
+    if (i < 0) return Text(text, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 14));
+    final a = (i - 24).clamp(0, i);
+    return Text.rich(
+      TextSpan(style: TextStyle(color: p.mu, fontSize: 14), children: [
+        TextSpan(text: (a > 0 ? '…' : '') + text.substring(a, i)),
+        TextSpan(text: text.substring(i, i + q.length), style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
+        TextSpan(text: text.substring(i + q.length)),
+      ]),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: TextField(
+          controller: _q,
+          autofocus: true,
+          onChanged: _onChanged,
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => _run(),
+          style: TextStyle(color: p.tx, fontSize: 17),
+          decoration: InputDecoration(hintText: 'Поиск по сообщениям', hintStyle: TextStyle(color: p.mu), border: InputBorder.none),
+        ),
+        actions: [
+          if (_q.text.isNotEmpty)
+            IconButton(
+              icon: Icon(Icons.close_rounded, color: p.mu),
+              onPressed: () {
+                _q.clear();
+                _onChanged('');
+              },
+            ),
+        ],
+      ),
+      body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+        if (busy) Padding(padding: const EdgeInsets.all(24), child: Center(child: CircularProgressIndicator(color: p.ac))),
+        if (err != null) Padding(padding: const EdgeInsets.all(24), child: Text(err!, textAlign: TextAlign.center, style: TextStyle(color: p.mu))),
+        if (!busy && done && res.isEmpty && err == null)
+          const EmptyState(icon: Icons.search_off_rounded, title: 'Ничего не найдено', text: 'Попробуйте другое слово или часть слова.'),
+        if (!done && !busy) const EmptyState(icon: Icons.manage_search_rounded, title: 'Найдите нужное сообщение', text: 'Введите хотя бы 2 буквы: ищем по тексту всех ваших переписок.'),
+        for (final r in res)
+          Tap(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ChatPage(pid: (r['pid'] ?? '').toString(), name: (r['name'] ?? '').toString(), avatar: (r['avatar'] ?? '').toString(), adId: (r['ad'] ?? '').toString())),
+            ),
+            scale: .99,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: cardDeco(p, r: 16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(child: Text((r['name'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 15))),
+                  Text(siteListTime((r['ts'] as num?)?.toInt() ?? 0, S.i.timeZone), style: TextStyle(color: p.mu, fontSize: 12)),
+                ]),
+                if ((r['adt'] ?? '').toString().isNotEmpty)
+                  Padding(padding: const EdgeInsets.only(top: 2), child: Text((r['adt']).toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.ac, fontSize: 12.5, fontWeight: FontWeight.w600))),
+                const SizedBox(height: 4),
+                _hit(p, ((r['mine'] == true) ? 'Вы: ' : '') + (r['text'] ?? '').toString()),
+              ]),
+            ),
+          ),
+      ]),
+    );
+  }
+}

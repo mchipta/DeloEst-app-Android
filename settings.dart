@@ -369,19 +369,6 @@ class _SettingsBodyState extends State<SettingsBody> {
                   onChanged: (v) { S.i.setMessageNotificationsEnabled(v); },
                 ),
               ]),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () async {
-                    await S.requestPushPermission();
-                    await S.showSystemPush('ДелоЕсть', 'Push-уведомления успешно подключены и работают!');
-                    if (context.mounted) toast(context, 'Тестовое Push-уведомление отправлено');
-                  },
-                  icon: Icon(Icons.send_to_mobile_rounded, size: 18, color: p.ac),
-                  label: Text('Проверить Push-уведомление', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800, fontSize: 13)),
-                ),
-              ),
             ]),
           ),
           if (S.i.mutedChats.isNotEmpty)
@@ -441,16 +428,60 @@ class _SettingsBodyState extends State<SettingsBody> {
             margin: const EdgeInsets.only(bottom: 10),
             decoration: cardDeco(p, r: 16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('По нему показывается время сообщений и объявлений.', style: TextStyle(color: p.mu, fontSize: 13, height: 1.35)),
-              const SizedBox(height: 10),
-              PickerField(
-                label: 'Часовой пояс',
-                sheetTitle: 'Часовой пояс',
-                value: kSiteTimeZones.any((z) => z[0] == S.i.timeZone) ? S.i.timeZone : '',
-                items: [for (final z in kSiteTimeZones) PickItem(z[0], z[1])],
-                onChanged: (v) => S.i.setTimeZone(v),
-              ),
+              Row(children: [
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Определять автоматически', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 15)),
+                    const SizedBox(height: 3),
+                    Text(
+                      S.i.timeZone.isEmpty ? 'Сейчас: ${deviceZoneLabel()}' : 'По нему показывается время сообщений и объявлений.',
+                      style: TextStyle(color: p.mu, fontSize: 13, height: 1.35),
+                    ),
+                  ]),
+                ),
+                Switch(
+                  value: S.i.timeZone.isEmpty,
+                  activeColor: p.ac,
+                  onChanged: (on) => S.i.setTimeZone(on ? '' : deviceZoneId()),
+                ),
+              ]),
+              if (S.i.timeZone.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                PickerField(
+                  label: 'Часовой пояс',
+                  sheetTitle: 'Часовой пояс',
+                  value: kSiteTimeZones.any((z) => z[0] == S.i.timeZone) ? S.i.timeZone : '',
+                  items: [for (final z in kSiteTimeZones.skip(1)) PickItem(z[0], z[1])],
+                  onChanged: (v) => S.i.setTimeZone(v),
+                ),
+              ],
             ]),
+          ),
+          Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: Container(
+              margin: const EdgeInsets.only(top: 6, bottom: 10),
+              decoration: cardDeco(p, r: 16),
+              child: ExpansionTile(
+                tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+                title: Text('Дополнительно', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 15)),
+                childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () async {
+                        await S.requestPushPermission();
+                        await S.showSystemPush('ДелоЕсть', 'Push-уведомления успешно подключены и работают!');
+                        if (context.mounted) toast(context, 'Тестовое Push-уведомление отправлено');
+                      },
+                      icon: Icon(Icons.send_to_mobile_rounded, size: 18, color: p.ac),
+                      label: Text('Проверить Push-уведомление', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800, fontSize: 13)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
           ],
         ]);

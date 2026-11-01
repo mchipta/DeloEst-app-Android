@@ -34,6 +34,7 @@ class _LandingPageState extends State<LandingPage> {
   @override
   void initState() {
     super.initState();
+    _mode = (S.i.prefs.getInt('land_mode') ?? 0) == 1 ? 1 : 0;
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadSite());
   }
 
@@ -341,7 +342,7 @@ class _LandingPageState extends State<LandingPage> {
   Widget _modeButton(Pal p, String title, int n) {
     final selected = _mode == n;
     return GestureDetector(
-      onTap: () { haptic(); setState(() => _mode = n); _q.clear(); FocusScope.of(context).unfocus(); },
+      onTap: () { haptic(); setState(() => _mode = n); S.i.prefs.setInt('land_mode', n); _q.clear(); FocusScope.of(context).unfocus(); },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         alignment: Alignment.center,

@@ -45,6 +45,11 @@ class _PostScreenState extends State<PostScreen> {
   String cat = kCats.first.name;
   String unit = 'h';
   String payRaw = '';
+  DateTime? whenDate; // когда нужна работа (дата)
+  TimeOfDay? whenTime; // и время (необязательно)
+  String dur = ''; // длительность
+  int need = 1; // сколько людей нужно
+  bool urgent = false; // метка «Срочно»
   List<_Ph> photos = [];
   bool showPhone = true;
   bool busy = false;
@@ -80,6 +85,14 @@ class _PostScreenState extends State<PostScreen> {
       showPhone = e.phone.isNotEmpty;
       cat = kCats.any((c) => c.name == e.category) ? e.category : kCats.last.name;
       photos = [for (final id in e.imgs) _Ph.id(id)];
+      final w = adWhen(e);
+      if (w != null) {
+        whenDate = DateTime(w.year, w.month, w.day);
+        if (e.when.contains('T')) whenTime = TimeOfDay(hour: w.hour, minute: w.minute);
+      }
+      dur = e.dur;
+      need = e.need > 0 ? e.need : 1;
+      urgent = e.urgent;
     }
     for (final c in [title, payA, city, addr, desc, phone]) {
       c.addListener(_touch);
@@ -230,6 +243,11 @@ class _PostScreenState extends State<PostScreen> {
     type = 0;
     unit = 'h';
     payRaw = '';
+    whenDate = null;
+    whenTime = null;
+    dur = '';
+    need = 1;
+    urgent = false;
     cat = kCats.first.name;
     photos = [];
     showPhone = true;
@@ -478,10 +496,17 @@ class _PostScreenState extends State<PostScreen> {
         'phone': (!showPhone || ph.isEmpty) ? '' : '+$ph',
         'nophone': !showPhone || ph.isEmpty, // «Только чат»: сервер не подставляет номер из профиля
         'imgs': all,
+        'when': _whenStr,
+        'dur': dur,
+        'need': type == 0 ? need : '',
+        if (unit != 'x') 'payType': const {'h': 'hour', 'd': 'day', 't': 'job', 'm': 'month', 'n': 'neg'}[unit],
+        if (unit != 'x' && unit != 'n') 'payAmt': digitsOnly(payA.text),
+        'urgent': urgent,
       };
       if (_isEdit) {
         data['id'] = widget.edit!.id;
         await Api.call('edit', data);
+        if (urgent != widget.edit!.urgent) await Api.call('urgent', {'id': widget.edit!.id, 'on': urgent});
       } else {
         await Api.call('add', data);
       }
@@ -857,6 +882,7 @@ class _PostScreenState extends State<PostScreen> {
                 ),
               ),
       ),
+      ..._whenBlock(p),
       _label(p, 'Город'),
       CityField(
         controller: city,
@@ -876,6 +902,87 @@ class _PostScreenState extends State<PostScreen> {
       ),
     ];
   }
+
+  static const _durs = ['', 'до 1 часа', '1–3 часа', 'Полдня', 'Целый день', 'Несколько дней'];
+
+  String get _whenStr {
+    final d = whenDate;
+    if (d == null) return '';
+    final day = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    final t = whenTime;
+    return t == null ? day : '${day}T${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final d = await showDatePicker(
+      context: context,
+      initialDate: whenDate ?? now,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (d != null) _set(() => whenDate = d);
+  }
+
+  Future<void> _pickTime() async {
+    final t = await showTimePicker(context: context, initialTime: whenTime ?? const TimeOfDay(hour: 10, minute: 0));
+    if (t != null) _set(() => whenTime = t);
+  }
+
+  // «Когда нужно», длительность, сколько людей, «Срочно»
+  List<Widget> _whenBlock(Pal p) {
+    final now = DateTime.now(), t0 = DateTime(now.year, now.month, now.day);
+    final diff = whenDate?.difference(t0).inDays;
+    Widget chip(String text, bool sel, VoidCallback f) => _choice(
+          p,
+          sel: sel,
+          onTap: f,
+          pad: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Text(text, style: TextStyle(fontSize: 13.5, fontWeight: sel ? FontWeight.w800 : FontWeight.w600, color: p.tx)),
+        );
+    final custom = whenDate != null && diff != 0 && diff != 1;
+    return [
+      _label(p, type == 0 ? 'Когда нужно' : 'Когда могу', hint: 'необязательно'),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        chip('Не важно', whenDate == null, () => _set(() { whenDate = null; whenTime = null; })),
+        chip('Сегодня', diff == 0, () => _set(() => whenDate = t0)),
+        chip('Завтра', diff == 1, () => _set(() => whenDate = t0.add(const Duration(days: 1)))),
+        chip(custom ? adWhenLabel(Ad.fromJson({'when': _whenStr.split('T').first})) : 'Другая дата', custom, _pickDate),
+        if (whenDate != null) chip(whenTime == null ? 'Указать время' : whenTime!.format(context), whenTime != null, _pickTime),
+      ]),
+      _label(p, 'Сколько по времени', hint: 'необязательно'),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        for (final d in _durs) chip(d.isEmpty ? 'Не указано' : d, dur == d, () => _set(() => dur = d)),
+      ]),
+      if (type == 0) ...[
+        _label(p, 'Сколько людей нужно'),
+        Row(children: [
+          _stepBtn(p, Icons.remove_rounded, need > 1 ? () => _set(() => need--) : null),
+          SizedBox(width: 56, child: Text('$need', textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: p.tx))),
+          _stepBtn(p, Icons.add_rounded, need < 20 ? () => _set(() => need++) : null),
+        ]),
+      ],
+      const SizedBox(height: 14),
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        value: urgent,
+        activeColor: p.ac,
+        title: Text('Срочно', style: TextStyle(fontWeight: FontWeight.w800, color: p.tx)),
+        subtitle: Text('Метка на карточке и показ выше на 3 дня', style: TextStyle(color: p.mu, fontSize: 13)),
+        onChanged: (v) => _set(() => urgent = v),
+      ),
+    ];
+  }
+
+  Widget _stepBtn(Pal p, IconData i, VoidCallback? f) => GestureDetector(
+        onTap: f == null ? null : () { haptic(); f(); },
+        child: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
+          child: Icon(i, color: f == null ? p.mu.withOpacity(.4) : p.tx),
+        ),
+      );
 
   Widget _photosRow(Pal p) {
     final hint = photos.isEmpty

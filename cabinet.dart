@@ -98,7 +98,7 @@ class _CabinetPageState extends State<CabinetPage> {
     try {
       await Api.call(a, d);
       if (mounted) toast(context, okMsg);
-      if (a == 'status') S.i.loadAds();
+      if (a == 'status' || a == 'bump' || a == 'urgent' || a == 'renew') S.i.loadAds();
       await _load();
     } catch (e) {
       if (mounted) toast(context, S.i.fail(e), err: true);
@@ -162,6 +162,8 @@ class _CabinetPageState extends State<CabinetPage> {
                     children: [
                       Appear(child: _header(p)),
                       Appear(delay: 70, child: _ratingRow(p)),
+                      if (data != null) ...[const SizedBox(height: 12), Appear(delay: 100, child: _stats(p))],
+                      if (data != null) ...[const SizedBox(height: 12), Appear(delay: 130, child: _fill(p))],
                       const SizedBox(height: 18),
                       Text('Отзывы обо мне', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: p.tx)),
                       const SizedBox(height: 10),
@@ -266,6 +268,72 @@ class _CabinetPageState extends State<CabinetPage> {
     ]));
   }
 
+  // Заполненность профиля: что ещё добавить, чтобы вам доверяли
+  Widget _fill(Pal p) {
+    final av = (S.i.user?['avatar'] ?? '').toString();
+    final items = <List<Object>>[
+      ['Имя', S.i.name.trim().isNotEmpty],
+      ['Фото', av.isNotEmpty],
+      ['Телефон', S.i.phone.isNotEmpty],
+      ['Первое объявление', _list('ads').isNotEmpty],
+    ];
+    final done = items.where((e) => e[1] == true).length;
+    final miss = items.where((e) => e[1] != true).map((e) => e[0] as String).toList();
+    if (miss.isEmpty) return const SizedBox.shrink();
+    return Tap(
+      onTap: () {
+        haptic();
+        if (miss.first == 'Первое объявление') {
+          S.i.goTab(2);
+        } else {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileEditPage()));
+        }
+      },
+      scale: .98,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(18), border: Border.all(color: p.bd)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(child: Text('Профиль заполнен на ${done * 100 ~/ items.length}%', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 15))),
+            Icon(Icons.chevron_right_rounded, color: p.mu),
+          ]),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(value: done / items.length, minHeight: 7, backgroundColor: p.bg2, valueColor: AlwaysStoppedAnimation(p.ac)),
+          ),
+          const SizedBox(height: 8),
+          Text('Добавьте: ${miss.join(', ').toLowerCase()}', style: TextStyle(color: p.mu, fontSize: 13)),
+        ]),
+      ),
+    );
+  }
+
+  // Статистика: просмотры, отклики, выполненные работы, срок на сервисе
+  Widget _stats(Pal p) {
+    final st = data?['stats'] is Map ? Map<String, dynamic>.from(data!['stats'] as Map) : <String, dynamic>{};
+    int n(String k) => (st[k] as num?)?.toInt() ?? 0;
+    Widget cell(String v, String l) => Expanded(
+          child: Column(children: [
+            Text(v, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: p.tx)),
+            const SizedBox(height: 2),
+            Text(l, textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 12)),
+          ]),
+        );
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+      decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(18), border: Border.all(color: p.bd)),
+      child: Column(children: [
+        Row(children: [cell('${n('views')}', 'просмотров'), cell('${n('resp')}', 'откликов'), cell('${n('done')}', 'выполнено')]),
+        if (n('since') > 0) ...[
+          const SizedBox(height: 10),
+          Text(sinceLabel(n('since')), style: TextStyle(color: p.mu, fontSize: 12.5)),
+        ],
+      ]),
+    );
+  }
+
   Widget _header(Pal p) {
     final av = (S.i.user?['avatar'] ?? '').toString();
     final isMail = S.i.login.contains('@');
@@ -344,7 +412,7 @@ class _CabinetPageState extends State<CabinetPage> {
             child: const Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.person_outline_rounded, size: 18, color: Colors.white),
               SizedBox(width: 6),
-              Text('Как меня видят другие', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13.5)),
+              Text('Публичный профиль', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13.5)),
             ]),
           ),
         ),
@@ -575,9 +643,14 @@ class _CabinetPageState extends State<CabinetPage> {
       items.add(const SizedBox(height: 12));
     }
     if (shown.isEmpty) {
-      items.add(_empty(p, all.isEmpty
-          ? 'У вас пока нет объявлений. Нажмите «Разместить объявление» ниже, чтобы опубликовать первое.'
-          : 'В этой группе ничего нет'));
+      items.add(all.isEmpty
+          ? EmptyState(
+              icon: Icons.campaign_outlined,
+              title: 'Объявлений пока нет',
+              text: 'Опубликуйте первое — это бесплатно и без комиссии.',
+              button: 'Разместить объявление',
+              onTap: () => S.i.goTab(2))
+          : _empty(p, 'В этой группе ничего нет'));
     }
     for (final m in shown) {
       final ad = Ad.fromJson(m);
@@ -596,6 +669,21 @@ class _CabinetPageState extends State<CabinetPage> {
             Text('${ad.opens}', style: TextStyle(color: p.mu, fontSize: 13)),
             Text('  ·  телефон открывали: ${ad.views}', style: TextStyle(color: p.mu, fontSize: 13)),
           ]),
+          if (isOpen && DateTime.now().millisecondsSinceEpoch - ad.upd > 14 * 86400000) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+              decoration: BoxDecoration(color: p.ac.withOpacity(.10), borderRadius: BorderRadius.circular(14), border: Border.all(color: p.ac.withOpacity(.4))),
+              child: Row(children: [
+                Expanded(
+                  child: Text('Ещё актуально? Без подтверждения объявление снимется через ${(30 - (DateTime.now().millisecondsSinceEpoch - ad.upd) ~/ 86400000).clamp(1, 30)} дн.',
+                      style: TextStyle(color: p.tx, fontSize: 13.5, fontWeight: FontWeight.w600, height: 1.3)),
+                ),
+                const SizedBox(width: 8),
+                _small(p, 'Да', fill: true, () => _act('renew', {'id': ad.id}, 'Спасибо, объявление продлено')),
+              ]),
+            ),
+          ],
           const SizedBox(height: 10),
           Wrap(spacing: 8, runSpacing: 8, children: [
             if (isOpen) _small(p, 'Открыть', ico: 'box', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: ad)))),
@@ -605,6 +693,8 @@ class _CabinetPageState extends State<CabinetPage> {
             }),
             if (!hidden)
               _small(p, isOpen ? 'Снять' : 'Опубликовать', ico: isOpen ? 'eyeoff' : 'pub', color: isOpen ? p.dng : p.ok, () => _act('status', {'id': ad.id, 's': isOpen ? 'closed' : 'open'}, isOpen ? 'Объявление снято' : 'Объявление снова опубликовано')),
+            if (isOpen) _small(p, 'Поднять', icon: Icons.arrow_upward_rounded, () => _act('bump', {'id': ad.id}, 'Объявление поднято')),
+            if (isOpen) _small(p, ad.urgent ? 'Снять «Срочно»' : 'Срочно', icon: Icons.bolt_rounded, () => _act('urgent', {'id': ad.id, 'on': !ad.urgent}, ad.urgent ? 'Метка снята' : 'Метка «Срочно» на 3 дня')),
             if (isOpen) _small(p, 'Поделиться', ico: 'share', () => showShare(context, ad)),
           ]),
         ]),
@@ -620,7 +710,14 @@ class _CabinetPageState extends State<CabinetPage> {
       if (fa != fb) return fa ? -1 : 1;
       return ((b['ts'] as num?) ?? 0).compareTo((a['ts'] as num?) ?? 0);
     });
-    if (rows.isEmpty) return [_empty(p, 'Откликов пока нет. Они появятся здесь, когда кто-то ответит на ваше объявление')];
+    if (rows.isEmpty) return [
+      EmptyState(
+          icon: Icons.mark_email_unread_outlined,
+          title: 'Откликов пока нет',
+          text: 'Они появятся здесь, когда кто-то ответит на ваше объявление.',
+          button: 'Разместить объявление',
+          onTap: () => S.i.goTab(2))
+    ];
     final items = <Widget>[];
     for (final r in rows) {
       final st = (r['st'] ?? '').toString();
@@ -681,7 +778,14 @@ class _CabinetPageState extends State<CabinetPage> {
 
   List<Widget> _sent(Pal p) {
     final rows = _list('sent').reversed.toList();
-    if (rows.isEmpty) return [_empty(p, 'Вы пока ни на что не откликались')];
+    if (rows.isEmpty) return [
+      EmptyState(
+          icon: Icons.send_outlined,
+          title: 'Вы пока не откликались',
+          text: 'Найдите подходящую подработку и напишите автору.',
+          button: 'Найти объявления',
+          onTap: () => S.i.goTab(1))
+    ];
     final items = <Widget>[];
     for (final r in rows) {
       final st = (r['st'] ?? '').toString();

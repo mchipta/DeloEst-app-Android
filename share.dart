@@ -12,7 +12,7 @@ Future<void> showShare(BuildContext context, Ad ad) async {
   final url = '$kSiteUrl#/ad/${ad.id}';
   final text = [
     ad.title,
-    [payF(ad.pay), ad.city].where((e) => e.isNotEmpty).join(' · '),
+    [adPay(ad), ad.city].where((e) => e.isNotEmpty).join(' · '),
     'Объявление на ДелоЕсть — подработка рядом с домом',
   ].join('\n');
   final enc = Uri.encodeComponent;

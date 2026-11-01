@@ -64,6 +64,9 @@ class Ad {
   final String addr; // адрес для карты
   final double? lat, lng; // координаты метки (если указаны)
   final int ts, views, opens, rc;
+  final int payAmt, need, up, upd, dn, since; // сумма, нужно людей, «поднято», обновлено, выполнено работ, на сервисе с
+  final String payType, when, dur; // тип оплаты (hour/day/job/neg), дата и время работы, длительность
+  final bool urgent;
   final bool ver;
   final double rt;
   final List<String> imgs;
@@ -90,6 +93,16 @@ class Ad {
     this.addr = '',
     this.lat,
     this.lng,
+    this.payAmt = 0,
+    this.need = 0,
+    this.up = 0,
+    this.upd = 0,
+    this.dn = 0,
+    this.since = 0,
+    this.payType = '',
+    this.when = '',
+    this.dur = '',
+    this.urgent = false,
   });
 
   factory Ad.fromJson(Map<String, dynamic> j) {
@@ -117,6 +130,16 @@ class Ad {
       addr: s('addr'),
       lat: _dbl(j['lat']),
       lng: _dbl(j['lng']),
+      payAmt: _int(j['payAmt']),
+      need: _int(j['need']),
+      up: _int(j['up']) > 0 ? _int(j['up']) : _int(j['ts']),
+      upd: _int(j['upd']) > 0 ? _int(j['upd']) : _int(j['ts']),
+      dn: _int(j['dn']),
+      since: _int(j['since']),
+      payType: s('payType'),
+      when: s('when'),
+      dur: s('dur'),
+      urgent: j['urgent'] == true,
     );
   }
 }
@@ -145,4 +168,57 @@ String plural(int n, String one, String few, String many) {
   if (a == 1 && b != 11) return one;
   if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return few;
   return many;
+}
+
+// Типы оплаты: код для сервера и подпись
+const kPayTypes = <List<String>>[
+  ['hour', 'За час'],
+  ['day', 'За день'],
+  ['job', 'За задачу'],
+  ['month', 'За месяц'],
+  ['neg', 'Договорная'],
+];
+
+String payTypeLabel(String t) => kPayTypes.firstWhere((e) => e[0] == t, orElse: () => ['', ''])[1];
+
+/// Оплата для карточки: «1 500 ₽/час»; для старых объявлений берём текст как есть
+String adPay(Ad a) {
+  if (a.payType == 'neg') return 'Договорная';
+  if (a.payAmt > 0) {
+    final n = a.payAmt.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ' ');
+    final suf = a.payType == 'hour' ? '/час' : a.payType == 'day' ? '/день' : a.payType == 'job' ? ' за задачу' : a.payType == 'month' ? '/месяц' : '';
+    return '$n ₽$suf';
+  }
+  return payF(a.pay);
+}
+
+/// Сумма для сортировки и фильтра: из числа, а у старых объявлений — из текста
+int adAmt(Ad a) {
+  if (a.payAmt > 0) return a.payAmt;
+  final m = RegExp(r'\d[\d\s]*').firstMatch(a.pay);
+  return m == null ? 0 : int.tryParse(m.group(0)!.replaceAll(RegExp(r'\s'), '')) ?? 0;
+}
+
+DateTime? adWhen(Ad a) => a.when.isEmpty ? null : DateTime.tryParse(a.when);
+
+/// «Сегодня, 18:00», «Завтра», «12 ноя, 09:30» + длительность и число людей
+String adWhenLabel(Ad a) {
+  final d = adWhen(a);
+  if (d == null) return '';
+  final now = DateTime.now(), t0 = DateTime(now.year, now.month, now.day), d0 = DateTime(d.year, d.month, d.day);
+  final diff = d0.difference(t0).inDays;
+  const mon = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  final day = diff == 0 ? 'Сегодня' : diff == 1 ? 'Завтра' : '${d.day} ${mon[d.month - 1]}';
+  final time = a.when.contains('T') ? ', ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}' : '';
+  return '$day$time';
+}
+
+String adNeedLabel(Ad a) => a.need > 1 ? 'Нужно ${a.need} ${plural(a.need, 'человек', 'человека', 'человек')}' : '';
+
+/// Сколько на сервисе: «на сервисе с окт 2026»
+String sinceLabel(int ts) {
+  if (ts <= 0) return '';
+  final d = DateTime.fromMillisecondsSinceEpoch(ts);
+  const mon = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  return 'на сервисе с ${mon[d.month - 1]} ${d.year}';
 }

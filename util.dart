@@ -420,7 +420,10 @@ String ssLabel(Map<String, String> s) {
     s['city'] ?? '',
     (s['min'] ?? '').isEmpty ? '' : 'от ${s['min']} ₽',
     (s['max'] ?? '').isEmpty ? '' : 'до ${s['max']} ₽',
-    s['sort'] == 'hi' ? 'дороже' : s['sort'] == 'lo' ? 'дешевле' : '',
+    s['sort'] == 'hi' ? 'дороже' : s['sort'] == 'lo' ? 'дешевле' : s['sort'] == 'soon' ? 'ближайшие' : '',
+    (s['pt'] ?? '').isEmpty ? '' : payTypeLabel(s['pt']!),
+    s['wh'] == 'today' ? 'сегодня' : s['wh'] == 'tomorrow' ? 'завтра' : s['wh'] == 'week' ? 'на неделе' : '',
+    s['urg'] == '1' ? 'срочно' : '',
   ].where((e) => e.isNotEmpty).toList();
   return parts.join(' · ');
 }
@@ -439,6 +442,26 @@ const kSiteTimeZones = <List<String>>[
   ['Asia/Magadan', 'Магадан (UTC+11)'],
   ['Asia/Kamchatka', 'Камчатка (UTC+12)'],
 ];
+
+// Пояс устройства: ближайший из списка по смещению от UTC
+String deviceZoneId() {
+  final h = DateTime.now().timeZoneOffset.inMinutes / 60;
+  for (final z in kSiteTimeZones.skip(1)) {
+    if (_siteZoneHours(z[0]) == h) return z[0];
+  }
+  return 'Europe/Moscow';
+}
+
+String deviceZoneLabel() {
+  final o = DateTime.now().timeZoneOffset;
+  final id = deviceZoneId();
+  if (_siteZoneHours(id) == o.inMinutes / 60) {
+    return kSiteTimeZones.firstWhere((z) => z[0] == id)[1];
+  }
+  final sign = o.isNegative ? '-' : '+';
+  final m = o.inMinutes.abs();
+  return 'UTC$sign${m ~/ 60}${m % 60 == 0 ? '' : ':${(m % 60).toString().padLeft(2, '0')}'}';
+}
 
 int? _siteZoneHours(String zone) {
   const offsets = <String, int>{

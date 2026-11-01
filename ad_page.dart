@@ -138,7 +138,7 @@ class _AdPageState extends State<AdPage> {
       isScrollControlled: true,
       backgroundColor: pal(context).card,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (c) => _ReplySheet(adId: ad.id),
+      builder: (c) => _ReplySheet(adId: ad.id, ad: ad),
     );
     if (ok == true && mounted) {
       setState(() => _replied = true);
@@ -210,11 +210,12 @@ class _AdPageState extends State<AdPage> {
                           typeTag(context, ad.type),
                           CatChip(ad.category),
                           if (ad.status == 'closed') Tag('Закрыто', p.mu),
+                          if (ad.urgent) Tag('Срочно', p.dng),
                         ]),
                         const SizedBox(height: 10),
                         Text(ad.title, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: p.tx, height: 1.2)),
                         const SizedBox(height: 6),
-                        PriceTag(ad.pay, size: 22),
+                        PriceTag(adPay(ad), size: 22),
                         const SizedBox(height: 8),
                         Row(children: [
                           Icon(Icons.place_outlined, size: 16, color: p.mu),
@@ -225,7 +226,19 @@ class _AdPageState extends State<AdPage> {
                           if (Near.i.dist(ad) != null)
                             Text('  ·  ${Near.i.dist(ad)!.label}', style: TextStyle(color: p.ac, fontSize: 14, fontWeight: FontWeight.w700)),
                         ]),
-                        const SizedBox(height: 2),
+                        if (adWhenLabel(ad).isNotEmpty || ad.dur.isNotEmpty || ad.need > 1) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: cardDeco(p, r: 16),
+                            child: Column(children: [
+                              if (adWhenLabel(ad).isNotEmpty) _fact(p, Icons.event_outlined, ad.type == kTypes[0] ? 'Когда нужно' : 'Когда могу', adWhenLabel(ad)),
+                              if (ad.dur.isNotEmpty) _fact(p, Icons.schedule_rounded, 'Сколько по времени', ad.dur),
+                              if (ad.need > 1) _fact(p, Icons.groups_2_outlined, 'Нужно людей', '${ad.need}'),
+                            ]),
+                          ),
+                        ],
+                        const SizedBox(height: 8),
                         Row(children: [
                           Text(siteDateTime(ad.ts, S.i.timeZone), style: TextStyle(color: p.mu, fontSize: 13)),
                           if (ad.opens > 0) ...[
@@ -402,6 +415,16 @@ class _AdPageState extends State<AdPage> {
     return tooltip != null ? Tooltip(message: tooltip, child: btn) : btn;
   }
 
+  Widget _fact(Pal p, IconData i, String k, String v) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(children: [
+          Icon(i, size: 19, color: p.ac),
+          const SizedBox(width: 10),
+          Expanded(child: Text(k, style: TextStyle(color: p.mu, fontSize: 13.5))),
+          Text(v, style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 14.5)),
+        ]),
+      );
+
   Widget _author(Pal p) {
     return Container(
       padding: const EdgeInsets.all(14),
@@ -430,6 +453,17 @@ class _AdPageState extends State<AdPage> {
               ])
             else
               Text('Пока нет отзывов', style: TextStyle(color: p.mu, fontSize: 13)),
+            if (ad.dn > 0 || ad.since > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 3),
+                child: Text(
+                  [
+                    if (ad.dn > 0) '${ad.dn} ${plural(ad.dn, 'выполненная работа', 'выполненные работы', 'выполненных работ')}',
+                    if (ad.since > 0) sinceLabel(ad.since),
+                  ].join(' · '),
+                  style: TextStyle(color: p.mu, fontSize: 12.5),
+                ),
+              ),
           ]),
         ),
       ]),
@@ -556,14 +590,31 @@ class PhotoViewer extends StatelessWidget {
 
 class _ReplySheet extends StatefulWidget {
   final String adId;
-  const _ReplySheet({required this.adId});
+  final Ad? ad;
+  const _ReplySheet({required this.adId, this.ad});
   @override
   State<_ReplySheet> createState() => _ReplySheetState();
 }
 
 class _ReplySheetState extends State<_ReplySheet> {
   final _msg = TextEditingController();
-  final List<String> _tpls = ['Могу сегодня', 'Свой транспорт', 'Есть опыт'];
+  late final List<String> _tpls = _makeTpls();
+
+  // Заготовки зависят от объявления: заказчику — про время и опыт, исполнителю — про цену и сроки
+  List<String> _makeTpls() {
+    final a = widget.ad;
+    if (a != null && a.type == kTypes[1]) {
+      return ['Интересует ваша услуга', 'Подскажите стоимость', 'Когда сможете приехать', 'Напишите мне в чат'];
+    }
+    final w = a == null ? '' : adWhenLabel(a);
+    return [
+      if (w.isNotEmpty) 'Могу: ${w.toLowerCase()}' else 'Могу сегодня',
+      'Готов приступить сейчас',
+      'Есть опыт',
+      'Свой транспорт',
+      'Свой инструмент',
+    ];
+  }
   bool busy = false;
   String? err;
 

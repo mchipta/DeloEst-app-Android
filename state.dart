@@ -144,7 +144,10 @@ class S extends ChangeNotifier {
     Future.delayed(const Duration(seconds: 4), () {
       i.syncFcm();
       i.refreshUnread();
-      if (i.logged) i.syncBlocks();
+      if (i.logged) {
+        i.syncBlocks();
+        i.syncSS();
+      }
     });
     i._timer = Timer.periodic(const Duration(seconds: 30), (_) => i.refreshUnread());
     Future.delayed(const Duration(seconds: 8), () => i.checkAppUpdate(silent: true));
@@ -225,6 +228,7 @@ class S extends ChangeNotifier {
     if (j != null) {
       refreshUnread();
       syncBlocks();
+      syncSS();
     }
   }
 
@@ -302,6 +306,49 @@ class S extends ChangeNotifier {
     _unreadInit = false; // переключение фильтра уведомлений не должно выглядеть новым сообщением
     notifyListeners();
     refreshUnread();
+  }
+
+  static const _ssKeys = ['q', 'type', 'cat', 'city', 'min', 'max', 'pt', 'wh', 'urg'];
+  bool _ssSame(Map<String, String> a, Map<String, dynamic> b) => _ssKeys.every((k) => (a[k] ?? '') == (b[k] ?? '').toString());
+
+  // Сохранённые поиски лежат на сервере: так приходит push «Новое по вашему поиску» и поиски есть на всех устройствах
+  Future<void> syncSS() async {
+    if (!logged) return;
+    try {
+      final r = await Api.call('ssList', {'push': ss.map((e) => {for (final k in _ssKeys) k: e[k] ?? ''}).toList()});
+      final list = (r['list'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      final next = <Map<String, String>>[];
+      for (final x in list) {
+        final local = ss.where((e) => _ssSame(e, x)).toList();
+        final m = local.isNotEmpty ? Map<String, String>.from(local.first) : {for (final k in _ssKeys) k: (x[k] ?? '').toString()};
+        m['id'] = (x['id'] ?? '').toString();
+        next.add(m);
+      }
+      ss = next;
+      await saveSS();
+    } catch (_) {}
+  }
+
+  Future<void> addSS(Map<String, String> s) async {
+    ss.add(s);
+    await saveSS();
+    if (!logged) return;
+    try {
+      final r = await Api.call('ssSave', {'s': {for (final k in _ssKeys) k: s[k] ?? ''}});
+      s['id'] = (r['id'] ?? '').toString();
+      await saveSS();
+    } catch (_) {}
+  }
+
+  Future<void> delSS(Map<String, String> s) async {
+    ss.remove(s);
+    await saveSS();
+    final id = s['id'] ?? '';
+    if (logged && id.isNotEmpty) {
+      try {
+        await Api.call('ssDel', {'id': id});
+      } catch (_) {}
+    }
   }
 
   Future<void> saveSS() async {

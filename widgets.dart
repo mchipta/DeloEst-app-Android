@@ -731,12 +731,21 @@ class AdCard extends StatelessWidget {
                   ]),
                   const SizedBox(height: 6),
                   // сначала оплата — по ней человек решает, читать ли дальше
-                  PriceTag(ad.pay, size: 19, plain: true),
+                  PriceTag(adPay(ad), size: 19, plain: true),
                   const SizedBox(height: 3),
                   Text(ad.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, height: 1.2, color: p.tx)),
+                  if (adWhenLabel(ad).isNotEmpty || ad.dur.isNotEmpty || ad.need > 1) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      [adWhenLabel(ad), ad.dur, adNeedLabel(ad)].where((e) => e.isNotEmpty).join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: p.tx.withOpacity(.75)),
+                    ),
+                  ],
                   const SizedBox(height: 5),
                   Row(children: [
                     Ico('pin', size: 14, color: p.mu),
@@ -747,7 +756,7 @@ class AdCard extends StatelessWidget {
                     ),
                     if (Near.i.dist(ad) != null)
                       Text(' · ${Near.i.dist(ad)!.label}', style: TextStyle(fontSize: 12, color: p.ac, fontWeight: FontWeight.w700)),
-                    Text(' · ${siteShortAgo(ad.ts, S.i.timeZone)}', style: TextStyle(fontSize: 12, color: p.mu)),
+                    Text(' · ${siteShortAgo(ad.up, S.i.timeZone)}', style: TextStyle(fontSize: 12, color: p.mu)),
                   ]),
                 ]),
               ),
@@ -768,6 +777,14 @@ class AdCard extends StatelessWidget {
       Container(width: 7, height: 7, decoration: BoxDecoration(color: col, shape: BoxShape.circle)),
       const SizedBox(width: 6),
       Text(ad.type, maxLines: 1, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: col)),
+      if (ad.urgent) ...[
+        const SizedBox(width: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          decoration: BoxDecoration(color: p.dng.withOpacity(.14), borderRadius: BorderRadius.circular(6)),
+          child: Text('Срочно', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: p.dng)),
+        ),
+      ],
       if (ad.category.isNotEmpty)
         Flexible(
           child: Text(' · ${ad.category}',
@@ -790,7 +807,7 @@ class AdCard extends StatelessWidget {
         : Padding(padding: const EdgeInsets.all(4), child: heart);
   }
 
-  String _shortDate() => siteShortAgo(ad.ts, S.i.timeZone);
+  String _shortDate() => siteShortAgo(ad.up, S.i.timeZone);
 
   // «Город, адрес · 800 м · 3 ч назад» (расстояние — акцентом)
   Widget _locLine(Pal p, double size) {
@@ -846,7 +863,7 @@ class AdCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                PriceTag(ad.pay, size: 16, dense: true),
+                PriceTag(adPay(ad), size: 16, dense: true),
                 const SizedBox(height: 4),
                 Text(ad.title, maxLines: 2, overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, height: 1.2, color: p.tx)),
@@ -879,7 +896,7 @@ class AdCard extends StatelessWidget {
                 Text(ad.title, maxLines: 1, overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: p.tx)),
                 const SizedBox(height: 2),
-                PriceTag(ad.pay, size: 14, dense: true),
+                PriceTag(adPay(ad), size: 14, dense: true),
                 const SizedBox(height: 2),
                 Row(children: [
                   Container(width: 7, height: 7, decoration: BoxDecoration(color: need ? p.ac : p.ok, shape: BoxShape.circle)),
@@ -1548,4 +1565,34 @@ Widget appContextMenu(BuildContext context, EditableTextState state) {
 Widget menuRow(BuildContext context, IconData icon, String text) {
   final p = pal(context);
   return Row(children: [Icon(icon, size: 20, color: p.ac), const SizedBox(width: 12), Text(text)]);
+}
+
+// Пустое состояние: иконка, заголовок, короткий текст и одна кнопка (единый вид для всех экранов)
+class EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String text;
+  final String? button;
+  final VoidCallback? onTap;
+  const EmptyState({super.key, required this.icon, required this.title, this.text = '', this.button, this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(32, 56, 32, 24),
+      child: Column(children: [
+        Icon(icon, size: 52, color: p.mu),
+        const SizedBox(height: 12),
+        Text(title, textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: p.tx)),
+        if (text.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(text, textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 14.5, height: 1.35)),
+        ],
+        if (button != null && onTap != null) ...[
+          const SizedBox(height: 16),
+          SizedBox(width: 240, child: GradBtn(button!, onTap: () { haptic(); onTap!(); })),
+        ],
+      ]),
+    );
+  }
 }

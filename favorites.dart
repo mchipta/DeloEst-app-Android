@@ -39,17 +39,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
     );
   }
 
-  Widget _empty(Pal p, IconData icon, String title, String text) => Padding(
-        padding: const EdgeInsets.fromLTRB(32, 56, 32, 24),
-        child: Column(children: [
-          Icon(icon, size: 52, color: p.mu),
-          const SizedBox(height: 12),
-          Text(title, textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: p.tx)),
-          const SizedBox(height: 6),
-          Text(text, textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 14.5, height: 1.35)),
-        ]),
-      );
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -73,14 +62,22 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   const SizedBox(height: 14),
                   if (_t == 0) ...[
                     if (ads.isEmpty)
-                      _empty(p, Icons.favorite_border_rounded, 'Здесь пока пусто',
-                          'Нажмите на сердечко ♡ на карточке объявления, чтобы сохранить его сюда.'),
+                      EmptyState(
+                          icon: Icons.favorite_border_rounded,
+                          title: 'Здесь пока пусто',
+                          text: 'Нажмите на сердечко ♡ на карточке объявления, чтобы сохранить его сюда.',
+                          button: 'Найти объявления',
+                          onTap: () => S.i.goTab(1)),
                     for (final a in ads)
                       AdCard(ad: a, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: a)))),
                   ] else ...[
                     if (ss.isEmpty)
-                      _empty(p, Icons.bookmark_border_rounded, 'Сохранённых поисков нет',
-                          'В поиске задайте запрос или фильтры и нажмите «Сохранить поиск».'),
+                      EmptyState(
+                          icon: Icons.bookmark_border_rounded,
+                          title: 'Сохранённых поисков нет',
+                          text: 'Задайте запрос или фильтры и сохраните поиск — мы напомним о новом.',
+                          button: 'Перейти к поиску',
+                          onTap: () => S.i.goTab(1)),
                     for (final s in ss)
                       Container(
                         margin: const EdgeInsets.only(bottom: 10),
@@ -109,8 +106,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                             tooltip: 'Удалить поиск',
                             icon: Icon(Icons.close_rounded, size: 20, color: p.mu),
                             onPressed: () {
-                              S.i.ss.remove(s);
-                              S.i.saveSS();
+                              S.i.delSS(s);
                             },
                           ),
                         ]),
