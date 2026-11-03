@@ -50,6 +50,14 @@ jobs:
           flutter pub get
           dart run flutter_launcher_icons
 
+      - name: Звук уведомлений
+        run: |
+          mkdir -p shell/android/app/src/main/res/raw
+          for f in assets/delo_notify.wav delo_notify.wav; do
+            if [ -f "$f" ]; then cp "$f" shell/android/app/src/main/res/raw/delo_notify.wav; fi
+          done
+          test -f shell/android/app/src/main/res/raw/delo_notify.wav || { echo "::error::Не найден файл delo_notify.wav"; exit 1; }
+
       - name: Настройка Android (интернет, название, смена иконки)
         working-directory: shell
         run: python3 ../configure_android.py
