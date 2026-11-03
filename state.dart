@@ -44,7 +44,10 @@ class S extends ChangeNotifier {
   int get rootTab => logged ? 1 : 0;
   int cabTick = 0;
   int msgTick = 0;
+  // на значке «Сообщения» — число диалогов с непрочитанным (как у Авито), а не число сообщений
   int unread = 0;
+  int _msgs = 0; // всего непрочитанных сообщений (по данным сервера)
+  int _dlgs = 0; // из них диалогов
   bool messagesOpen = false;
   bool messageNotificationsEnabled = true;
   // прозрачная плавающая нижняя панель: контент виден сквозь неё, как в Telegram
@@ -184,8 +187,8 @@ class S extends ChangeNotifier {
         'token': Api.token ?? '',
         'enabled': messageNotificationsEnabled,
         'lastPushTs': lastPushTs,
-        'lastUnread': unread,
-        'unread': unread,
+        'lastUnread': _msgs,
+        'unread': _msgs,
       });
     } catch (_) {}
   }
@@ -217,6 +220,8 @@ class S extends ChangeNotifier {
     cabTick++;
     if (j == null) {
       unread = 0;
+      _msgs = 0;
+      _dlgs = 0;
       _unreadInit = false;
       if (tab == 4) tab = 0; // вкладка «Сообщения» только для вошедших
     } else if (tab == 0) {
@@ -420,26 +425,37 @@ class S extends ChangeNotifier {
     }
     try {
       int n;
+      int msgs;
       if (mutedChats.isEmpty) {
         final j = await Api.call('unread', {'pAfter': lastPushTs});
         await _handlePushes(j['pushes']);
-        n = (j['n'] as num?)?.toInt() ?? 0;
+        msgs = (j['n'] as num?)?.toInt() ?? 0;
+        if (msgs == 0) {
+          _dlgs = 0;
+        } else if (msgs != _msgs || _dlgs == 0) {
+          // число сообщений изменилось: узнаём, сколько это диалогов
+          _dlgs = await _countUnreadDialogs() ?? 0;
+        }
+        n = _dlgs == 0 ? msgs : _dlgs;
       } else {
         // Когда есть отключённые диалоги, считаем непрочитанное по диалогам,
         // как это делает веб-версия, чтобы приглушённые чаты не поднимали бейдж.
         final j = await Api.call('dialogs');
         n = 0;
+        msgs = 0;
         final list = j['list'];
         if (list is List) {
           for (final item in list) {
             final d = Map<String, dynamic>.from(item as Map);
             if (!isChatMuted((d['pid'] ?? '').toString())) {
-              n += (d['n'] as num?)?.toInt() ?? int.tryParse((d['n'] ?? '0').toString()) ?? 0;
+              final c = (d['n'] as num?)?.toInt() ?? int.tryParse((d['n'] ?? '0').toString()) ?? 0;
+              msgs += c;
+              if (c > 0) n++;
             }
           }
         }
       }
-      if (_unreadInit && n > unread && messageNotificationsEnabled && !messagesOpen && chatOpen == 0) {
+      if (_unreadInit && msgs > _msgs && messageNotificationsEnabled && !messagesOpen && chatOpen == 0) {
         if (_resumed) await showSystemPush('Новое сообщение', 'Откройте ДелоЕсть, чтобы прочитать сообщение');
         TopToastHost.show(
           'Откройте чаты, чтобы прочитать сообщение',
@@ -449,6 +465,7 @@ class S extends ChangeNotifier {
           seconds: 5,
         );
       }
+      _msgs = msgs;
       _unreadInit = true;
       if (n != unread) {
         unread = n;
@@ -458,6 +475,24 @@ class S extends ChangeNotifier {
       await syncBgPushState();
     } catch (e) {
       if (e is ApiError && e.message == 'auth') fail(e);
+    }
+  }
+
+  /// Сколько диалогов с непрочитанным (без отключённых); null, если не удалось узнать
+  Future<int?> _countUnreadDialogs() async {
+    try {
+      final j = await Api.call('dialogs');
+      final list = j['list'];
+      if (list is! List) return null;
+      var c = 0;
+      for (final item in list) {
+        final d = Map<String, dynamic>.from(item as Map);
+        final k = (d['n'] as num?)?.toInt() ?? int.tryParse((d['n'] ?? '0').toString()) ?? 0;
+        if (k > 0 && !isChatMuted((d['pid'] ?? '').toString())) c++;
+      }
+      return c;
+    } catch (_) {
+      return null;
     }
   }
 
