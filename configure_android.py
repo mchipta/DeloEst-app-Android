@@ -170,8 +170,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
+import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.MediaRecorder
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -196,7 +198,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 object DeloEstNotif {
-    const val CHANNEL_ID = "deloest_push_v2"
+    const val CHANNEL_ID = "deloest_push_v3"
     const val PREFS = "deloest_bg_prefs"
     private var seq = 200
 
@@ -212,8 +214,17 @@ object DeloEstNotif {
             ).apply {
                 description = "Сообщения, отклики и важные оповещения сервиса ДелоЕсть"
                 enableVibration(true)
+                setSound(
+                    Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.delo_notify),
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
             }
             val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            // старый канал со стандартным звуком больше не нужен
+            nm.deleteNotificationChannel("deloest_push_v2")
             nm.createNotificationChannel(ch)
         }
     }
