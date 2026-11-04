@@ -588,6 +588,11 @@ class Tag extends StatelessWidget {
   }
 }
 
+Widget typeTag(BuildContext context, String type) {
+  final p = pal(context);
+  return Tag(type, type == kTypes[0] ? p.ac : p.ok);
+}
+
 /// Цена-плашка: крупно и цветом, чтобы взгляд находил её первой (как на сайте, .pay)
 class PriceTag extends StatelessWidget {
   final String pay;
