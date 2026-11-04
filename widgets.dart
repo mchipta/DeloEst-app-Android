@@ -600,39 +600,38 @@ class PriceTag extends StatelessWidget {
     final p = pal(context);
     final text = payF(pay);
     final fs = plain ? size + 2 : size;
+    // значок слева: рубль для суммы, рукопожатие для «Договорной»; текст зелёный
+    Widget badge(IconData ic) => Container(
+          width: fs * 1.25,
+          height: fs * 1.25,
+          decoration: BoxDecoration(color: p.ok.withOpacity(.16), borderRadius: BorderRadius.circular(fs * .4)),
+          child: Icon(ic, size: fs * .85, color: p.ok),
+        );
     if (!RegExp(r'\d').hasMatch(text)) {
-      // «Договорная»: тёплая плашка в цвет акцента, с рукопожатием
-      return Container(
-        padding: EdgeInsets.fromLTRB(8, dense ? 2 : 3, 10, dense ? 2 : 3),
-        decoration: BoxDecoration(
-          color: p.ac.withOpacity(.13),
-          borderRadius: BorderRadius.circular(99),
-          border: Border.all(color: p.ac.withOpacity(.24)),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.handshake_outlined, size: fs * .78, color: p.ac),
-          const SizedBox(width: 5),
-          Text('Договорная', style: TextStyle(fontSize: fs * .72, fontWeight: FontWeight.w700, color: p.ac, height: 1.2)),
-        ]),
-      );
+      return Row(mainAxisSize: MainAxisSize.min, children: [
+        badge(Icons.handshake_outlined),
+        SizedBox(width: fs * .4),
+        Text('Договорная', maxLines: 1, style: TextStyle(fontSize: fs, fontWeight: FontWeight.w800, color: p.ok, height: 1.2, letterSpacing: -.2)),
+      ]);
     }
     final m = RegExp(r'^([\d\s.,]+₽)\s*(.*)$').firstMatch(text);
     final amount = m?.group(1) ?? text;
     final unit = m?.group(2) ?? '';
-    return Text.rich(
-      TextSpan(children: [
-        TextSpan(text: amount, style: TextStyle(fontSize: fs, fontWeight: FontWeight.w800, color: p.ok, height: 1.2)),
-        if (unit.isNotEmpty) TextSpan(text: ' $unit', style: TextStyle(fontSize: fs * .62, fontWeight: FontWeight.w600, color: p.mu, height: 1.2)),
-      ]),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-    );
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      badge(Icons.currency_ruble_rounded),
+      SizedBox(width: fs * .4),
+      Flexible(
+        child: Text.rich(
+          TextSpan(children: [
+            TextSpan(text: amount, style: TextStyle(fontSize: fs, fontWeight: FontWeight.w800, color: p.ok, height: 1.2)),
+            if (unit.isNotEmpty) TextSpan(text: ' $unit', style: TextStyle(fontSize: fs * .62, fontWeight: FontWeight.w600, color: p.mu, height: 1.2)),
+          ]),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    ]);
   }
-}
-
-Widget typeTag(BuildContext c, String type) {
-  final p = pal(c);
-  return Tag(type, type == kTypes[0] ? p.ac : p.ok);
 }
 
 class CatChip extends StatelessWidget {
@@ -1602,5 +1601,169 @@ class EmptyState extends StatelessWidget {
         ],
       ]),
     );
+  }
+}
+
+/// Панель владельца: статистика объявления и управление (в «Моих объявлениях» и на странице объявления)
+class OwnerPanel extends StatelessWidget {
+  final Ad ad;
+  final VoidCallback onEdit, onToggle, onBump, onUrgent, onShare;
+  final VoidCallback? onRenew;
+  const OwnerPanel({
+    super.key,
+    required this.ad,
+    required this.onEdit,
+    required this.onToggle,
+    required this.onBump,
+    required this.onUrgent,
+    required this.onShare,
+    this.onRenew,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    final isOpen = ad.status == 'open';
+    final hidden = ad.status == 'hidden';
+    final upd = ad.upd > 0 ? ad.upd : ad.ts;
+
+    Widget stat(IconData ic, int v, String l) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+            decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(14)),
+            child: Row(children: [
+              Icon(ic, size: 18, color: p.ac),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('$v', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: p.tx, height: 1.1)),
+                  Text(l, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: p.mu)),
+                ]),
+              ),
+            ]),
+          ),
+        );
+
+    Widget quick(IconData ic, String l, VoidCallback f, {bool on = false}) => Expanded(
+          child: Tap(
+            onTap: () {
+              haptic();
+              f();
+            },
+            scale: .96,
+            child: Container(
+              height: 60,
+              decoration: BoxDecoration(
+                color: on ? p.ac.withOpacity(.14) : p.bg2,
+                borderRadius: BorderRadius.circular(14),
+                border: on ? Border.all(color: p.ac) : null,
+              ),
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(ic, size: 20, color: on ? p.ac : p.tx),
+                const SizedBox(height: 4),
+                Text(l, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: on ? p.ac : p.tx)),
+              ]),
+            ),
+          ),
+        );
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Tag(hidden ? 'Скрыто' : isOpen ? 'Активно' : 'Снято', hidden ? p.dng : isOpen ? p.ok : p.mu),
+        const SizedBox(width: 10),
+        Expanded(child: Text('Обновлено ${ago(upd)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13))),
+      ]),
+      const SizedBox(height: 10),
+      Row(children: [
+        stat(Icons.visibility_outlined, ad.opens, 'просмотров'),
+        const SizedBox(width: 8),
+        stat(Icons.phone_outlined, ad.views, 'открыли телефон'),
+      ]),
+      if (onRenew != null) ...[
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+          decoration: BoxDecoration(color: p.ac.withOpacity(.10), borderRadius: BorderRadius.circular(14), border: Border.all(color: p.ac.withOpacity(.4))),
+          child: Row(children: [
+            Expanded(
+              child: Text('Ещё актуально? Без подтверждения объявление снимется через ${(30 - (DateTime.now().millisecondsSinceEpoch - ad.upd) ~/ 86400000).clamp(1, 30)} дн.',
+                  style: TextStyle(color: p.tx, fontSize: 13.5, fontWeight: FontWeight.w600, height: 1.3)),
+            ),
+            const SizedBox(width: 10),
+            Tap(
+              onTap: onRenew,
+              scale: .95,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                decoration: BoxDecoration(gradient: LinearGradient(colors: [p.ac, p.ac2]), borderRadius: BorderRadius.circular(12)),
+                child: const Text('Да', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
+              ),
+            ),
+          ]),
+        ),
+      ],
+      const SizedBox(height: 12),
+      Row(children: [
+        Expanded(
+          flex: 5,
+          child: Tap(
+            onTap: () {
+              haptic();
+              onEdit();
+            },
+            scale: .97,
+            child: Container(
+              height: 46,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [p.ac, p.ac2]),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [BoxShadow(color: p.ac.withOpacity(.16), blurRadius: 12, offset: const Offset(0, 4))],
+              ),
+              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.edit_outlined, size: 18, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Изменить', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15)),
+              ]),
+            ),
+          ),
+        ),
+        if (!hidden) ...[
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 5,
+            child: Tap(
+              onTap: () {
+                haptic();
+                onToggle();
+              },
+              scale: .97,
+              child: Container(
+                height: 46,
+                decoration: BoxDecoration(
+                  color: (isOpen ? p.dng : p.ok).withOpacity(.10),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: (isOpen ? p.dng : p.ok).withOpacity(.35)),
+                ),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Icon(isOpen ? Icons.visibility_off_outlined : Icons.publish_rounded, size: 18, color: isOpen ? p.dng : p.ok),
+                  const SizedBox(width: 8),
+                  Text(isOpen ? 'Снять' : 'Опубликовать', style: TextStyle(color: isOpen ? p.dng : p.ok, fontWeight: FontWeight.w800, fontSize: 15)),
+                ]),
+              ),
+            ),
+          ),
+        ],
+      ]),
+      if (isOpen) ...[
+        const SizedBox(height: 10),
+        Row(children: [
+          quick(Icons.arrow_upward_rounded, 'Поднять', onBump),
+          const SizedBox(width: 8),
+          quick(Icons.bolt_rounded, ad.urgent ? 'Без «Срочно»' : 'Срочно', onUrgent, on: ad.urgent),
+          const SizedBox(width: 8),
+          quick(Icons.ios_share_rounded, 'Поделиться', onShare),
+        ]),
+      ],
+    ]);
   }
 }

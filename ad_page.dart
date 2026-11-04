@@ -10,6 +10,7 @@ import 'map_page.dart';
 import 'messages.dart';
 import 'models.dart';
 import 'near.dart';
+import 'post.dart';
 import 'profile.dart';
 import 'share.dart';
 import 'state.dart';
@@ -95,6 +96,33 @@ class _AdPageState extends State<AdPage> {
       if (!mounted || !S.i.logged) return;
     }
     await showReportSheet(context, id: ad.id, label: 'объявление');
+  }
+
+  // Управление своим объявлением прямо на его странице
+  Future<void> _refreshOwn() async {
+    await S.i.loadAds();
+    final n = S.i.ads.where((x) => x.id == ad.id);
+    if (!mounted) return;
+    if (n.isNotEmpty) {
+      setState(() => ad = n.first);
+    } else {
+      Navigator.pop(context); // снятое объявление пропало из общей ленты
+    }
+  }
+
+  Future<void> _own(String a, Map<String, dynamic> d, String okMsg) async {
+    try {
+      await Api.call(a, d);
+      if (mounted) toast(context, okMsg);
+      await _refreshOwn();
+    } catch (e) {
+      if (mounted) toast(context, S.i.fail(e), err: true);
+    }
+  }
+
+  Future<void> _ownEdit() async {
+    final r = await Navigator.push(context, MaterialPageRoute(builder: (_) => PostScreen(edit: ad, embedded: false)));
+    if (r == true) await _refreshOwn();
   }
 
   Future<void> _openMoreMenu(Pal p, bool mine) async {
@@ -265,8 +293,22 @@ class _AdPageState extends State<AdPage> {
                           Container(
                             padding: const EdgeInsets.all(14),
                             decoration: cardDeco(p),
-                            child: Text('Это ваше объявление. Управлять им и откликами можно в разделе «Объявления».',
-                                style: TextStyle(color: p.mu)),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text('Ваше объявление', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx)),
+                              const SizedBox(height: 12),
+                              OwnerPanel(
+                                ad: ad,
+                                onEdit: _ownEdit,
+                                onToggle: () => _own('status', {'id': ad.id, 's': ad.status == 'open' ? 'closed' : 'open'},
+                                    ad.status == 'open' ? 'Объявление снято' : 'Объявление снова опубликовано'),
+                                onBump: () => _own('bump', {'id': ad.id}, 'Объявление поднято'),
+                                onUrgent: () => _own('urgent', {'id': ad.id, 'on': !ad.urgent}, ad.urgent ? 'Метка снята' : 'Метка «Срочно» на 3 дня'),
+                                onShare: () => showShare(context, ad),
+                                onRenew: (ad.status == 'open' && DateTime.now().millisecondsSinceEpoch - ad.upd > 14 * 86400000)
+                                    ? () => _own('renew', {'id': ad.id}, 'Спасибо, объявление продлено')
+                                    : null,
+                              ),
+                            ]),
                           )
                         else if (ad.status == 'closed')
                           Container(

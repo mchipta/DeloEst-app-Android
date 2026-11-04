@@ -314,24 +314,41 @@ class _CabinetPageState extends State<CabinetPage> {
   Widget _stats(Pal p) {
     final st = data?['stats'] is Map ? Map<String, dynamic>.from(data!['stats'] as Map) : <String, dynamic>{};
     int n(String k) => (st[k] as num?)?.toInt() ?? 0;
-    Widget cell(String v, String l) => Expanded(
-          child: Column(children: [
-            Text(v, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: p.tx)),
-            const SizedBox(height: 2),
-            Text(l, textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 12)),
-          ]),
+    Widget tile(IconData ic, Color c, int v, String l) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(18), border: Border.all(color: p.bd)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(color: c.withOpacity(.16), borderRadius: BorderRadius.circular(11)),
+                child: Icon(ic, size: 18, color: c),
+              ),
+              const SizedBox(height: 10),
+              Text('$v', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: p.tx, height: 1.1)),
+              const SizedBox(height: 2),
+              Text(l, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 12.5)),
+            ]),
+          ),
         );
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
-      decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(18), border: Border.all(color: p.bd)),
-      child: Column(children: [
-        Row(children: [cell('${n('views')}', 'просмотров'), cell('${n('resp')}', 'откликов'), cell('${n('done')}', 'выполнено')]),
-        if (n('since') > 0) ...[
-          const SizedBox(height: 10),
-          Text(sinceLabel(n('since')), style: TextStyle(color: p.mu, fontSize: 12.5)),
-        ],
+    return Column(children: [
+      Row(children: [
+        tile(Icons.visibility_outlined, p.ac, n('views'), 'просмотров'),
+        const SizedBox(width: 10),
+        tile(Icons.mark_chat_unread_outlined, const Color(0xFF4C8DFF), n('resp'), 'откликов'),
+        const SizedBox(width: 10),
+        tile(Icons.task_alt_rounded, p.ok, n('done'), 'выполнено'),
       ]),
-    );
+      if (n('since') > 0) ...[
+        const SizedBox(height: 12),
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.event_available_outlined, size: 16, color: p.mu),
+          const SizedBox(width: 6),
+          Text(sinceLabel(n('since')), style: TextStyle(color: p.mu, fontSize: 13)),
+        ]),
+      ],
+    ]);
   }
 
   Widget _header(Pal p) {
@@ -660,44 +677,20 @@ class _CabinetPageState extends State<CabinetPage> {
         ad: ad,
         showFav: false,
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: ad))),
-        footer: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Tag(hidden ? 'Скрыто' : isOpen ? 'Активно' : 'Снято', hidden ? p.dng : isOpen ? p.ok : p.mu),
-            const SizedBox(width: 10),
-            Icon(Icons.visibility_outlined, size: 15, color: p.mu),
-            const SizedBox(width: 4),
-            Text('${ad.opens}', style: TextStyle(color: p.mu, fontSize: 13)),
-            Text('  ·  телефон открывали: ${ad.views}', style: TextStyle(color: p.mu, fontSize: 13)),
-          ]),
-          if (isOpen && DateTime.now().millisecondsSinceEpoch - ad.upd > 14 * 86400000) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-              decoration: BoxDecoration(color: p.ac.withOpacity(.10), borderRadius: BorderRadius.circular(14), border: Border.all(color: p.ac.withOpacity(.4))),
-              child: Row(children: [
-                Expanded(
-                  child: Text('Ещё актуально? Без подтверждения объявление снимется через ${(30 - (DateTime.now().millisecondsSinceEpoch - ad.upd) ~/ 86400000).clamp(1, 30)} дн.',
-                      style: TextStyle(color: p.tx, fontSize: 13.5, fontWeight: FontWeight.w600, height: 1.3)),
-                ),
-                const SizedBox(width: 8),
-                _small(p, 'Да', fill: true, () => _act('renew', {'id': ad.id}, 'Спасибо, объявление продлено')),
-              ]),
-            ),
-          ],
-          const SizedBox(height: 10),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            if (isOpen) _small(p, 'Открыть', ico: 'box', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: ad)))),
-            _small(p, 'Изменить', ico: 'edit', () async {
-              final r = await Navigator.push(context, MaterialPageRoute(builder: (_) => PostScreen(edit: ad, embedded: false)));
-              if (r == true) _load();
-            }),
-            if (!hidden)
-              _small(p, isOpen ? 'Снять' : 'Опубликовать', ico: isOpen ? 'eyeoff' : 'pub', color: isOpen ? p.dng : p.ok, () => _act('status', {'id': ad.id, 's': isOpen ? 'closed' : 'open'}, isOpen ? 'Объявление снято' : 'Объявление снова опубликовано')),
-            if (isOpen) _small(p, 'Поднять', icon: Icons.arrow_upward_rounded, () => _act('bump', {'id': ad.id}, 'Объявление поднято')),
-            if (isOpen) _small(p, ad.urgent ? 'Снять «Срочно»' : 'Срочно', icon: Icons.bolt_rounded, () => _act('urgent', {'id': ad.id, 'on': !ad.urgent}, ad.urgent ? 'Метка снята' : 'Метка «Срочно» на 3 дня')),
-            if (isOpen) _small(p, 'Поделиться', ico: 'share', () => showShare(context, ad)),
-          ]),
-        ]),
+        footer: OwnerPanel(
+          ad: ad,
+          onEdit: () async {
+            final r = await Navigator.push(context, MaterialPageRoute(builder: (_) => PostScreen(edit: ad, embedded: false)));
+            if (r == true) _load();
+          },
+          onToggle: () => _act('status', {'id': ad.id, 's': isOpen ? 'closed' : 'open'}, isOpen ? 'Объявление снято' : 'Объявление снова опубликовано'),
+          onBump: () => _act('bump', {'id': ad.id}, 'Объявление поднято'),
+          onUrgent: () => _act('urgent', {'id': ad.id, 'on': !ad.urgent}, ad.urgent ? 'Метка снята' : 'Метка «Срочно» на 3 дня'),
+          onShare: () => showShare(context, ad),
+          onRenew: (isOpen && DateTime.now().millisecondsSinceEpoch - ad.upd > 14 * 86400000)
+              ? () => _act('renew', {'id': ad.id}, 'Спасибо, объявление продлено')
+              : null,
+        ),
       ));
     }
     return items;

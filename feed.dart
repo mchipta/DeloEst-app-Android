@@ -254,31 +254,35 @@ class _FeedPageState extends State<FeedPage> {
       },
       scale: .98,
       child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: on ? p.ac.withOpacity(.08) : p.card,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: on ? p.ac : p.bd, width: on ? 1.6 : 1),
-        ),
+        padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
+        decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
         child: Row(children: [
           Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(color: p.ac.withOpacity(.14), borderRadius: BorderRadius.circular(14)),
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(color: p.ac.withOpacity(on ? .2 : .12), borderRadius: BorderRadius.circular(12)),
             child: Near.i.busy
-                ? Padding(padding: const EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2.2, color: p.ac))
-                : Icon(on ? Icons.my_location_rounded : Icons.location_searching_rounded, size: 22, color: p.ac),
+                ? Padding(padding: const EdgeInsets.all(11), child: CircularProgressIndicator(strokeWidth: 2.2, color: p.ac))
+                : Icon(Icons.near_me_rounded, size: 20, color: p.ac),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(on ? 'Рядом со мной' : 'Определить, где я', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: p.tx)),
-              const SizedBox(height: 2),
-              Text(on ? 'Ближайшие объявления показываем первыми' : 'Покажем объявления рядом с вами',
-                  style: TextStyle(fontSize: 12.5, color: p.mu)),
+              Text('Рядом со мной', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: p.tx)),
+              const SizedBox(height: 1),
+              Text(on ? 'Ближайшие объявления — первыми' : 'Определить моё местоположение',
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: p.mu)),
             ]),
           ),
-          if (on) Icon(Icons.check_circle_rounded, color: p.ac, size: 22),
+          const SizedBox(width: 8),
+          if (on)
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.check_rounded, size: 18, color: p.ok),
+              const SizedBox(width: 4),
+              Text('Вкл', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: p.ok)),
+            ])
+          else
+            Text('Включить', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: p.ac)),
         ]),
       ),
     );
@@ -366,10 +370,17 @@ class _FeedPageState extends State<FeedPage> {
                   _geoTile(p, () => upd(() {})),
                   if (Near.i.has) ...[
                     const SizedBox(height: 12),
-                    Wrap(spacing: 8, runSpacing: 8, children: [
-                      _fChip(p, 'Любое расстояние', _rad.isEmpty, () => upd(() => _rad = '')),
-                      for (final k in const [3, 5, 10, 25, 50]) _fChip(p, 'до $k км', _rad == '$k', () => upd(() => _rad = _rad == '$k' ? '' : '$k')),
-                    ]),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      clipBehavior: Clip.none,
+                      child: Row(children: [
+                        _fChip(p, 'Любое', _rad.isEmpty, () => upd(() => _rad = '')),
+                        for (final k in const [3, 5, 10, 25, 50]) ...[
+                          const SizedBox(width: 8),
+                          _fChip(p, 'до $k км', _rad == '$k', () => upd(() => _rad = _rad == '$k' ? '' : '$k')),
+                        ],
+                      ]),
+                    ),
                   ],
                   title('Оплата'),
                   Row(children: [
