@@ -615,7 +615,7 @@ class PriceTag extends StatelessWidget {
       ]);
     }
     final m = RegExp(r'^([\d\s.,]+₽)\s*(.*)$').firstMatch(text);
-    final amount = m?.group(1) ?? text;
+    final amount = (m?.group(1) ?? text).replaceAll('₽', '').trim(); // рубль уже в значке слева
     final unit = m?.group(2) ?? '';
     return Row(mainAxisSize: MainAxisSize.min, children: [
       badge(Icons.currency_ruble_rounded),

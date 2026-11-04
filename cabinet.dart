@@ -672,7 +672,6 @@ class _CabinetPageState extends State<CabinetPage> {
     for (final m in shown) {
       final ad = Ad.fromJson(m);
       final isOpen = ad.status == 'open';
-      final hidden = ad.status == 'hidden';
       items.add(AdCard(
         ad: ad,
         showFav: false,
