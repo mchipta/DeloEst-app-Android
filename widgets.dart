@@ -593,31 +593,39 @@ class PriceTag extends StatelessWidget {
   final String pay;
   final double size;
   final bool dense;
-  final bool plain; // без плашки: крупный текст (список объявлений)
+  final bool plain; // оставлено для совместимости: вид цены везде одинаковый
   const PriceTag(this.pay, {super.key, this.size = 17, this.dense = false, this.plain = false});
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
     final text = payF(pay);
-    final fixed = RegExp(r'\d').hasMatch(text);
-    final col = fixed ? p.ok : p.mu;
-    if (plain) {
-      return Text(text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-              fontSize: fixed ? size + 3 : size - 2,
-              fontWeight: fixed ? FontWeight.w800 : FontWeight.w600,
-              color: col,
-              height: 1.2));
+    final fs = plain ? size + 2 : size;
+    if (!RegExp(r'\d').hasMatch(text)) {
+      // «Договорная»: тёплая плашка в цвет акцента, с рукопожатием
+      return Container(
+        padding: EdgeInsets.fromLTRB(8, dense ? 2 : 3, 10, dense ? 2 : 3),
+        decoration: BoxDecoration(
+          color: p.ac.withOpacity(.13),
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(color: p.ac.withOpacity(.24)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.handshake_outlined, size: fs * .78, color: p.ac),
+          const SizedBox(width: 5),
+          Text('Договорная', style: TextStyle(fontSize: fs * .72, fontWeight: FontWeight.w700, color: p.ac, height: 1.2)),
+        ]),
+      );
     }
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: dense ? 8 : 10, vertical: dense ? 1 : 3),
-      decoration: BoxDecoration(color: col.withOpacity(.13), borderRadius: BorderRadius.circular(R.s)),
-      child: Text(text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: size, fontWeight: FontWeight.w800, color: col, height: 1.25)),
+    final m = RegExp(r'^([\d\s.,]+₽)\s*(.*)$').firstMatch(text);
+    final amount = m?.group(1) ?? text;
+    final unit = m?.group(2) ?? '';
+    return Text.rich(
+      TextSpan(children: [
+        TextSpan(text: amount, style: TextStyle(fontSize: fs, fontWeight: FontWeight.w800, color: p.ok, height: 1.2)),
+        if (unit.isNotEmpty) TextSpan(text: ' $unit', style: TextStyle(fontSize: fs * .62, fontWeight: FontWeight.w600, color: p.mu, height: 1.2)),
+      ]),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

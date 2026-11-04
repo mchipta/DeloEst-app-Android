@@ -215,19 +215,74 @@ class _FeedPageState extends State<FeedPage> {
     });
   }
 
-  Widget _fChip(Pal p, String label, bool on, VoidCallback f) => Tap(
-        onTap: f,
+  Widget _fChip(Pal p, String label, bool on, VoidCallback f, {IconData? icon, Color? hue}) => Tap(
+        onTap: () {
+          haptic();
+          f();
+        },
         scale: .96,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          duration: const Duration(milliseconds: 160),
+          padding: EdgeInsets.fromLTRB(icon != null ? 8 : 16, icon != null ? 8 : 11, 16, icon != null ? 8 : 11),
           decoration: BoxDecoration(
-            color: on ? p.tx : p.bg2,
-            borderRadius: BorderRadius.circular(14),
+            color: on ? p.ac.withOpacity(.14) : p.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: on ? p.ac : p.bd, width: on ? 1.6 : 1),
           ),
-          child: Text(label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: on ? p.bg : p.tx)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            if (icon != null) ...[
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(color: (hue ?? p.ac).withOpacity(.2), borderRadius: BorderRadius.circular(11)),
+                child: Icon(icon, size: 18, color: hue ?? p.ac),
+              ),
+              const SizedBox(width: 9),
+            ],
+            Text(label, style: TextStyle(fontSize: 15, fontWeight: on ? FontWeight.w800 : FontWeight.w600, color: on ? p.ac : p.tx)),
+          ]),
         ),
       );
+
+  // «Рядом со мной» живёт в фильтрах: определить место и сортировать по расстоянию
+  Widget _geoTile(Pal p, VoidCallback after) {
+    final on = Near.i.has;
+    return Tap(
+      onTap: () async {
+        await _locate();
+        after();
+      },
+      scale: .98,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: on ? p.ac.withOpacity(.08) : p.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: on ? p.ac : p.bd, width: on ? 1.6 : 1),
+        ),
+        child: Row(children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(color: p.ac.withOpacity(.14), borderRadius: BorderRadius.circular(14)),
+            child: Near.i.busy
+                ? Padding(padding: const EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2.2, color: p.ac))
+                : Icon(on ? Icons.my_location_rounded : Icons.location_searching_rounded, size: 22, color: p.ac),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(on ? 'Рядом со мной' : 'Определить, где я', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: p.tx)),
+              const SizedBox(height: 2),
+              Text(on ? 'Ближайшие объявления показываем первыми' : 'Покажем объявления рядом с вами',
+                  style: TextStyle(fontSize: 12.5, color: p.mu)),
+            ]),
+          ),
+          if (on) Icon(Icons.check_circle_rounded, color: p.ac, size: 22),
+        ]),
+      ),
+    );
+  }
 
   // Фильтры открываются отдельным экраном, как в Авито: категория, тип, где искать, оплата, сортировка
   Future<void> _openFilters() async {
@@ -243,8 +298,8 @@ class _FeedPageState extends State<FeedPage> {
           }
 
           Widget title(String t) => Padding(
-                padding: const EdgeInsets.only(top: 26, bottom: 12),
-                child: Text(t, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: p.tx)),
+                padding: const EdgeInsets.only(top: 24, bottom: 10),
+                child: Text(t, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx, letterSpacing: -.2)),
               );
 
           final sortItems = <List<String>>[
@@ -258,7 +313,17 @@ class _FeedPageState extends State<FeedPage> {
           final n = _filtered().length;
           return Scaffold(
             appBar: AppBar(
-              leading: IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.pop(c)),
+              leading: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Tap(
+                  onTap: () => Navigator.pop(c),
+                  scale: .9,
+                  child: Container(
+                    decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(14)),
+                    child: Icon(Icons.close_rounded, color: p.tx, size: 22),
+                  ),
+                ),
+              ),
               title: const Text('Фильтры'),
               centerTitle: true,
               actions: [
@@ -270,7 +335,7 @@ class _FeedPageState extends State<FeedPage> {
                       _cat = '';
                     });
                   },
-                  child: Text('Сбросить', style: TextStyle(color: p.mu, fontWeight: FontWeight.w700, fontSize: 15)),
+                  child: Text('Сбросить', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800, fontSize: 15)),
                 ),
               ],
             ),
@@ -279,10 +344,12 @@ class _FeedPageState extends State<FeedPage> {
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.fromLTRB(16, 0, 16, 110 + MediaQuery.of(c).viewInsets.bottom),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Все категории', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: p.tx)),
-                  const SizedBox(height: 12),
+                  Text('Категория', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx, letterSpacing: -.2)),
+                  const SizedBox(height: 10),
                   Wrap(spacing: 8, runSpacing: 8, children: [
-                    for (final k in kCats) _fChip(p, k.name, _cat == k.name, () => upd(() => _cat = _cat == k.name ? '' : k.name)),
+                    for (final k in kCats)
+                      _fChip(p, k.name, _cat == k.name, () => upd(() => _cat = _cat == k.name ? '' : k.name),
+                          icon: catIcon(k.name), hue: catHue(k.name)),
                   ]),
                   title('Что нужно'),
                   Wrap(spacing: 8, runSpacing: 8, children: [
@@ -292,9 +359,11 @@ class _FeedPageState extends State<FeedPage> {
                   title('Где искать'),
                   CityField(
                     controller: _cityC,
-                    decoration: deco(c, 'Город'),
+                    decoration: deco(c, 'Город', prefix: Icon(Icons.place_outlined, color: p.mu)),
                     onChanged: (v) => upd(() => _city = v),
                   ),
+                  const SizedBox(height: 10),
+                  _geoTile(p, () => upd(() {})),
                   if (Near.i.has) ...[
                     const SizedBox(height: 12),
                     Wrap(spacing: 8, runSpacing: 8, children: [
@@ -345,10 +414,16 @@ class _FeedPageState extends State<FeedPage> {
               ),
               // кнопка прижата к низу, как «Показать больше 1 тыс. объявлений» в Авито
               Positioned(
-                left: 16,
-                right: 16,
-                bottom: 12 + MediaQuery.of(c).viewPadding.bottom,
-                child: GradBtn(n == 0 ? 'Ничего не найдено' : 'Показать $n ${plural(n, 'объявление', 'объявления', 'объявлений')}', radius: 18, onTap: () => Navigator.pop(c)),
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: EdgeInsets.fromLTRB(16, 22, 16, 12 + MediaQuery.of(c).viewPadding.bottom),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [p.bg.withOpacity(0), p.bg, p.bg]),
+                  ),
+                  child: GradBtn(n == 0 ? 'Ничего не найдено' : 'Показать $n ${plural(n, 'объявление', 'объявления', 'объявлений')}', radius: 18, onTap: () => Navigator.pop(c)),
+                ),
               ),
             ]),
           );
@@ -711,20 +786,7 @@ class _FeedPageState extends State<FeedPage> {
                         child: Icon(Icons.cancel_rounded, size: 20, color: p.mu.withOpacity(.7)),
                       ),
                     ),
-                  Tap(
-                    onTap: _locate,
-                    scale: .9,
-                    child: SizedBox(
-                      width: 44,
-                      height: 48,
-                      child: Center(
-                        child: Near.i.busy
-                            ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: p.ac))
-                            : Icon(Near.i.has ? Icons.my_location_rounded : Icons.location_searching_rounded,
-                                size: 22, color: Near.i.has ? p.ac : p.mu),
-                      ),
-                    ),
-                  ),
+                  const SizedBox(width: 6),
                 ]),
               ),
             ),
