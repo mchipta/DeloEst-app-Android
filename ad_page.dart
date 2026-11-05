@@ -273,7 +273,7 @@ class _AdPageState extends State<AdPage> {
                                 const SizedBox(width: 4),
                                 Flexible(
                                     child: Text(adLoc(ad).isEmpty ? 'Место на карте' : adLoc(ad),
-                                        style: TextStyle(color: p.tx, fontSize: 14, fontWeight: FontWeight.w600, decoration: TextDecoration.underline, decorationColor: p.mu.withOpacity(.5)))),
+                                        style: TextStyle(color: p.tx, fontSize: 14, fontWeight: FontWeight.w600))),
                                 if (Near.i.dist(ad) != null)
                                   Text('  ·  ${Near.i.dist(ad)!.label}', style: TextStyle(color: p.ac, fontSize: 14, fontWeight: FontWeight.w700)),
                                 Icon(Icons.chevron_right_rounded, size: 18, color: p.mu),

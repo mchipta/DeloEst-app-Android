@@ -1084,19 +1084,19 @@ class _ChatPageState extends State<ChatPage> {
   Widget _choiceBar(Pal p) {
     final st = (choice!['st'] ?? '').toString();
     final done = st == 'done', chosen = st == 'chosen';
+    if (done) return const SizedBox.shrink(); // работа выполнена: отдельная полоса уже не нужна
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
       decoration: BoxDecoration(color: p.bg2, border: Border(bottom: BorderSide(color: p.bd))),
       child: Row(children: [
-        Icon(done ? Icons.verified_outlined : chosen ? Icons.check_circle_outline_rounded : Icons.person_add_alt_1_outlined, size: 20, color: done || chosen ? p.ok : p.ac),
+        Icon(chosen ? Icons.handshake_outlined : Icons.person_add_alt_1_outlined, size: 20, color: chosen ? p.ok : p.ac),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(done ? 'Работа выполнена' : chosen ? 'Исполнитель выбран' : 'Договорились? Выберите исполнителем',
+          child: Text(chosen ? 'Исполнитель выбран' : 'Договорились? Выберите исполнителем',
               style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 13.5)),
         ),
-        if (!done)
-          TextButton(
+        TextButton(
             onPressed: chosen ? _finish : _choose,
             child: Text(chosen ? 'Выполнено' : 'Выбрать', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
           ),
