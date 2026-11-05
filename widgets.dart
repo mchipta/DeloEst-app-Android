@@ -573,7 +573,8 @@ class OutBtn extends StatelessWidget {
 class Tag extends StatelessWidget {
   final String text;
   final Color color;
-  const Tag(this.text, this.color, {super.key});
+  final Color? textColor;
+  const Tag(this.text, this.color, {super.key, this.textColor});
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -583,14 +584,14 @@ class Tag extends StatelessWidget {
         borderRadius: BorderRadius.circular(99),
         border: Border.all(color: color.withOpacity(.25)),
       ),
-      child: Text(text, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: color)),
+      child: Text(text, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: textColor ?? color)),
     );
   }
 }
 
 Widget typeTag(BuildContext context, String type) {
   final p = pal(context);
-  return Tag(type, type == kTypes[0] ? p.ac : p.ok);
+  return Tag(type, type == kTypes[0] ? p.ac : p.ok, textColor: p.tx);
 }
 
 /// Цена-плашка: крупно и цветом, чтобы взгляд находил её первой (как на сайте, .pay)
@@ -788,7 +789,7 @@ class AdCard extends StatelessWidget {
     return Row(children: [
       Container(width: 7, height: 7, decoration: BoxDecoration(color: col, shape: BoxShape.circle)),
       const SizedBox(width: 6),
-      Text(ad.type, maxLines: 1, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: col)),
+      Text(ad.type, maxLines: 1, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: p.tx)),
       if (ad.urgent) ...[
         const SizedBox(width: 6),
         Container(

@@ -215,10 +215,10 @@ String adWhenLabel(Ad a) {
 
 String adNeedLabel(Ad a) => a.need > 1 ? 'Нужно ${a.need} ${plural(a.need, 'человек', 'человека', 'человек')}' : '';
 
-/// Сколько на сервисе: «на сервисе с окт 2026»
+/// Сколько на сервисе: «на сервисе с 28 окт 2026»
 String sinceLabel(int ts) {
   if (ts <= 0) return '';
   final d = DateTime.fromMillisecondsSinceEpoch(ts);
   const mon = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
-  return 'на сервисе с ${mon[d.month - 1]} ${d.year}';
+  return 'на сервисе с ${d.day} ${mon[d.month - 1]} ${d.year}';
 }

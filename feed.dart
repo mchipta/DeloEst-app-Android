@@ -249,7 +249,16 @@ class _FeedPageState extends State<FeedPage> {
     final on = Near.i.has;
     return Tap(
       onTap: () async {
-        await _locate();
+        if (on) {
+          haptic();
+          Near.i.turnOff();
+          setState(() {
+            _rad = '';
+            if (_sort == 'new' || _sort == 'near') _sort = '';
+          });
+        } else {
+          await _locate();
+        }
         after();
       },
       scale: .98,
@@ -270,19 +279,20 @@ class _FeedPageState extends State<FeedPage> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Рядом со мной', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: p.tx)),
               const SizedBox(height: 1),
-              Text(on ? 'Ближайшие объявления — первыми' : 'Определить моё местоположение',
+              Text(on ? 'Ближайшие объявления — первыми' : 'Включить, чтобы видеть ближайшие',
                   maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: p.mu)),
             ]),
           ),
           const SizedBox(width: 8),
-          if (on)
-            Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.check_rounded, size: 18, color: p.ok),
-              const SizedBox(width: 4),
-              Text('Вкл', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: p.ok)),
-            ])
-          else
-            Text('Включить', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: p.ac)),
+          IgnorePointer(
+            child: Switch(
+              value: on,
+              onChanged: (_) {},
+              activeColor: Colors.white,
+              activeTrackColor: p.ok,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
         ]),
       ),
     );

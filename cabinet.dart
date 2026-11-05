@@ -760,20 +760,39 @@ class _CabinetPageState extends State<CabinetPage> {
               child: Text(msg, style: TextStyle(color: p.tx, fontSize: 14.5, height: 1.35)),
             ),
           ],
+          if (canCall) ...[
+            const SizedBox(height: 10),
+            Tap(
+              onTap: () => _call(ph),
+              scale: .98,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(8, 8, 14, 8),
+                decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(R.s), border: Border.all(color: p.bd)),
+                child: Row(children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(color: p.ac.withOpacity(.12), borderRadius: BorderRadius.circular(10)),
+                    child: Ico('phone', size: 17, color: p.ac),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(fmtPhone(ph), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: p.tx))),
+                  Text('Позвонить', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: p.ac)),
+                ]),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           if (st == 'rejected')
             Align(alignment: Alignment.centerLeft, child: _small(p, 'Удалить', ico: 'trash', color: p.dng, () => _act('rdel', {'rid': rid}, 'Отклик удалён')))
           else
             Row(children: [
-              Expanded(
-                child: st == 'chosen'
-                    ? _main(p, 'Работа выполнена', 'check', () => _act('fin', {'rid': rid}, 'Отмечено как выполнено'))
-                    : st == 'done'
-                        ? _wide(p, 'Работа выполнена', 'check', () {})
-                        : _main(p, 'Выбрать исполнителем', 'check', () => _act('pick', {'rid': rid}, 'Исполнитель выбран')),
-              ),
-              if (pid.isNotEmpty) ...[const SizedBox(width: 8), _sq(p, 'chat', () => _chat(pid, name, adId: adId))],
-              if (canCall) ...[const SizedBox(width: 8), _sq(p, 'phone', () => _call(ph))],
+              if (st != 'done') ...[
+                _main(p, st == 'chosen' ? 'Работа выполнена' : 'Выбрать исполнителем', 'check',
+                    st == 'chosen' ? () => _act('fin', {'rid': rid}, 'Отмечено как выполнено') : () => _act('pick', {'rid': rid}, 'Исполнитель выбран')),
+                const SizedBox(width: 8),
+              ],
+              if (pid.isNotEmpty) _sq(p, 'chat', () => _chat(pid, name, adId: adId)),
               if (st != 'done') ...[const SizedBox(width: 8), _sq(p, 'x', () => _act('rej', {'rid': rid}, 'Отклик отклонён'), color: p.dng)],
             ]),
         ]),
@@ -855,7 +874,7 @@ class _CabinetPageState extends State<CabinetPage> {
             ],
             if (canWrite) ...[
               const SizedBox(height: 14),
-              _wide(p, 'Написать автору', 'chat', () => _chat(pid, '', adId: adId)),
+              Align(alignment: Alignment.centerLeft, child: _wide(p, 'Написать автору', 'chat', () => _chat(pid, '', adId: adId))),
             ],
           ]),
         ),
@@ -864,35 +883,36 @@ class _CabinetPageState extends State<CabinetPage> {
     return items;
   }
 
-  // Главное действие в карточке отклика
+  // Главное действие в карточке отклика: невысокая кнопка с цветной обводкой
   Widget _main(Pal p, String text, String ico, VoidCallback f) => Tap(
         onTap: f,
         scale: .97,
         child: Container(
-          height: 42,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(gradient: LinearGradient(colors: [p.ac, p.ac2]), borderRadius: BorderRadius.circular(R.s)),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Ico(ico, size: 17, color: Colors.white),
-              const SizedBox(width: 7),
-              Text(text, maxLines: 1, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Colors.white)),
-            ]),
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: p.ac.withOpacity(.12),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: p.ac.withOpacity(.45)),
           ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Ico(ico, size: 16, color: p.ac),
+            const SizedBox(width: 7),
+            Text(text, maxLines: 1, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: p.ac)),
+          ]),
         ),
       );
 
-  // Квадратная кнопка-иконка (написать, позвонить, отклонить)
+  // Квадратная кнопка-иконка (написать, отклонить)
   Widget _sq(Pal p, String ico, VoidCallback f, {Color? color}) => Tap(
         onTap: f,
         scale: .94,
         child: Container(
-          width: 42,
-          height: 42,
+          width: 38,
+          height: 38,
           alignment: Alignment.center,
-          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(R.s), border: Border.all(color: p.bd)),
-          child: Ico(ico, size: 18, color: color ?? p.tx),
+          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
+          child: Ico(ico, size: 17, color: color ?? p.tx),
         ),
       );
 
@@ -907,22 +927,19 @@ class _CabinetPageState extends State<CabinetPage> {
         child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: c)),
       );
 
-  // Кнопка на всю ширину половины ряда (как .acts .btn на сайте)
+  // Небольшая контурная кнопка (как .acts .btn на сайте)
   Widget _wide(Pal p, String text, String ico, VoidCallback f) => Tap(
         onTap: f,
         scale: .97,
         child: Container(
-          height: 42,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(R.s), border: Border.all(color: p.bd)),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Ico(ico, size: 17, color: p.tx),
-              const SizedBox(width: 7),
-              Text(text, maxLines: 1, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: p.tx)),
-            ]),
-          ),
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Ico(ico, size: 16, color: p.tx),
+            const SizedBox(width: 7),
+            Text(text, maxLines: 1, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: p.tx)),
+          ]),
         ),
       );
 }

@@ -88,6 +88,26 @@ class Near extends ChangeNotifier {
 
   bool get has => pos != null;
 
+  // Пользователь сам выключил «Рядом со мной»: тихо включать заново не нужно
+  bool get disabled {
+    try {
+      return S.i.prefs.getBool('near_off') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void turnOff() {
+    _load();
+    _pos = null;
+    ts = 0;
+    try {
+      S.i.prefs.remove('near_pos');
+      S.i.prefs.setBool('near_off', true);
+    } catch (_) {}
+    notifyListeners();
+  }
+
   void _set(Position p) {
     final la = double.parse(p.latitude.toStringAsFixed(3));
     final ln = double.parse(p.longitude.toStringAsFixed(3));
@@ -97,6 +117,7 @@ class Near extends ChangeNotifier {
     try {
       S.i.prefs.setStringList('near_pos', ['$la', '$ln', '$ts']);
       S.i.prefs.remove('near_asked');
+      S.i.prefs.remove('near_off');
     } catch (_) {}
     notifyListeners();
   }
@@ -147,7 +168,7 @@ class Near extends ChangeNotifier {
   /// если ещё не спрашивали — система покажет запрос (после отказа не чаще раза в 3 дня)
   Future<void> auto() async {
     _load();
-    if (busy) return;
+    if (busy || disabled) return;
     if (_pos != null && DateTime.now().millisecondsSinceEpoch - ts < 300000) return;
     try {
       final perm = await Geolocator.checkPermission();
