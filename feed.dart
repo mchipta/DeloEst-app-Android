@@ -11,6 +11,9 @@ import 'theme.dart';
 import 'util.dart';
 import 'widgets.dart';
 
+/// Как далеко показывать объявления из соседних городов после выбранного города
+const kNeighborKm = 100.0;
+
 class FeedPage extends StatefulWidget {
   const FeedPage({super.key});
   @override
@@ -24,6 +27,10 @@ class _FeedPageState extends State<FeedPage> {
   final _minC = TextEditingController();
   final _maxC = TextEditingController();
   String _cat = '', _type = '', _city = '', _min = '', _max = '', _sort = '', _rad = '';
+  String _autoCity = ''; // город, подставленный по геолокации
+  bool _autoCityTried = false;
+  bool _nbBusy = false;
+  VoidCallback? _filterRefresh; // перерисовать открытый экран фильтров
   String _pt = '', _wh = ''; // тип оплаты и когда нужно (today / tomorrow / week)
   bool _urg = false; // только срочные
   bool _auto = false;
@@ -77,19 +84,30 @@ class _FeedPageState extends State<FeedPage> {
   static String _ptOf(Ad a) =>
       a.payType.isNotEmpty ? a.payType : (const {'h': 'hour', 'd': 'day', 't': 'job', 'm': 'month', 'n': 'neg'}[payParse(a.pay).p] ?? '');
 
-  List<Ad> _filtered() {
+  List<Ad> _filtered({bool neighbors = false}) {
     final q = _q.text.trim();
     final c = _city.trim().toLowerCase();
     final mn = int.tryParse(digitsOnly(_min)) ?? 0;
     final mx = int.tryParse(digitsOnly(_max)) ?? 0;
     final rad = Near.i.has ? (int.tryParse(_rad) ?? 0) : 0;
+    final ref = c.isEmpty ? null : Geo.cityCached(_city.trim());
+    if (neighbors && (c.isEmpty || ref == null)) return [];
+    double kmRef(Ad a) {
+      final pt = adPoint(a) ?? (a.city.trim().isEmpty ? null : Geo.cityCached(a.city));
+      return pt == null ? 1e9 : kmBetween(ref!, pt);
+    }
+
     final r = S.i.ads.where((a) {
       if (S.i.isBlocked(a.pid)) return false;
       final amt = adAmt(a);
       final n = amt > 0 ? amt.toDouble() : null;
       if (_type.isNotEmpty && a.type != _type) return false;
       if (_cat.isNotEmpty && a.category != _cat) return false;
-      if (c.isNotEmpty && !a.city.toLowerCase().contains(c)) return false;
+      if (c.isNotEmpty) {
+        final inCity = a.city.toLowerCase().contains(c);
+        if (neighbors == inCity) return false; // основной список: только город; соседние: всё остальное рядом
+        if (neighbors && kmRef(a) > kNeighborKm) return false;
+      }
       if (q.isNotEmpty && !smartMatchAd(q, a.title, a.desc, a.category, a.city, a.addr)) return false;
       if (mn > 0 && (n == null || n < mn)) return false;
       if (mx > 0 && (n == null || n > mx)) return false;
@@ -122,6 +140,9 @@ class _FeedPageState extends State<FeedPage> {
         if (x == null && y != null) return 1;
         if (y == null && x != null) return -1;
         if (x != null && y != null && x != y) return x.compareTo(y);
+      } else if (neighbors && (_sort.isEmpty || _sort == 'near')) {
+        final x = kmRef(a), y = kmRef(b);
+        if (x != y) return x.compareTo(y);
       } else if (byNear) {
         final x = Near.i.kmOr(a), y = Near.i.kmOr(b);
         if (x != y) return x.compareTo(y);
@@ -255,6 +276,12 @@ class _FeedPageState extends State<FeedPage> {
           setState(() {
             _rad = '';
             if (_sort == 'new' || _sort == 'near') _sort = '';
+            if (_autoCity.isNotEmpty && _city == _autoCity) {
+              _city = '';
+              _cityC.clear();
+            }
+            _autoCity = '';
+            _autoCityTried = false;
           });
         } else {
           await _locate();
@@ -301,6 +328,7 @@ class _FeedPageState extends State<FeedPage> {
   // Фильтры открываются отдельным экраном, как в Авито: категория, тип, где искать, оплата, сортировка
   Future<void> _openFilters() async {
     FocusScope.of(context).unfocus();
+    if (Near.i.has && !_autoCityTried) _fillCity();
     await Navigator.of(context).push<void>(MaterialPageRoute(
       fullscreenDialog: true,
       builder: (c) => StatefulBuilder(
@@ -310,6 +338,8 @@ class _FeedPageState extends State<FeedPage> {
             setState(f);
             setS(() {});
           }
+
+          _filterRefresh = () => setS(() {});
 
           Widget title(String t) => Padding(
                 padding: const EdgeInsets.only(top: 24, bottom: 10),
@@ -452,6 +482,7 @@ class _FeedPageState extends State<FeedPage> {
       ),
     ));
     if (mounted) setState(() {});
+    _filterRefresh = null;
   }
 
   @override
@@ -476,6 +507,8 @@ class _FeedPageState extends State<FeedPage> {
           });
         }
         final list = _filtered();
+        final nb = _filtered(neighbors: true);
+        if (_city.trim().isNotEmpty) WidgetsBinding.instance.addPostFrameCallback((_) => _prepNeighbors());
         return Scaffold(
           body: SafeArea(
             bottom: false,
@@ -486,13 +519,23 @@ class _FeedPageState extends State<FeedPage> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
                   SliverToBoxAdapter(child: _header(context, p, list.length)),
-                  if (list.isEmpty)
+                  if (list.isEmpty && nb.isEmpty)
                     SliverFillRemaining(hasScrollBody: false, child: _empty(p))
-                  else
-                    SliverPadding(
-                      padding: EdgeInsets.fromLTRB(16, 4, 16, 16 + navPad(context)),
-                      sliver: S.i.feedMode == 1 ? _grid(context, list) : _rows(context, list),
-                    ),
+                  else ...[
+                    if (list.isNotEmpty)
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                        sliver: S.i.feedMode == 1 ? _grid(context, list) : _rows(context, list),
+                      ),
+                    if (nb.isNotEmpty) ...[
+                      SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: _nbHeader(p, list.isEmpty))),
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + navPad(context)),
+                        sliver: S.i.feedMode == 1 ? _grid(context, nb) : _rows(context, nb),
+                      ),
+                    ] else
+                      SliverToBoxAdapter(child: SizedBox(height: 16 + navPad(context))),
+                  ],
                 ],
               ),
             ),
@@ -503,6 +546,67 @@ class _FeedPageState extends State<FeedPage> {
   }
 
   // кнопка «Рядом со мной»: определить место и показать ближайшие объявления
+  // Центры выбранного города и городов объявлений нужны, чтобы показать соседние города
+  Future<void> _prepNeighbors() async {
+    if (_nbBusy) return;
+    final city = _city.trim();
+    if (city.isEmpty) return;
+    final need = !Geo.hasCity(city);
+    final todo = [for (final a in S.i.ads) if (adPoint(a) == null && a.city.trim().isNotEmpty && !Geo.hasCity(a.city)) a];
+    if (!need && todo.isEmpty) return;
+    _nbBusy = true;
+    var changed = false;
+    try {
+      if (need) {
+        await Geo.city(city);
+        if (Geo.hasCity(city)) changed = true;
+      }
+      var n = 0;
+      for (final a in todo) {
+        if (n >= 10) break;
+        if (Geo.hasCity(a.city)) continue;
+        n++;
+        await Geo.city(a.city);
+        if (Geo.hasCity(a.city)) changed = true;
+      }
+    } finally {
+      _nbBusy = false;
+    }
+    if (changed && mounted) setState(() {});
+  }
+
+  // Заголовок перед объявлениями из соседних городов
+  Widget _nbHeader(Pal p, bool noneInCity) => Padding(
+        padding: const EdgeInsets.fromLTRB(2, 18, 2, 10),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(Icons.near_me_outlined, size: 20, color: p.ac),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(noneInCity ? 'В городе ничего нет — смотрите рядом' : 'Из соседних городов',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: p.tx, letterSpacing: -.2)),
+              const SizedBox(height: 2),
+              Text('В радиусе ${kNeighborKm.round()} км от «${_city.trim()}», сначала ближайшие', style: TextStyle(fontSize: 12.5, color: p.mu)),
+            ]),
+          ),
+        ]),
+      );
+
+  // Местоположение определено, а город в фильтре пуст: подставляем город
+  Future<void> _fillCity() async {
+    _autoCityTried = true;
+    final pos = Near.i.pos;
+    if (pos == null || _city.trim().isNotEmpty) return;
+    final c = await Geo.reverseCity(pos.latitude, pos.longitude);
+    if (!mounted || c == null || _city.trim().isNotEmpty || !Near.i.has) return;
+    setState(() {
+      _city = c;
+      _cityC.text = c;
+      _autoCity = c;
+    });
+    _filterRefresh?.call();
+  }
+
   Future<void> _locate() async {
     haptic();
     final r = await Near.i.locate();
@@ -511,6 +615,7 @@ class _FeedPageState extends State<FeedPage> {
       case NearResult.ok:
         setState(() => _sort = '');
         Near.i.fill(S.i.ads);
+        _fillCity();
         toast(context, 'Показываем ближайшие объявления');
         break;
       case NearResult.off:
