@@ -518,46 +518,6 @@ class _MapPickPageState extends State<MapPickPage> {
 }
 
 /// Строка адреса на странице объявления: по нажатию открывается отдельный экран с картой
-class AdMiniMap extends StatelessWidget {
-  final Ad ad;
-  const AdMiniMap({super.key, required this.ad});
-
-  @override
-  Widget build(BuildContext context) {
-    final p = pal(context);
-    final loc = adLoc(ad);
-    if (loc.isEmpty && adPoint(ad) == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 14),
-      child: Tap(
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdLocationPage(ad: ad))),
-        scale: .98,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
-          child: Row(children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(color: p.ac.withOpacity(.12), borderRadius: BorderRadius.circular(12)),
-              child: Icon(Icons.location_on_rounded, size: 22, color: p.ac),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(loc.isEmpty ? 'Место на карте' : loc, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.tx)),
-                const SizedBox(height: 2),
-                Text('Показать на карте${Near.i.dist(ad) == null ? '' : ' · ${Near.i.dist(ad)!.label} от вас'}', style: TextStyle(fontSize: 12.5, color: p.mu)),
-              ]),
-            ),
-            Icon(Icons.chevron_right_rounded, color: p.mu),
-          ]),
-        ),
-      ),
-    );
-  }
-}
-
 /// Отдельный экран «Где это находится» — как на Авито: карта на весь экран и адрес внизу
 class AdLocationPage extends StatefulWidget {
   final Ad ad;

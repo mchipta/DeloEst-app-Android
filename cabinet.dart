@@ -683,7 +683,6 @@ class _CabinetPageState extends State<CabinetPage> {
             if (r == true) _load();
           },
           onToggle: () => _act('status', {'id': ad.id, 's': isOpen ? 'closed' : 'open'}, isOpen ? 'Объявление снято' : 'Объявление снова опубликовано'),
-          onBump: () => _act('bump', {'id': ad.id}, 'Объявление поднято'),
           onUrgent: () => _act('urgent', {'id': ad.id, 'on': !ad.urgent}, ad.urgent ? 'Метка снята' : 'Метка «Срочно» на 3 дня'),
           onShare: () => showShare(context, ad),
           onRenew: (isOpen && DateTime.now().millisecondsSinceEpoch - ad.upd > 14 * 86400000)
@@ -719,49 +718,64 @@ class _CabinetPageState extends State<CabinetPage> {
       final adId = (r['adId'] ?? '').toString();
       final fresh = _fresh.contains(rid);
       final adObj = _adById(adId);
+      final title = (r['ad'] ?? '').toString().trim();
+      final pid = (r['pid'] ?? '').toString();
+      final name = (r['name'] ?? '').toString();
+      final canCall = st != 'rejected' && ph.isNotEmpty;
       items.add(Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
         decoration: cardDeco(p).copyWith(border: Border.all(color: fresh ? p.ac : p.bd, width: fresh ? 1.6 : 1)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Avatar((r['name'] ?? '').toString(), size: 40),
+            Avatar(name, size: 40),
             const SizedBox(width: 10),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text((r['name'] ?? '').toString(), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: p.tx)),
-                Text('${(r['ad'] ?? '').toString()} · ${siteDateTime(((r['ts'] as num?) ?? 0).toInt(), S.i.timeZone)}',
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 12.5)),
+                Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: p.tx)),
+                Text(siteDateTime(((r['ts'] as num?) ?? 0).toInt(), S.i.timeZone), style: TextStyle(color: p.mu, fontSize: 12.5)),
               ]),
             ),
-            if (fresh) Tag('новый', p.ac) else if (st == 'chosen') Tag('Исполнитель', p.ok) else if (st == 'done') Tag('Выполнено', p.ok) else if (st == 'rejected') Tag('Отклонён', p.mu),
+            if (fresh) _statePill('новый', p.ac) else if (st == 'chosen') _statePill('Исполнитель', p.ok) else if (st == 'done') _statePill('Выполнено', p.ok) else if (st == 'rejected') _statePill('Отклонён', p.mu),
           ]),
-          if (st != 'rejected' && ph.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            GestureDetector(
-              onTap: () => _call(ph),
+          if (title.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Tap(
+              onTap: adObj == null ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: adObj))),
+              scale: .98,
               child: Row(children: [
-                Icon(Icons.call_outlined, size: 17, color: p.ac),
+                Ico('box', size: 15, color: p.mu),
                 const SizedBox(width: 6),
-                Text(fmtPhone(ph), style: TextStyle(color: p.ac, fontWeight: FontWeight.w700)),
+                Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13.5, fontWeight: FontWeight.w600))),
+                if (adObj != null) Icon(Icons.chevron_right_rounded, size: 18, color: p.mu),
               ]),
             ),
           ],
-          if (msg.isNotEmpty) ...[const SizedBox(height: 8), Text(msg, style: TextStyle(color: p.tx, height: 1.35))],
-          const SizedBox(height: 10),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            if (st == 'rejected')
-              _small(p, 'Удалить', ico: 'trash', color: p.dng, () => _act('rdel', {'rid': rid}, 'Отклик удалён'))
-            else ...[
-              if ((r['pid'] ?? '').toString().isNotEmpty) _small(p, 'Написать', ico: 'chat', () => _chat((r['pid']).toString(), (r['name'] ?? '').toString(), adId: adId)),
-              if (st == 'chosen')
-                _small(p, 'Работа выполнена', () => _act('fin', {'rid': rid}, 'Отмечено как выполнено'), fill: true, ico: 'check')
-              else if (st != 'done')
-                _small(p, 'Выбрать исполнителем', ico: 'check', () => _act('pick', {'rid': rid}, 'Исполнитель выбран')),
-              if (st != 'done') _small(p, 'Отклонить', () => _act('rej', {'rid': rid}, 'Отклик отклонён'), color: p.dng, ico: 'x'),
-            ],
-            if (adObj != null) _small(p, 'Объявление', ico: 'box', () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: adObj)))),
-          ]),
+          if (msg.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(R.s)),
+              child: Text(msg, style: TextStyle(color: p.tx, fontSize: 14.5, height: 1.35)),
+            ),
+          ],
+          const SizedBox(height: 12),
+          if (st == 'rejected')
+            Align(alignment: Alignment.centerLeft, child: _small(p, 'Удалить', ico: 'trash', color: p.dng, () => _act('rdel', {'rid': rid}, 'Отклик удалён')))
+          else
+            Row(children: [
+              Expanded(
+                child: st == 'chosen'
+                    ? _main(p, 'Работа выполнена', 'check', () => _act('fin', {'rid': rid}, 'Отмечено как выполнено'))
+                    : st == 'done'
+                        ? _wide(p, 'Работа выполнена', 'check', () {})
+                        : _main(p, 'Выбрать исполнителем', 'check', () => _act('pick', {'rid': rid}, 'Исполнитель выбран')),
+              ),
+              if (pid.isNotEmpty) ...[const SizedBox(width: 8), _sq(p, 'chat', () => _chat(pid, name, adId: adId))],
+              if (canCall) ...[const SizedBox(width: 8), _sq(p, 'phone', () => _call(ph))],
+              if (st != 'done') ...[const SizedBox(width: 8), _sq(p, 'x', () => _act('rej', {'rid': rid}, 'Отклик отклонён'), color: p.dng)],
+            ]),
         ]),
       ));
     }
@@ -839,13 +853,9 @@ class _CabinetPageState extends State<CabinetPage> {
                 ),
               ),
             ],
-            if (canWrite || found != null) ...[
+            if (canWrite) ...[
               const SizedBox(height: 14),
-              Row(children: [
-                if (canWrite) Expanded(child: _wide(p, 'Написать автору', 'chat', () => _chat(pid, '', adId: adId))),
-                if (canWrite && found != null) const SizedBox(width: 8),
-                if (found != null) Expanded(child: _wide(p, 'Объявление', 'box', open)),
-              ]),
+              _wide(p, 'Написать автору', 'chat', () => _chat(pid, '', adId: adId)),
             ],
           ]),
         ),
@@ -853,6 +863,38 @@ class _CabinetPageState extends State<CabinetPage> {
     }
     return items;
   }
+
+  // Главное действие в карточке отклика
+  Widget _main(Pal p, String text, String ico, VoidCallback f) => Tap(
+        onTap: f,
+        scale: .97,
+        child: Container(
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(gradient: LinearGradient(colors: [p.ac, p.ac2]), borderRadius: BorderRadius.circular(R.s)),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Ico(ico, size: 17, color: Colors.white),
+              const SizedBox(width: 7),
+              Text(text, maxLines: 1, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Colors.white)),
+            ]),
+          ),
+        ),
+      );
+
+  // Квадратная кнопка-иконка (написать, позвонить, отклонить)
+  Widget _sq(Pal p, String ico, VoidCallback f, {Color? color}) => Tap(
+        onTap: f,
+        scale: .94,
+        child: Container(
+          width: 42,
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(R.s), border: Border.all(color: p.bd)),
+          child: Ico(ico, size: 18, color: color ?? p.tx),
+        ),
+      );
 
   // Статус отклика: тонкая обводка цвета статуса (как .st2 на сайте)
   Widget _statePill(String text, Color c) => Container(

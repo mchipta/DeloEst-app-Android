@@ -127,6 +127,7 @@ class _AdPageState extends State<AdPage> {
 
   Future<void> _openMoreMenu(Pal p, bool mine) async {
     haptic();
+    final renewable = ad.status == 'open' && DateTime.now().millisecondsSinceEpoch - ad.upd > 14 * 86400000;
     final ctx = _menuKey.currentContext;
     final box = ctx?.findRenderObject() as RenderBox?;
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
@@ -146,6 +147,15 @@ class _AdPageState extends State<AdPage> {
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: p.bd)),
       items: [
+        if (mine) PopupMenuItem(value: 'edit', child: menuRow(context, Icons.edit_outlined, 'Изменить')),
+        if (mine && ad.status != 'hidden')
+          PopupMenuItem(
+              value: 'toggle',
+              child: menuRow(context, ad.status == 'open' ? Icons.visibility_off_outlined : Icons.publish_rounded, ad.status == 'open' ? 'Снять с публикации' : 'Опубликовать')),
+        if (mine && ad.status == 'open')
+          PopupMenuItem(value: 'urgent', child: menuRow(context, Icons.bolt_rounded, ad.urgent ? 'Снять «Срочно»' : 'Отметить «Срочно»')),
+        if (mine && renewable)
+          PopupMenuItem(value: 'renew', child: menuRow(context, Icons.autorenew_rounded, 'Объявление актуально')),
         PopupMenuItem(value: 'share', child: menuRow(context, Icons.send_outlined, 'Поделиться')),
         if (!mine) PopupMenuItem(value: 'report', child: menuRow(context, Icons.warning_amber_rounded, 'Пожаловаться')),
       ],
@@ -154,6 +164,13 @@ class _AdPageState extends State<AdPage> {
     haptic();
     if (v == 'report') _report();
     if (v == 'share') showShare(context, ad);
+    if (v == 'edit') _ownEdit();
+    if (v == 'toggle') {
+      _own('status', {'id': ad.id, 's': ad.status == 'open' ? 'closed' : 'open'},
+          ad.status == 'open' ? 'Объявление снято' : 'Объявление снова опубликовано');
+    }
+    if (v == 'urgent') _own('urgent', {'id': ad.id, 'on': !ad.urgent}, ad.urgent ? 'Метка снята' : 'Метка «Срочно» на 3 дня');
+    if (v == 'renew') _own('renew', {'id': ad.id}, 'Спасибо, объявление продлено');
   }
 
   Future<void> _reply() async {
@@ -245,15 +262,30 @@ class _AdPageState extends State<AdPage> {
                         const SizedBox(height: 6),
                         PriceTag(adPay(ad), size: 22),
                         const SizedBox(height: 8),
-                        Row(children: [
-                          Icon(Icons.place_outlined, size: 16, color: p.mu),
-                          const SizedBox(width: 4),
-                          Expanded(
-                              child: Text(adLoc(ad).isEmpty ? 'Город не указан' : adLoc(ad),
-                                  style: TextStyle(color: p.mu, fontSize: 14))),
-                          if (Near.i.dist(ad) != null)
-                            Text('  ·  ${Near.i.dist(ad)!.label}', style: TextStyle(color: p.ac, fontSize: 14, fontWeight: FontWeight.w700)),
-                        ]),
+                        if (adLoc(ad).isNotEmpty || adPoint(ad) != null)
+                          Tap(
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdLocationPage(ad: ad))),
+                            scale: .98,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(children: [
+                                Icon(Icons.place_outlined, size: 16, color: p.ac),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                    child: Text(adLoc(ad).isEmpty ? 'Место на карте' : adLoc(ad),
+                                        style: TextStyle(color: p.tx, fontSize: 14, fontWeight: FontWeight.w600, decoration: TextDecoration.underline, decorationColor: p.mu.withOpacity(.5)))),
+                                if (Near.i.dist(ad) != null)
+                                  Text('  ·  ${Near.i.dist(ad)!.label}', style: TextStyle(color: p.ac, fontSize: 14, fontWeight: FontWeight.w700)),
+                                Icon(Icons.chevron_right_rounded, size: 18, color: p.mu),
+                              ]),
+                            ),
+                          )
+                        else
+                          Row(children: [
+                            Icon(Icons.place_outlined, size: 16, color: p.mu),
+                            const SizedBox(width: 4),
+                            Text('Город не указан', style: TextStyle(color: p.mu, fontSize: 14)),
+                          ]),
                         if (adWhenLabel(ad).isNotEmpty || ad.dur.isNotEmpty || ad.need > 1) ...[
                           const SizedBox(height: 12),
                           Container(
@@ -280,7 +312,6 @@ class _AdPageState extends State<AdPage> {
                         Text('Описание', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: p.tx)),
                         const SizedBox(height: 6),
                         Text(ad.desc, style: TextStyle(fontSize: 15, height: 1.45, color: p.tx)),
-                        Appear(delay: 120, child: AdMiniMap(ad: ad)),
                         const SizedBox(height: 18),
                         Tap(
                           onTap: () => Navigator.push(
@@ -289,34 +320,13 @@ class _AdPageState extends State<AdPage> {
                           child: _author(p),
                         ),
                         const SizedBox(height: 18),
-                        if (mine)
-                          Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: cardDeco(p),
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text('Ваше объявление', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx)),
-                              const SizedBox(height: 12),
-                              OwnerPanel(
-                                ad: ad,
-                                onEdit: _ownEdit,
-                                onToggle: () => _own('status', {'id': ad.id, 's': ad.status == 'open' ? 'closed' : 'open'},
-                                    ad.status == 'open' ? 'Объявление снято' : 'Объявление снова опубликовано'),
-                                onBump: () => _own('bump', {'id': ad.id}, 'Объявление поднято'),
-                                onUrgent: () => _own('urgent', {'id': ad.id, 'on': !ad.urgent}, ad.urgent ? 'Метка снята' : 'Метка «Срочно» на 3 дня'),
-                                onShare: () => showShare(context, ad),
-                                onRenew: (ad.status == 'open' && DateTime.now().millisecondsSinceEpoch - ad.upd > 14 * 86400000)
-                                    ? () => _own('renew', {'id': ad.id}, 'Спасибо, объявление продлено')
-                                    : null,
-                              ),
-                            ]),
-                          )
-                        else if (ad.status == 'closed')
+                        if (!mine && ad.status == 'closed')
                           Container(
                             padding: const EdgeInsets.all(14),
                             decoration: cardDeco(p),
                             child: Text('Объявление закрыто автором', style: TextStyle(color: p.mu)),
                           )
-                        else if (!S.i.logged)
+                        else if (!mine && !S.i.logged)
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: cardDeco(p),
@@ -495,17 +505,6 @@ class _AdPageState extends State<AdPage> {
               ])
             else
               Text('Пока нет отзывов', style: TextStyle(color: p.mu, fontSize: 13)),
-            if (ad.dn > 0 || ad.since > 0)
-              Padding(
-                padding: const EdgeInsets.only(top: 3),
-                child: Text(
-                  [
-                    if (ad.dn > 0) '${ad.dn} ${plural(ad.dn, 'выполненная работа', 'выполненные работы', 'выполненных работ')}',
-                    if (ad.since > 0) sinceLabel(ad.since),
-                  ].join(' · '),
-                  style: TextStyle(color: p.mu, fontSize: 12.5),
-                ),
-              ),
           ]),
         ),
       ]),
