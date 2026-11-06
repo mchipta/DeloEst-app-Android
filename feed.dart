@@ -11,9 +11,6 @@ import 'theme.dart';
 import 'util.dart';
 import 'widgets.dart';
 
-/// Как далеко показывать объявления из соседних городов после выбранного города
-const kNeighborKm = 100.0;
-
 class FeedPage extends StatefulWidget {
   const FeedPage({super.key});
   @override
@@ -30,6 +27,9 @@ class _FeedPageState extends State<FeedPage> {
   String _autoCity = ''; // город, подставленный по геолокации
   bool _autoCityTried = false;
   bool _nbBusy = false;
+  bool _first = true; // «Сначала из города»: город первым, затем объявления в радиусе
+  VoidCallback? _whereRefresh; // перерисовать открытый экран «Где искать»
+  int get _radKm => int.tryParse(_rad) ?? 0;
   VoidCallback? _filterRefresh; // перерисовать открытый экран фильтров
   String _pt = '', _wh = ''; // тип оплаты и когда нужно (today / tomorrow / week)
   bool _urg = false; // только срочные
@@ -89,12 +89,15 @@ class _FeedPageState extends State<FeedPage> {
     final c = _city.trim().toLowerCase();
     final mn = int.tryParse(digitsOnly(_min)) ?? 0;
     final mx = int.tryParse(digitsOnly(_max)) ?? 0;
-    final rad = Near.i.has ? (int.tryParse(_rad) ?? 0) : 0;
-    final ref = c.isEmpty ? null : Geo.cityCached(_city.trim());
-    if (neighbors && (c.isEmpty || ref == null)) return [];
+    final radKm = _radKm;
+    final rad = (c.isEmpty && Near.i.has) ? radKm : 0; // радиус от вас, если город не выбран
+    final around = c.isNotEmpty && radKm > 0; // город + радиус вокруг него
+    final ref = around ? Geo.cityCached(_city.trim()) : null;
+    if (neighbors && !(around && _first && ref != null)) return [];
     double kmRef(Ad a) {
       final pt = adPoint(a) ?? (a.city.trim().isEmpty ? null : Geo.cityCached(a.city));
-      return pt == null ? 1e9 : kmBetween(ref!, pt);
+      if (pt == null) return a.city.toLowerCase().contains(c) ? 0 : 1e9;
+      return kmBetween(ref!, pt);
     }
 
     final r = S.i.ads.where((a) {
@@ -105,8 +108,12 @@ class _FeedPageState extends State<FeedPage> {
       if (_cat.isNotEmpty && a.category != _cat) return false;
       if (c.isNotEmpty) {
         final inCity = a.city.toLowerCase().contains(c);
-        if (neighbors == inCity) return false; // основной список: только город; соседние: всё остальное рядом
-        if (neighbors && kmRef(a) > kNeighborKm) return false;
+        if (neighbors) {
+          if (inCity || kmRef(a) > radKm) return false; // после города: другие города в радиусе
+        } else if (!inCity) {
+          // без «сначала из города» объявления в радиусе идут в общем списке
+          if (!(around && !_first && ref != null && kmRef(a) <= radKm)) return false;
+        }
       }
       if (q.isNotEmpty && !smartMatchAd(q, a.title, a.desc, a.category, a.city, a.addr)) return false;
       if (mn > 0 && (n == null || n < mn)) return false;
@@ -129,6 +136,7 @@ class _FeedPageState extends State<FeedPage> {
       return true;
     }).toList();
     final byNear = Near.i.has && (_sort.isEmpty || _sort == 'near');
+    final byRef = ref != null && (neighbors || !_first) && (_sort.isEmpty || _sort == 'near');
     r.sort((a, b) {
       if (_sort == 'hi' || _sort == 'lo') {
         final p = adAmt(a) > 0 ? adAmt(a) : null, t = adAmt(b) > 0 ? adAmt(b) : null;
@@ -140,7 +148,7 @@ class _FeedPageState extends State<FeedPage> {
         if (x == null && y != null) return 1;
         if (y == null && x != null) return -1;
         if (x != null && y != null && x != y) return x.compareTo(y);
-      } else if (neighbors && (_sort.isEmpty || _sort == 'near')) {
+      } else if (byRef) {
         final x = kmRef(a), y = kmRef(b);
         if (x != y) return x.compareTo(y);
       } else if (byNear) {
@@ -227,6 +235,7 @@ class _FeedPageState extends State<FeedPage> {
       _max = '';
       _sort = '';
       _rad = '';
+      _first = true;
       _pt = '';
       _wh = '';
       _urg = false;
@@ -401,27 +410,7 @@ class _FeedPageState extends State<FeedPage> {
                     for (final t in kTypes) _fChip(p, t, _type == t, () => upd(() => _type = _type == t ? '' : t)),
                   ]),
                   title('Где искать'),
-                  CityField(
-                    controller: _cityC,
-                    decoration: deco(c, 'Город', prefix: Icon(Icons.place_outlined, color: p.mu)),
-                    onChanged: (v) => upd(() => _city = v),
-                  ),
-                  const SizedBox(height: 10),
-                  _geoTile(p, () => upd(() {})),
-                  if (Near.i.has) ...[
-                    const SizedBox(height: 12),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      clipBehavior: Clip.none,
-                      child: Row(children: [
-                        _fChip(p, 'Любое', _rad.isEmpty, () => upd(() => _rad = '')),
-                        for (final k in const [3, 5, 10, 25, 50]) ...[
-                          const SizedBox(width: 8),
-                          _fChip(p, 'до $k км', _rad == '$k', () => upd(() => _rad = _rad == '$k' ? '' : '$k')),
-                        ],
-                      ]),
-                    ),
-                  ],
+                  _whereCard(p, c, upd),
                   title('Оплата'),
                   Row(children: [
                     Expanded(
@@ -508,7 +497,7 @@ class _FeedPageState extends State<FeedPage> {
         }
         final list = _filtered();
         final nb = _filtered(neighbors: true);
-        if (_city.trim().isNotEmpty) WidgetsBinding.instance.addPostFrameCallback((_) => _prepNeighbors());
+        if (_city.trim().isNotEmpty && _radKm > 0) WidgetsBinding.instance.addPostFrameCallback((_) => _prepNeighbors());
         return Scaffold(
           body: SafeArea(
             bottom: false,
@@ -546,6 +535,211 @@ class _FeedPageState extends State<FeedPage> {
   }
 
   // кнопка «Рядом со мной»: определить место и показать ближайшие объявления
+  // Город выбран: если радиус не задан, сразу показываем и соседние города (50 км)
+  void _setCity(String v) {
+    final had = _city.trim().isNotEmpty;
+    _city = v;
+    if (v.trim().isEmpty) {
+      _rad = '';
+    } else if (!had && _rad.isEmpty) {
+      _rad = '50';
+    }
+  }
+
+  // Сколько объявлений будет при выбранном радиусе (для кнопки на карте)
+  int _countWith(String rad) {
+    final old = _rad;
+    _rad = rad;
+    final n = _filtered().length + _filtered(neighbors: true).length;
+    _rad = old;
+    return n;
+  }
+
+  // Короткое описание места для карточки в фильтрах
+  String get _whereTitle => _city.trim().isNotEmpty ? _city.trim() : (Near.i.has ? 'Рядом со мной' : 'Все города');
+
+  String get _whereSub {
+    if (_city.trim().isEmpty) return Near.i.has ? (_radKm > 0 ? 'В радиусе $_radKm км от вас' : 'Ближайшие объявления — первыми') : 'Выбрать город или регион';
+    if (_radKm == 0) return 'Только этот город';
+    return _first ? 'И в радиусе $_radKm км, сначала из города' : 'И в радиусе $_radKm км вместе';
+  }
+
+  Widget _whereCard(Pal p, BuildContext c, void Function(VoidCallback) upd) => Tap(
+        onTap: () {
+          haptic();
+          _openWhere(c, upd);
+        },
+        scale: .98,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
+          decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
+          child: Row(children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: p.ac.withOpacity(.14), borderRadius: BorderRadius.circular(12)),
+              child: Icon(Icons.place_rounded, size: 21, color: p.ac),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(_whereTitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: p.tx)),
+                const SizedBox(height: 1),
+                Text(_whereSub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: p.mu)),
+              ]),
+            ),
+            Icon(Icons.chevron_right_rounded, color: p.mu),
+          ]),
+        ),
+      );
+
+  // Экран «Где искать»: город, «Сначала из города», радиус на карте
+  Future<void> _openWhere(BuildContext context, void Function(VoidCallback) upd) async {
+    await Navigator.of(context).push<void>(MaterialPageRoute(
+      builder: (c) => StatefulBuilder(
+        builder: (c, setW) {
+          final p = pal(c);
+          _whereRefresh = () => setW(() {});
+          void u(VoidCallback f) {
+            upd(f);
+            setW(() {});
+          }
+
+          final n = _filtered().length + _filtered(neighbors: true).length;
+          final hasCity = _city.trim().isNotEmpty;
+          final canRadius = hasCity || Near.i.has;
+
+          Widget head(String t) => Padding(
+                padding: const EdgeInsets.only(top: 22, bottom: 10),
+                child: Text(t, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx, letterSpacing: -.2)),
+              );
+
+          return Scaffold(
+            appBar: AppBar(
+              leading: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Tap(
+                  onTap: () => Navigator.pop(c),
+                  scale: .9,
+                  child: Container(
+                    decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(14)),
+                    child: Icon(Icons.close_rounded, color: p.tx, size: 22),
+                  ),
+                ),
+              ),
+              title: const Text('Где искать'),
+              centerTitle: true,
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    haptic();
+                    u(() {
+                      _city = '';
+                      _rad = '';
+                      _first = true;
+                      _cityC.clear();
+                      _autoCity = '';
+                    });
+                  },
+                  child: Text('Сбросить', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800, fontSize: 15)),
+                ),
+              ],
+            ),
+            body: Stack(children: [
+              SingleChildScrollView(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 110 + MediaQuery.of(c).viewInsets.bottom),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  head('Город или регион'),
+                  CityField(
+                    controller: _cityC,
+                    decoration: deco(c, 'Город или регион', prefix: Icon(Icons.place_outlined, color: p.mu)),
+                    onChanged: (v) => u(() => _setCity(v)),
+                  ),
+                  const SizedBox(height: 10),
+                  _geoTile(p, () => setW(() {})),
+                  if (hasCity) ...[
+                    const SizedBox(height: 14),
+                    Tap(
+                      onTap: () {
+                        haptic();
+                        u(() => _first = !_first);
+                      },
+                      scale: .99,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(children: [
+                          Expanded(child: Text('Сначала из ${_city.trim()}', style: TextStyle(fontSize: 16, color: p.tx))),
+                          IgnorePointer(
+                            child: Switch(
+                              value: _first,
+                              onChanged: (_) {},
+                              activeColor: Colors.white,
+                              activeTrackColor: p.ok,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                        ]),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  Tap(
+                    onTap: !canRadius
+                        ? () => toast(c, 'Сначала выберите город или включите «Рядом со мной»')
+                        : () async {
+                            haptic();
+                            final r = await Navigator.of(c).push<String>(MaterialPageRoute(
+                              builder: (_) => RadiusPage(city: _city, radius: _rad, count: _countWith),
+                            ));
+                            if (r != null) u(() => _rad = r);
+                          },
+                    scale: .98,
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+                      decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
+                      child: Row(children: [
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('Радиус', style: TextStyle(fontSize: 12.5, color: p.mu)),
+                            const SizedBox(height: 2),
+                            Text(_radKm > 0 ? '$_radKm км' : (hasCity ? 'Только город' : 'Не выбран'),
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: canRadius ? p.tx : p.mu)),
+                          ]),
+                        ),
+                        Icon(Icons.map_outlined, color: p.ac),
+                        const SizedBox(width: 6),
+                        Icon(Icons.chevron_right_rounded, color: p.mu),
+                      ]),
+                    ),
+                  ),
+                  if (hasCity && _radKm == 0) ...[
+                    const SizedBox(height: 8),
+                    Text('Выберите радиус, чтобы видеть объявления и из соседних городов.', style: TextStyle(fontSize: 12.5, color: p.mu)),
+                  ],
+                ]),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: EdgeInsets.fromLTRB(16, 22, 16, 12 + MediaQuery.of(c).viewPadding.bottom),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [p.bg.withOpacity(0), p.bg, p.bg]),
+                  ),
+                  child: GradBtn(n == 0 ? 'Ничего не найдено' : 'Показать $n ${plural(n, 'объявление', 'объявления', 'объявлений')}', radius: 18, onTap: () => Navigator.pop(c)),
+                ),
+              ),
+            ]),
+          );
+        },
+      ),
+    ));
+    _whereRefresh = null;
+    if (mounted) setState(() {});
+  }
+
   // Центры выбранного города и городов объявлений нужны, чтобы показать соседние города
   Future<void> _prepNeighbors() async {
     if (_nbBusy) return;
@@ -586,7 +780,7 @@ class _FeedPageState extends State<FeedPage> {
               Text(noneInCity ? 'В городе ничего нет — смотрите рядом' : 'Из соседних городов',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: p.tx, letterSpacing: -.2)),
               const SizedBox(height: 2),
-              Text('В радиусе ${kNeighborKm.round()} км от «${_city.trim()}», сначала ближайшие', style: TextStyle(fontSize: 12.5, color: p.mu)),
+              Text('В радиусе $_radKm км от «${_city.trim()}», сначала ближайшие', style: TextStyle(fontSize: 12.5, color: p.mu)),
             ]),
           ),
         ]),
@@ -600,11 +794,12 @@ class _FeedPageState extends State<FeedPage> {
     final c = await Geo.reverseCity(pos.latitude, pos.longitude);
     if (!mounted || c == null || _city.trim().isNotEmpty || !Near.i.has) return;
     setState(() {
-      _city = c;
+      _setCity(c);
       _cityC.text = c;
       _autoCity = c;
     });
     _filterRefresh?.call();
+    _whereRefresh?.call();
   }
 
   Future<void> _locate() async {

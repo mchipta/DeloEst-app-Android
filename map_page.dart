@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -854,5 +855,167 @@ class _AddrFieldState extends State<AddrField> {
         ),
       ),
     ]);
+  }
+}
+
+/// Радиус поиска вокруг города: карта с кругом и быстрые значения (как на Авито)
+class RadiusPage extends StatefulWidget {
+  final String city;
+  final String radius;
+  final int Function(String rad) count;
+  const RadiusPage({super.key, required this.city, required this.radius, required this.count});
+  @override
+  State<RadiusPage> createState() => _RadiusPageState();
+}
+
+class _RadiusPageState extends State<RadiusPage> {
+  static const _vals = [5, 15, 25, 50, 100, 150];
+  final _mc = MapController();
+  late String _rad = widget.radius;
+  LatLng? _c;
+  bool _ready = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final city = widget.city.trim();
+    _c = city.isNotEmpty ? Geo.cityCached(city) : Near.i.pos;
+    if (_c == null && city.isNotEmpty) {
+      Geo.city(city).then((v) {
+        if (!mounted || v == null) return;
+        setState(() => _c = v);
+      });
+    }
+  }
+
+  // Подогнать карту так, чтобы круг помещался целиком
+  void _fit() {
+    final c = _c;
+    if (c == null || !_ready) return;
+    final r = int.tryParse(_rad) ?? 0;
+    final km = r == 0 ? 8.0 : r.toDouble();
+    final dLat = km / 111.0;
+    final dLng = km / (111.0 * math.max(.2, math.cos(c.latitude * math.pi / 180).abs()));
+    _mc.fitCamera(CameraFit.bounds(
+      bounds: LatLngBounds(LatLng(c.latitude - dLat, c.longitude - dLng), LatLng(c.latitude + dLat, c.longitude + dLng)),
+      padding: const EdgeInsets.all(28),
+      maxZoom: 14,
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = _c;
+    final km = int.tryParse(_rad) ?? 0;
+    final n = widget.count(_rad);
+    final city = widget.city.trim();
+
+    Widget chip(String t, String v) {
+      final on = _rad == v;
+      return Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: Tap(
+          onTap: () {
+            haptic();
+            setState(() => _rad = v);
+            _fit();
+          },
+          scale: .96,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: on ? p.ac.withOpacity(.14) : p.card,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: on ? p.ac : p.bd, width: on ? 1.6 : 1),
+            ),
+            child: Text(t, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: on ? p.ac : p.tx)),
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: p.bg,
+      appBar: AppBar(
+        backgroundColor: p.bg,
+        foregroundColor: p.tx,
+        elevation: 0,
+        title: const Text('Радиус поиска', style: TextStyle(fontWeight: FontWeight.w800)),
+      ),
+      body: Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
+            child: Row(children: [
+              Icon(Icons.place_outlined, color: p.ac, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(city.isEmpty ? 'Вокруг вас' : city,
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: p.tx)),
+              ),
+              if (km > 0) Text('+ $km км', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.ac)),
+            ]),
+          ),
+        ),
+        Expanded(
+          child: c == null
+              ? Center(child: Text('Определяем место…', style: TextStyle(color: p.mu)))
+              : FlutterMap(
+                  mapController: _mc,
+                  options: MapOptions(
+                    initialCenter: c,
+                    initialZoom: 9,
+                    minZoom: 3,
+                    interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
+                    onMapReady: () {
+                      _ready = true;
+                      _fit();
+                    },
+                  ),
+                  children: [
+                    _tiles(dark),
+                    if (km > 0)
+                      CircleLayer(circles: [
+                        CircleMarker(
+                          point: c,
+                          radius: km * 1000.0,
+                          useRadiusInMeter: true,
+                          color: p.ac.withOpacity(.14),
+                          borderColor: p.ac,
+                          borderStrokeWidth: 2,
+                        ),
+                      ]),
+                    MarkerLayer(markers: [Marker(point: c, width: 44, height: 44, alignment: Alignment.topCenter, child: _pin(p.ac))]),
+                    _attribution(),
+                  ],
+                ),
+        ),
+        SizedBox(
+          height: 70,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(16, 12, 8, 10),
+            children: [
+              chip(city.isEmpty ? 'Без радиуса' : 'Только город', ''),
+              for (final v in _vals) chip('$v км', '$v'),
+            ],
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 12 + MediaQuery.of(context).viewPadding.bottom),
+          child: GradBtn(
+            n == 0 ? 'Ничего не найдено' : 'Показать $n ${plural(n, 'объявление', 'объявления', 'объявлений')}',
+            radius: 18,
+            onTap: () => Navigator.pop(context, _rad),
+          ),
+        ),
+      ]),
+    );
   }
 }
