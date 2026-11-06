@@ -49,6 +49,45 @@ class Geo {
     return c.future;
   }
 
+  // Город по координатам (для автозаполнения фильтра); тот же сервис и та же очередь
+  static Future<String?> reverseCity(double lat, double lon) {
+    final c = Completer<String?>();
+    _queue = _queue.then((_) async {
+      final wait = _last.add(const Duration(milliseconds: 1100)).difference(DateTime.now());
+      if (wait > Duration.zero) await Future.delayed(wait);
+      _last = DateTime.now();
+      String? out;
+      try {
+        final r = await http.get(
+          Uri.https('nominatim.openstreetmap.org', '/reverse', {
+            'format': 'jsonv2',
+            'lat': '$lat',
+            'lon': '$lon',
+            'zoom': '10',
+            'addressdetails': '1',
+            'accept-language': 'ru',
+          }),
+          headers: {
+            'User-Agent': 'DeloEst/1.0 (https://mchipta.github.io/DeloEst-website/; michipta@ya.ru)',
+            'Referer': 'https://mchipta.github.io/DeloEst-website/',
+          },
+        ).timeout(const Duration(seconds: 8));
+        if (r.statusCode == 200) {
+          final a = (jsonDecode(utf8.decode(r.bodyBytes))['address'] as Map?) ?? {};
+          for (final k in ['city', 'town', 'village', 'municipality', 'county']) {
+            final v = (a[k] ?? '').toString().trim();
+            if (v.isNotEmpty) {
+              out = v;
+              break;
+            }
+          }
+        }
+      } catch (_) {}
+      c.complete(out);
+    });
+    return c.future;
+  }
+
   static Future<List<GeoHit>?> _nominatim(String q, int limit) async {
     try {
       final r = await http.get(
