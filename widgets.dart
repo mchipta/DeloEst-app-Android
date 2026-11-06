@@ -1613,7 +1613,7 @@ class EmptyState extends StatelessWidget {
 /// Панель владельца: статистика объявления и управление (в «Моих объявлениях» и на странице объявления)
 class OwnerPanel extends StatelessWidget {
   final Ad ad;
-  final VoidCallback onEdit, onToggle, onUrgent, onShare;
+  final VoidCallback onEdit, onToggle, onUrgent, onShare, onDelete;
   final VoidCallback? onRenew;
   const OwnerPanel({
     super.key,
@@ -1622,6 +1622,7 @@ class OwnerPanel extends StatelessWidget {
     required this.onToggle,
     required this.onUrgent,
     required this.onShare,
+    required this.onDelete,
     this.onRenew,
   });
 
@@ -1632,24 +1633,30 @@ class OwnerPanel extends StatelessWidget {
     final hidden = ad.status == 'hidden';
     final upd = ad.upd > 0 ? ad.upd : ad.ts;
 
-    Widget icon(IconData ic, String tip, VoidCallback f, {bool on = false, Color? color}) => Expanded(
-          child: Tooltip(
-            message: tip,
-            child: Tap(
-              onTap: () {
-                haptic();
-                f();
-              },
-              scale: .94,
-              child: Container(
-                height: 42,
-                decoration: BoxDecoration(
-                  color: on ? p.ac.withOpacity(.14) : p.bg2,
-                  borderRadius: BorderRadius.circular(12),
-                  border: on ? Border.all(color: p.ac) : null,
-                ),
-                child: Icon(ic, size: 20, color: color ?? (on ? p.ac : p.tx)),
+    // кнопка с иконкой и подписью, чтобы было понятно, что делает
+    Widget icon(IconData ic, String label, VoidCallback f, {bool on = false, Color? color}) => Expanded(
+          child: Tap(
+            onTap: () {
+              haptic();
+              f();
+            },
+            scale: .94,
+            child: Container(
+              height: 58,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: on ? p.ac.withOpacity(.14) : p.bg2,
+                borderRadius: BorderRadius.circular(12),
+                border: on ? Border.all(color: p.ac) : null,
               ),
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(ic, size: 20, color: color ?? (on ? p.ac : p.tx)),
+                const SizedBox(height: 4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(label, maxLines: 1, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: color ?? (on ? p.ac : p.mu))),
+                ),
+              ]),
             ),
           ),
         );
@@ -1663,11 +1670,14 @@ class OwnerPanel extends StatelessWidget {
           ]),
         );
 
+    // активное: изменить, снять, срочно, поделиться; снятое: вернуть или удалить (изменять — только после возврата); скрытое модератором: только изменить
     final btns = <Widget>[
-      icon(Icons.edit_outlined, 'Изменить', onEdit),
-      if (!hidden) icon(isOpen ? Icons.visibility_off_outlined : Icons.publish_rounded, isOpen ? 'Снять' : 'Опубликовать', onToggle, color: isOpen ? p.dng : p.ok),
-      if (isOpen) icon(Icons.bolt_rounded, ad.urgent ? 'Снять «Срочно»' : 'Срочно', onUrgent, on: ad.urgent),
+      if (isOpen || hidden) icon(Icons.edit_outlined, 'Изменить', onEdit),
+      if (isOpen) icon(Icons.visibility_off_outlined, 'Снять', onToggle, color: p.dng),
+      if (!isOpen && !hidden) icon(Icons.publish_rounded, 'Опубликовать', onToggle, color: p.ok),
+      if (isOpen) icon(Icons.bolt_rounded, ad.urgent ? 'Без «Срочно»' : 'Срочно', onUrgent, on: ad.urgent),
       if (isOpen) icon(Icons.ios_share_rounded, 'Поделиться', onShare),
+      if (!isOpen && !hidden) icon(Icons.delete_outline_rounded, 'Удалить', onDelete, color: p.dng),
     ];
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1711,5 +1721,103 @@ class OwnerPanel extends StatelessWidget {
         ],
       ]),
     ]);
+  }
+}
+
+/// Что печатаем в подсказке поиска после слова «Найти»
+const kSearchHints = [
+  'грузчиков на переезд',
+  'сантехника',
+  'уборку квартиры',
+  'репетитора',
+  'курьера на сегодня',
+  'мастера по ремонту',
+  'сборщика мебели',
+  'помощь на даче',
+  'электрика',
+  'няню на вечер',
+  'подработку рядом',
+];
+
+/// Подсказка в поле поиска: «Найти …» печатается по буквам, стирается и сменяется следующей
+class TypewriterHint extends StatefulWidget {
+  final List<String> phrases;
+  final TextStyle style;
+  final String prefix;
+  const TypewriterHint({super.key, required this.phrases, required this.style, this.prefix = 'Найти'});
+  @override
+  State<TypewriterHint> createState() => _TypewriterHintState();
+}
+
+class _TypewriterHintState extends State<TypewriterHint> {
+  Timer? _timer;
+  int _i = 0, _n = 0, _due = 0;
+  String _mode = 'type'; // type · hold · erase · gap
+  String _text = '';
+
+  int get _now => DateTime.now().millisecondsSinceEpoch;
+
+  @override
+  void initState() {
+    super.initState();
+    _due = _now;
+    _timer = Timer.periodic(const Duration(milliseconds: 45), (_) => _step());
+  }
+
+  void _step() {
+    if (!mounted || widget.phrases.isEmpty) return;
+    final now = _now;
+    final ph = widget.phrases[_i % widget.phrases.length];
+    if (now >= _due) {
+      switch (_mode) {
+        case 'type':
+          _n++;
+          if (_n >= ph.length) {
+            _n = ph.length;
+            _mode = 'hold';
+            _due = now + 1700;
+          } else {
+            _due = now + 55 + (_n * 37 % 45);
+          }
+          break;
+        case 'hold':
+          _mode = 'erase';
+          _due = now;
+          break;
+        case 'erase':
+          _n--;
+          if (_n <= 0) {
+            _n = 0;
+            _mode = 'gap';
+            _due = now + 420;
+          } else {
+            _due = now + 28;
+          }
+          break;
+        default:
+          _i = (_i + 1) % widget.phrases.length;
+          _mode = 'type';
+          _due = now;
+      }
+    }
+    final cur = widget.phrases[_i % widget.phrases.length];
+    final busy = _mode == 'type' || _mode == 'erase';
+    final caret = (busy || (now ~/ 500).isEven) ? '|' : ' ';
+    final txt = '${widget.prefix} ${cur.substring(0, _n < 0 ? 0 : (_n > cur.length ? cur.length : _n))}$caret';
+    if (txt != _text) setState(() => _text = txt);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.of(context).disableAnimations) {
+      return Text('Найти подработку или услугу', maxLines: 1, overflow: TextOverflow.ellipsis, style: widget.style);
+    }
+    return Text(_text.isEmpty ? '${widget.prefix} |' : _text, maxLines: 1, softWrap: false, overflow: TextOverflow.clip, style: widget.style);
   }
 }

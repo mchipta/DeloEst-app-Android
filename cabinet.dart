@@ -95,11 +95,29 @@ class _CabinetPageState extends State<CabinetPage> {
     if (any) Api.call('rseen').then((_) {}, onError: (_) {});
   }
 
+  // Удаление своего объявления: спрашиваем, потому что вернуть его уже нельзя
+  Future<void> _confirmDelete(Ad ad) async {
+    final p = pal(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: p.card,
+        title: Text('Удалить объявление?', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
+        content: Text('«${ad.title}» исчезнет навсегда. Вернуть его будет нельзя.', style: TextStyle(color: p.mu, height: 1.35)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text('Отмена', style: TextStyle(color: p.mu))),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: Text('Удалить', style: TextStyle(color: p.dng, fontWeight: FontWeight.w800))),
+        ],
+      ),
+    );
+    if (ok == true) await _act('del', {'id': ad.id}, 'Объявление удалено');
+  }
+
   Future<void> _act(String a, Map<String, dynamic> d, String okMsg) async {
     try {
       await Api.call(a, d);
       if (mounted) toast(context, okMsg);
-      if (a == 'status' || a == 'bump' || a == 'urgent' || a == 'renew') S.i.loadAds();
+      if (a == 'status' || a == 'del' || a == 'bump' || a == 'urgent' || a == 'renew') S.i.loadAds();
       await _load();
     } catch (e) {
       if (mounted) toast(context, S.i.fail(e), err: true);
@@ -686,6 +704,7 @@ class _CabinetPageState extends State<CabinetPage> {
           onToggle: () => _act('status', {'id': ad.id, 's': isOpen ? 'closed' : 'open'}, isOpen ? 'Объявление снято' : 'Объявление снова опубликовано'),
           onUrgent: () => _act('urgent', {'id': ad.id, 'on': !ad.urgent}, ad.urgent ? 'Метка снята' : 'Метка «Срочно» на 3 дня'),
           onShare: () => showShare(context, ad),
+          onDelete: () => _confirmDelete(ad),
           onRenew: (isOpen && DateTime.now().millisecondsSinceEpoch - ad.upd > 14 * 86400000)
               ? () => _act('renew', {'id': ad.id}, 'Спасибо, объявление продлено')
               : null,

@@ -1075,24 +1075,39 @@ class _FeedPageState extends State<FeedPage> {
                   const SizedBox(width: 16),
                   Icon(Icons.search_rounded, color: p.tx, size: 24),
                   Expanded(
-                    child: TextField(contextMenuBuilder: appContextMenu,
-                      controller: _q,
-                      focusNode: _qFocus,
-                      onChanged: (_) => setState(() {}),
-                      textInputAction: TextInputAction.search,
-                      onSubmitted: (_) => FocusScope.of(context).unfocus(),
-                      style: TextStyle(color: p.tx, fontSize: 16),
-                      decoration: InputDecoration(
-                        hintText: 'Найти подработку или услугу',
-                        hintStyle: TextStyle(color: p.mu.withOpacity(.85)),
-                        filled: false,
-                        isDense: true,
-                        border: none,
-                        enabledBorder: none,
-                        focusedBorder: none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+                    child: Stack(alignment: Alignment.centerLeft, children: [
+                      TextField(contextMenuBuilder: appContextMenu,
+                        controller: _q,
+                        focusNode: _qFocus,
+                        onChanged: (_) => setState(() {}),
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: (_) => FocusScope.of(context).unfocus(),
+                        style: TextStyle(color: p.tx, fontSize: 16),
+                        decoration: InputDecoration(
+                          hintText: _qFocus.hasFocus ? 'Найти подработку или услугу' : null,
+                          hintStyle: TextStyle(color: p.mu.withOpacity(.85)),
+                          filled: false,
+                          isDense: true,
+                          border: none,
+                          enabledBorder: none,
+                          focusedBorder: none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+                        ),
                       ),
-                    ),
+                      // пока поле пустое и не в фокусе — печатаем подсказки, как в Авито
+                      if (_q.text.isEmpty && !_qFocus.hasFocus)
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: TypewriterHint(phrases: kSearchHints, style: TextStyle(color: p.mu.withOpacity(.85), fontSize: 16)),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ]),
                   ),
                   if (_q.text.isNotEmpty)
                     GestureDetector(
