@@ -8,6 +8,8 @@ import 'api.dart';
 import 'info.dart';
 import 'legal.dart';
 import 'models.dart';
+import 'near.dart';
+import 'map_page.dart';
 import 'state.dart';
 import 'theme.dart';
 import 'util.dart';
@@ -286,6 +288,9 @@ class _SettingsBodyState extends State<SettingsBody> {
             _tile(p, Icons.call_outlined, 'Телефон', S.i.phone.isEmpty ? '—' : fmtPhone(S.i.phone), _phone),
           ],
           if (!widget.profileOnly) ...[
+          _label(p, 'Поиск'),
+          _tile(p, Icons.place_outlined, 'Регион для поиска', S.i.regionCity.isEmpty ? 'Все города' : (S.i.regionRad.isEmpty ? S.i.regionCity : '${S.i.regionCity} +${S.i.regionRad} км'),
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegionPage()))),
           _label(p, 'Внешний вид'),
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
@@ -456,32 +461,6 @@ class _SettingsBodyState extends State<SettingsBody> {
                 ),
               ],
             ]),
-          ),
-          Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-            child: Container(
-              margin: const EdgeInsets.only(top: 6, bottom: 10),
-              decoration: cardDeco(p, r: 16),
-              child: ExpansionTile(
-                tilePadding: const EdgeInsets.symmetric(horizontal: 14),
-                title: Text('Дополнительно', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 15)),
-                childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: () async {
-                        await S.requestPushPermission();
-                        await S.showSystemPush('ДелоЕсть', 'Push-уведомления успешно подключены и работают!');
-                        if (context.mounted) toast(context, 'Тестовое Push-уведомление отправлено');
-                      },
-                      icon: Icon(Icons.send_to_mobile_rounded, size: 18, color: p.ac),
-                      label: Text('Проверить Push-уведомление', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800, fontSize: 13)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
           ],
         ]);
@@ -825,6 +804,185 @@ class BottomLinks extends StatelessWidget {
           ),
         ]);
       },
+    );
+  }
+}
+
+/// Регион для поиска: город и радиус, с которыми по умолчанию открывается лента
+class RegionPage extends StatefulWidget {
+  const RegionPage({super.key});
+  @override
+  State<RegionPage> createState() => _RegionPageState();
+}
+
+class _RegionPageState extends State<RegionPage> {
+  final _c = TextEditingController(text: S.i.regionCity);
+  late String _rad = S.i.regionRad;
+  late bool _first = S.i.regionFirst;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  void _city(String v) {
+    final had = _c.text.trim().isNotEmpty;
+    setState(() {
+      if (v.trim().isEmpty) {
+        _rad = '';
+      } else if (!had && _rad.isEmpty) {
+        _rad = '50';
+      }
+    });
+  }
+
+  Future<void> _locate() async {
+    haptic();
+    setState(() => _busy = true);
+    final r = await Near.i.locate();
+    String? city;
+    final pos = Near.i.pos;
+    if (r == NearResult.ok && pos != null) city = await Geo.reverseCity(pos.latitude, pos.longitude);
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (city != null) {
+        _c.text = city;
+        if (_rad.isEmpty) _rad = '50';
+      }
+    });
+    if (r != NearResult.ok) {
+      toast(context, nearMsg(r), err: true);
+    } else if (city == null) {
+      toast(context, 'Не удалось определить город', err: true);
+    }
+  }
+
+  Future<void> _save() async {
+    await S.i.setRegion(_c.text, _rad, _first);
+    if (!mounted) return;
+    toast(context, _c.text.trim().isEmpty ? 'Ищем по всем городам' : 'Регион для поиска: ${_c.text.trim()}');
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    final hasCity = _c.text.trim().isNotEmpty;
+
+    Widget chip(String t, String v) {
+      final on = _rad == v;
+      return Tap(
+        onTap: () {
+          haptic();
+          setState(() => _rad = v);
+        },
+        scale: .96,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          decoration: BoxDecoration(
+            color: on ? p.ac.withOpacity(.14) : p.card,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: on ? p.ac : p.bd, width: on ? 1.6 : 1),
+          ),
+          child: Text(t, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: on ? p.ac : p.tx)),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: p.bg,
+      appBar: AppBar(
+        backgroundColor: p.bg,
+        foregroundColor: p.tx,
+        elevation: 0,
+        title: const Text('Регион для поиска', style: TextStyle(fontWeight: FontWeight.w800)),
+      ),
+      body: Stack(children: [
+        ListView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 110 + MediaQuery.of(context).viewInsets.bottom),
+          children: [
+            Text('Лента будет открываться с этим городом. Изменить его можно и в фильтрах.', style: TextStyle(color: p.mu, fontSize: 13.5, height: 1.35)),
+            const SizedBox(height: 16),
+            CityField(
+              controller: _c,
+              decoration: deco(context, 'Город или регион', prefix: Icon(Icons.place_outlined, color: p.mu)),
+              onChanged: _city,
+            ),
+            const SizedBox(height: 10),
+            Tap(
+              onTap: _busy ? null : _locate,
+              scale: .98,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
+                child: Row(children: [
+                  Icon(Icons.my_location_rounded, color: p.ac, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text('Определить автоматически', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: p.tx))),
+                  if (_busy) SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: p.ac)),
+                ]),
+              ),
+            ),
+            if (hasCity) ...[
+              const SizedBox(height: 20),
+              Text('Радиус', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx)),
+              const SizedBox(height: 10),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                chip('Только город', ''),
+                for (final v in const ['5', '15', '25', '50', '100', '150']) chip('$v км', v),
+              ]),
+              if (_rad.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Tap(
+                  onTap: () {
+                    haptic();
+                    setState(() => _first = !_first);
+                  },
+                  scale: .99,
+                  child: Row(children: [
+                    Expanded(child: Text('Сначала из ${_c.text.trim()}', style: TextStyle(fontSize: 16, color: p.tx))),
+                    IgnorePointer(
+                      child: Switch(
+                        value: _first,
+                        onChanged: (_) {},
+                        activeColor: Colors.white,
+                        activeTrackColor: p.ok,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ]),
+                ),
+              ],
+            ],
+            const SizedBox(height: 14),
+            if (hasCity)
+              TextButton(
+                onPressed: () {
+                  haptic();
+                  setState(() {
+                    _c.clear();
+                    _rad = '';
+                  });
+                },
+                child: Text('Искать по всем городам', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700)),
+              ),
+          ],
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Container(
+            padding: EdgeInsets.fromLTRB(16, 22, 16, 12 + MediaQuery.of(context).viewPadding.bottom),
+            decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [p.bg.withOpacity(0), p.bg, p.bg])),
+            child: GradBtn('Сохранить', radius: 18, onTap: _save),
+          ),
+        ),
+      ]),
     );
   }
 }

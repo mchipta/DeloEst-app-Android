@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show SchedulerPhase;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
@@ -858,12 +859,21 @@ class _AddrFieldState extends State<AddrField> {
   }
 }
 
-/// Радиус поиска вокруг города: карта с кругом и быстрые значения (как на Авито)
+/// Итог экрана «Радиус поиска»: радиус и, если карту передвинули, новый центр поиска и город в нём
+class RadiusResult {
+  final String rad;
+  final LatLng? center;
+  final String? city;
+  const RadiusResult(this.rad, this.center, this.city);
+}
+
+/// Радиус поиска: карта с кругом и быстрые значения; карту можно двигать, круг остаётся по центру (как на Авито)
 class RadiusPage extends StatefulWidget {
   final String city;
   final String radius;
-  final int Function(String rad) count;
-  const RadiusPage({super.key, required this.city, required this.radius, required this.count});
+  final LatLng? center;
+  final int Function(String rad, LatLng? center, String? city) count;
+  const RadiusPage({super.key, required this.city, required this.radius, required this.count, this.center});
   @override
   State<RadiusPage> createState() => _RadiusPageState();
 }
@@ -872,25 +882,39 @@ class _RadiusPageState extends State<RadiusPage> {
   static const _vals = [5, 15, 25, 50, 100, 150];
   final _mc = MapController();
   late String _rad = widget.radius;
-  LatLng? _c;
+  LatLng? _c; // с чего начали
+  LatLng? _mid; // центр карты сейчас
+  String? _cityName; // город под центром, когда карту передвинули
+  bool _moved = false;
   bool _ready = false;
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     final city = widget.city.trim();
-    _c = city.isNotEmpty ? Geo.cityCached(city) : Near.i.pos;
+    _c = widget.center ?? (city.isNotEmpty ? Geo.cityCached(city) : Near.i.pos);
+    _mid = _c;
     if (_c == null && city.isNotEmpty) {
       Geo.city(city).then((v) {
         if (!mounted || v == null) return;
-        setState(() => _c = v);
+        setState(() {
+          _c = v;
+          _mid = v;
+        });
       });
     }
   }
 
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
   // Подогнать карту так, чтобы круг помещался целиком
   void _fit() {
-    final c = _c;
+    final c = _mid;
     if (c == null || !_ready) return;
     final r = int.tryParse(_rad) ?? 0;
     final km = r == 0 ? 8.0 : r.toDouble();
@@ -903,14 +927,50 @@ class _RadiusPageState extends State<RadiusPage> {
     ));
   }
 
+  // Карту двигают: круг следует за центром, город под ним определяем, когда движение закончилось
+  void _onMove(MapCamera cam, bool byUser) {
+    if (!mounted) return;
+    final center = cam.center;
+    void apply() {
+      if (mounted) setState(() => _mid = center);
+    }
+
+    // камера может сдвинуться во время построения кадра: тогда обновляем сразу после него
+    if (WidgetsBinding.instance.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => apply());
+    } else {
+      apply();
+    }
+    if (!byUser) return;
+    _moved = true;
+    _cityName = null;
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 700), () async {
+      final mid = _mid;
+      if (mid == null) return;
+      final n = await Geo.reverseCity(mid.latitude, mid.longitude);
+      if (mounted && n != null) setState(() => _cityName = n);
+    });
+  }
+
+  Future<void> _done() async {
+    final mid = _mid;
+    var name = _cityName;
+    if (_moved && mid != null && name == null) name = await Geo.reverseCity(mid.latitude, mid.longitude);
+    if (!mounted) return;
+    final known = (name ?? widget.city).trim().isNotEmpty;
+    Navigator.pop(context, RadiusResult(_rad, (_moved && known) ? mid : null, _moved ? name : null));
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = _c;
+    final mid = _mid ?? c;
     final km = int.tryParse(_rad) ?? 0;
-    final n = widget.count(_rad);
-    final city = widget.city.trim();
+    final n = widget.count(_rad, _moved ? mid : null, _cityName);
+    final city = (_cityName ?? widget.city).trim();
 
     Widget chip(String t, String v) {
       final on = _rad == v;
@@ -956,7 +1016,7 @@ class _RadiusPageState extends State<RadiusPage> {
               Icon(Icons.place_outlined, color: p.ac, size: 20),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(city.isEmpty ? 'Вокруг вас' : city,
+                child: Text(city.isEmpty ? (_moved ? 'Выбранная точка' : 'Вокруг вас') : city,
                     maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: p.tx)),
               ),
               if (km > 0) Text('+ $km км', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.ac)),
@@ -964,37 +1024,60 @@ class _RadiusPageState extends State<RadiusPage> {
           ),
         ),
         Expanded(
-          child: c == null
+          child: c == null || mid == null
               ? Center(child: Text('Определяем место…', style: TextStyle(color: p.mu)))
-              : FlutterMap(
-                  mapController: _mc,
-                  options: MapOptions(
-                    initialCenter: c,
-                    initialZoom: 9,
-                    minZoom: 3,
-                    interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
-                    onMapReady: () {
-                      _ready = true;
-                      _fit();
-                    },
+              : Stack(children: [
+                  FlutterMap(
+                    mapController: _mc,
+                    options: MapOptions(
+                      initialCenter: c,
+                      initialZoom: 9,
+                      minZoom: 3,
+                      interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
+                      onPositionChanged: _onMove,
+                      onMapReady: () {
+                        _ready = true;
+                        _fit();
+                      },
+                    ),
+                    children: [
+                      _tiles(dark),
+                      if (km > 0)
+                        CircleLayer(circles: [
+                          CircleMarker(
+                            point: mid,
+                            radius: km * 1000.0,
+                            useRadiusInMeter: true,
+                            color: p.ac.withOpacity(.14),
+                            borderColor: p.ac,
+                            borderStrokeWidth: 2,
+                          ),
+                        ]),
+                      _attribution(),
+                    ],
                   ),
-                  children: [
-                    _tiles(dark),
-                    if (km > 0)
-                      CircleLayer(circles: [
-                        CircleMarker(
-                          point: c,
-                          radius: km * 1000.0,
-                          useRadiusInMeter: true,
-                          color: p.ac.withOpacity(.14),
-                          borderColor: p.ac,
-                          borderStrokeWidth: 2,
+                  // булавка всегда по центру: двигаете карту — двигается центр поиска
+                  IgnorePointer(
+                    child: Align(
+                      alignment: Alignment.center,
+                      child: Padding(padding: const EdgeInsets.only(bottom: 44), child: SizedBox(width: 44, height: 44, child: _pin(p.ac))),
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 10,
+                    child: IgnorePointer(
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(color: p.card.withOpacity(.92), borderRadius: BorderRadius.circular(20), border: Border.all(color: p.bd)),
+                          child: Text('Двигайте карту, чтобы сменить центр', style: TextStyle(fontSize: 12.5, color: p.mu, fontWeight: FontWeight.w600)),
                         ),
-                      ]),
-                    MarkerLayer(markers: [Marker(point: c, width: 44, height: 44, alignment: Alignment.topCenter, child: _pin(p.ac))]),
-                    _attribution(),
-                  ],
-                ),
+                      ),
+                    ),
+                  ),
+                ]),
         ),
         SizedBox(
           height: 70,
@@ -1002,7 +1085,7 @@ class _RadiusPageState extends State<RadiusPage> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.fromLTRB(16, 12, 8, 10),
             children: [
-              chip(city.isEmpty ? 'Без радиуса' : 'Только город', ''),
+              chip(widget.city.trim().isEmpty && !_moved ? 'Без радиуса' : 'Только город', ''),
               for (final v in _vals) chip('$v км', '$v'),
             ],
           ),
@@ -1012,7 +1095,7 @@ class _RadiusPageState extends State<RadiusPage> {
           child: GradBtn(
             n == 0 ? 'Ничего не найдено' : 'Показать $n ${plural(n, 'объявление', 'объявления', 'объявлений')}',
             radius: 18,
-            onTap: () => Navigator.pop(context, _rad),
+            onTap: _done,
           ),
         ),
       ]),

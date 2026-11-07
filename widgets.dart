@@ -363,6 +363,7 @@ class _FavHeartState extends State<FavHeart> with SingleTickerProviderStateMixin
     S.i.toggleFav(widget.adId);
     _lastFav = S.i.isFav(widget.adId);
     _c.forward(from: 0);
+    toast(context, _lastFav ? 'Добавлено в избранное' : 'Удалено из избранного');
   }
 
   @override

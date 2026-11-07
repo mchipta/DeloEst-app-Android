@@ -361,6 +361,22 @@ class S extends ChangeNotifier {
     notifyListeners();
   }
 
+  // «Регион для поиска» из настроек: город, радиус и «сначала из города» по умолчанию для ленты
+  bool get regionChosen => prefs.containsKey('region_city');
+  String get regionCity => prefs.getString('region_city') ?? '';
+  String get regionRad => prefs.getString('region_rad') ?? '';
+  bool get regionFirst => prefs.getBool('region_first') ?? true;
+  int regionStamp = 0;
+
+  Future<void> setRegion(String city, String rad, bool first) async {
+    final c = city.trim();
+    await prefs.setString('region_city', c);
+    await prefs.setString('region_rad', c.isEmpty ? '' : rad);
+    await prefs.setBool('region_first', first);
+    regionStamp++;
+    notifyListeners();
+  }
+
   Future<void> toggleFav(String id) async {
     vibrate(true);
     final added = !fav.remove(id);

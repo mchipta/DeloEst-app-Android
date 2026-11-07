@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart' show Geolocator;
+import 'package:latlong2/latlong.dart' show LatLng;
 import 'ad_page.dart';
 import 'auth.dart';
 import 'map_page.dart';
@@ -34,6 +35,8 @@ class _FeedPageState extends State<FeedPage> {
   String _pt = '', _wh = ''; // тип оплаты и когда нужно (today / tomorrow / week)
   bool _urg = false; // только срочные
   bool _auto = false;
+  int _regionSeen = -1;
+  LatLng? _ctr; // центр поиска, если его передвинули на карте (иначе — центр города)
 
   @override
   void initState() {
@@ -41,7 +44,19 @@ class _FeedPageState extends State<FeedPage> {
     _qFocus.addListener(() {
       if (mounted) setState(() {});
     });
+    _applyRegion();
     WidgetsBinding.instance.addPostFrameCallback((_) => S.i.loadAds().then((_) => Near.i.fill(S.i.ads)));
+  }
+
+  // Регион из настроек: город, радиус и «сначала из города» по умолчанию
+  void _applyRegion() {
+    _regionSeen = S.i.regionStamp;
+    _city = S.i.regionCity;
+    _cityC.text = _city;
+    _rad = S.i.regionRad;
+    _first = S.i.regionFirst;
+    _ctr = null;
+    _autoCity = '';
   }
 
   @override
@@ -92,7 +107,7 @@ class _FeedPageState extends State<FeedPage> {
     final radKm = _radKm;
     final rad = (c.isEmpty && Near.i.has) ? radKm : 0; // радиус от вас, если город не выбран
     final around = c.isNotEmpty && radKm > 0; // город + радиус вокруг него
-    final ref = around ? Geo.cityCached(_city.trim()) : null;
+    final ref = around ? (_ctr ?? Geo.cityCached(_city.trim())) : null;
     if (neighbors && !(around && _first && ref != null)) return [];
     double kmRef(Ad a) {
       final pt = adPoint(a) ?? (a.city.trim().isEmpty ? null : Geo.cityCached(a.city));
@@ -235,13 +250,12 @@ class _FeedPageState extends State<FeedPage> {
       _max = '';
       _sort = '';
       _rad = '';
-      _first = true;
       _pt = '';
       _wh = '';
       _urg = false;
-      _cityC.clear();
       _minC.clear();
       _maxC.clear();
+      _applyRegion(); // город и радиус возвращаются к региону из настроек
     });
   }
 
@@ -337,7 +351,7 @@ class _FeedPageState extends State<FeedPage> {
   // Фильтры открываются отдельным экраном, как в Авито: категория, тип, где искать, оплата, сортировка
   Future<void> _openFilters() async {
     FocusScope.of(context).unfocus();
-    if (Near.i.has && !_autoCityTried) _fillCity();
+    if (Near.i.has && !_autoCityTried && !S.i.regionChosen) _fillCity();
     await Navigator.of(context).push<void>(MaterialPageRoute(
       fullscreenDialog: true,
       builder: (c) => StatefulBuilder(
@@ -495,6 +509,12 @@ class _FeedPageState extends State<FeedPage> {
             if (mounted) _useSearch(pend);
           });
         }
+        if (_regionSeen != S.i.regionStamp) {
+          _regionSeen = S.i.regionStamp;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(_applyRegion);
+          });
+        }
         final list = _filtered();
         final nb = _filtered(neighbors: true);
         if (_city.trim().isNotEmpty && _radKm > 0) WidgetsBinding.instance.addPostFrameCallback((_) => _prepNeighbors());
@@ -539,6 +559,7 @@ class _FeedPageState extends State<FeedPage> {
   void _setCity(String v) {
     final had = _city.trim().isNotEmpty;
     _city = v;
+    _ctr = null;
     if (v.trim().isEmpty) {
       _rad = '';
     } else if (!had && _rad.isEmpty) {
@@ -547,11 +568,15 @@ class _FeedPageState extends State<FeedPage> {
   }
 
   // Сколько объявлений будет при выбранном радиусе (для кнопки на карте)
-  int _countWith(String rad) {
-    final old = _rad;
+  int _countWith(String rad, LatLng? center, String? city) {
+    final oldR = _rad, oldC = _ctr, oldT = _city;
     _rad = rad;
+    if (center != null) _ctr = center;
+    if (center != null && city != null && city.trim().isNotEmpty) _city = city;
     final n = _filtered().length + _filtered(neighbors: true).length;
-    _rad = old;
+    _rad = oldR;
+    _ctr = oldC;
+    _city = oldT;
     return n;
   }
 
@@ -637,6 +662,7 @@ class _FeedPageState extends State<FeedPage> {
                       _city = '';
                       _rad = '';
                       _first = true;
+                      _ctr = null;
                       _cityC.clear();
                       _autoCity = '';
                     });
@@ -689,10 +715,22 @@ class _FeedPageState extends State<FeedPage> {
                         ? () => toast(c, 'Сначала выберите город или включите «Рядом со мной»')
                         : () async {
                             haptic();
-                            final r = await Navigator.of(c).push<String>(MaterialPageRoute(
-                              builder: (_) => RadiusPage(city: _city, radius: _rad, count: _countWith),
+                            final r = await Navigator.of(c).push<RadiusResult>(MaterialPageRoute(
+                              builder: (_) => RadiusPage(city: _city, radius: _rad, center: _ctr, count: _countWith),
                             ));
-                            if (r != null) u(() => _rad = r);
+                            if (r != null) {
+                              u(() {
+                                _rad = r.rad;
+                                if (r.center != null) {
+                                  _ctr = r.center;
+                                  final nm = (r.city ?? '').trim();
+                                  if (nm.isNotEmpty) {
+                                    _city = nm;
+                                    _cityC.text = nm;
+                                  }
+                                }
+                              });
+                            }
                           },
                     scale: .98,
                     child: Container(
@@ -745,7 +783,7 @@ class _FeedPageState extends State<FeedPage> {
     if (_nbBusy) return;
     final city = _city.trim();
     if (city.isEmpty) return;
-    final need = !Geo.hasCity(city);
+    final need = _ctr == null && !Geo.hasCity(city);
     final todo = [for (final a in S.i.ads) if (adPoint(a) == null && a.city.trim().isNotEmpty && !Geo.hasCity(a.city)) a];
     if (!need && todo.isEmpty) return;
     _nbBusy = true;
@@ -980,26 +1018,6 @@ class _FeedPageState extends State<FeedPage> {
     );
   }
 
-  Widget _tagChip(Pal p, String text, VoidCallback onRemove) {
-    return Tap(
-      onTap: onRemove,
-      scale: .96,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(11, 5, 7, 5),
-        decoration: BoxDecoration(
-          color: p.ac.withOpacity(.10),
-          borderRadius: BorderRadius.circular(99),
-          border: Border.all(color: p.ac.withOpacity(.35)),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Text(text, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: p.tx)),
-          const SizedBox(width: 4),
-          Icon(Icons.close_rounded, size: 15, color: p.ac),
-        ]),
-      ),
-    );
-  }
-
   Widget _sugText(Pal p, String s) {
     final q = _q.text.trim().toLowerCase().replaceAll('ё', 'е');
     final sl = s.toLowerCase().replaceAll('ё', 'е');
@@ -1022,40 +1040,6 @@ class _FeedPageState extends State<FeedPage> {
     final sugs = _qFocus.hasFocus
         ? smartSuggest(_q.text, S.i.ads.map((a) => a.title))
         : const <String>[];
-    final tags = <List<Object>>[
-      if (_type.isNotEmpty) [_type, () => setState(() => _type = '')],
-      if (_city.trim().isNotEmpty)
-        [
-          _city.trim(),
-          () => setState(() {
-                _city = '';
-                _cityC.clear();
-              })
-        ],
-      if (_min.isNotEmpty)
-        [
-          'от $_min ₽',
-          () => setState(() {
-                _min = '';
-                _minC.clear();
-              })
-        ],
-      if (_max.isNotEmpty)
-        [
-          'до $_max ₽',
-          () => setState(() {
-                _max = '';
-                _maxC.clear();
-              })
-        ],
-      if (_sort == 'hi') ['Сначала дороже', () => setState(() => _sort = '')],
-      if (_sort == 'lo') ['Сначала дешевле', () => setState(() => _sort = '')],
-      if (_sort == 'soon') ['Ближайшие по дате', () => setState(() => _sort = '')],
-      if (_pt.isNotEmpty) [payTypeLabel(_pt), () => setState(() => _pt = '')],
-      if (_wh.isNotEmpty) [_whLabel(_wh), () => setState(() => _wh = '')],
-      if (_urg) ['Срочно', () => setState(() => _urg = false)],
-      if (Near.i.has && _rad.isNotEmpty) ['до $_rad км', () => setState(() => _rad = '')],
-    ];
     OutlineInputBorder none = const OutlineInputBorder(borderSide: BorderSide.none);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
@@ -1214,20 +1198,6 @@ class _FeedPageState extends State<FeedPage> {
           ],
         ),
       ),
-      if (tags.isNotEmpty)
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-          child: Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
-            for (final t in tags) _tagChip(p, t[0] as String, t[1] as VoidCallback),
-            GestureDetector(
-              onTap: () { haptic(); _resetFilters(); },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                child: Text('Сбросить всё', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700, fontSize: 12.5)),
-              ),
-            ),
-          ]),
-        ),
       Padding(
         padding: const EdgeInsets.fromLTRB(18, 12, 16, 8),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1240,35 +1210,28 @@ class _FeedPageState extends State<FeedPage> {
                   TextSpan(text: '$count', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
                 ])),
               ),
-              _modeToggle(p),
-            ]),
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            alignment: Alignment.topLeft,
-            child: !canSave
-                ? const SizedBox(width: double.infinity)
-                : Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Tap(
-                      onTap: _saveSearch,
-                      scale: .96,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: saved ? p.card : p.ac.withOpacity(.10),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: saved ? p.bd : p.ac.withOpacity(.4)),
-                        ),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, size: 17, color: saved ? p.mu : p.ac),
-                          const SizedBox(width: 5),
-                          Text(saved ? 'Поиск сохранён' : 'Сохранить поиск',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: saved ? p.mu : p.tx)),
-                        ]),
+              if (canSave) ...[
+                Tooltip(
+                  message: saved ? 'Поиск сохранён' : 'Сохранить поиск',
+                  child: Tap(
+                    onTap: _saveSearch,
+                    scale: .92,
+                    child: Container(
+                      width: 40,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: saved ? p.ac.withOpacity(.14) : p.card,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: saved ? p.ac.withOpacity(.5) : p.bd),
                       ),
+                      child: Icon(saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, size: 20, color: saved ? p.ac : p.tx),
                     ),
                   ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              _modeToggle(p),
+            ]),
           ),
         ]),
       ),
