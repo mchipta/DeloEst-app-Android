@@ -6,6 +6,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'ad_page.dart';
 import 'api.dart';
 import 'auth.dart';
@@ -555,6 +556,7 @@ class _ChatPageState extends State<ChatPage> {
   String? err;
   Map<String, dynamic>? adCard; // карточка объявления, по которому идёт диалог
   Map<String, dynamic>? rv; // можно ли оценить собеседника (после выполненной работы) и какую оценку уже поставили
+  Map<String, dynamic>? _reply; // сообщение, на которое отвечаем
   String deal = ''; // статус отклика по этому объявлению: '' · new · chosen · done · rejected
   Map<String, dynamic>? choice; // выбор исполнителя (только у автора объявления): st — none/new/chosen/done, rid — id отклика
   DateTime _lastTyping = DateTime.fromMillisecondsSinceEpoch(0);
@@ -643,6 +645,7 @@ class _ChatPageState extends State<ChatPage> {
             m['text'] = (c['t'] ?? '').toString();
             m['ed'] = _n(c['ed']);
           }
+          if (c['g'] == null && c['rx'] is Map) m['rx'] = Map<String, dynamic>.from(c['rx'] as Map);
         }
         msgs.sort((a, b) => _n(a['ts']).compareTo(_n(b['ts'])));
         for (final m in msgs) {
@@ -694,6 +697,7 @@ class _ChatPageState extends State<ChatPage> {
       if (go != true) return;
     }
     final tmp = 'tmp${DateTime.now().microsecondsSinceEpoch}';
+    final rpl = _reply;
     setState(() {
       msgs.add({
         'id': tmp,
@@ -704,7 +708,9 @@ class _ChatPageState extends State<ChatPage> {
         'img': imgs,
         'ad': widget.adId,
         'adt': '',
+        if (rpl != null) 'rp': {'id': rpl['id'], 'mine': rpl['mine'] == true, 't': _replyText(rpl)},
       });
+      _reply = null;
     });
     _ctl.clear();
     S.i.prefs.remove(_draftKey);
@@ -714,6 +720,7 @@ class _ChatPageState extends State<ChatPage> {
         'text': text,
         'imgs': imgs,
         'defer': 1,
+        if (rpl != null) 'reply': rpl['id'],
         if (widget.adId.isNotEmpty) 'adId': widget.adId,
       });
       final sid = (j['id'] ?? '').toString();
@@ -756,6 +763,19 @@ class _ChatPageState extends State<ChatPage> {
           Text(t, style: TextStyle(fontWeight: FontWeight.w600, color: c)),
         ]);
     final items = <PopupMenuEntry<String>>[
+      PopupMenuItem<String>(
+        enabled: false,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          for (final e in const ['👍', '❤️', '😂', '😮', '🙏', '✅'])
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => Navigator.pop(context, 'rx:$e'),
+              child: Padding(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6), child: Text(e, style: const TextStyle(fontSize: 24))),
+            ),
+        ]),
+      ),
+      PopupMenuItem(value: 'reply', child: row(Icons.reply_rounded, 'Ответить', p.tx)),
       if (text.isNotEmpty) PopupMenuItem(value: 'copy', child: row(Icons.copy_rounded, 'Копировать', p.tx)),
       if (mine && aud.isEmpty) PopupMenuItem(value: 'edit', child: row(Icons.edit_outlined, 'Изменить', p.tx)),
       if (mine) PopupMenuItem(value: 'del', child: row(Icons.delete_outline_rounded, 'Удалить', p.dng)),
@@ -770,7 +790,15 @@ class _ChatPageState extends State<ChatPage> {
       items: items,
     );
     if (!mounted || act == null) return;
-    if (act == 'copy') {
+    if (act.startsWith('rx:')) {
+      await _react(m, act.substring(3));
+    } else if (act == 'reply') {
+      setState(() {
+        _reply = m;
+        _editId = null;
+      });
+      _fn.requestFocus();
+    } else if (act == 'copy') {
       await Clipboard.setData(ClipboardData(text: text));
       if (mounted) toast(context, 'Скопировано');
     } else if (act == 'edit') {
@@ -780,8 +808,33 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  String _replyText(Map<String, dynamic> m) {
+    if (m['gone'] == true) return 'Сообщение удалено';
+    final t = (m['text'] ?? '').toString();
+    if (t.isNotEmpty) return t.length > 90 ? t.substring(0, 90) : t;
+    if (m['img'] is List && (m['img'] as List).isNotEmpty) return 'Фото';
+    if ((m['aud'] ?? '').toString().isNotEmpty) return 'Голосовое сообщение';
+    return '';
+  }
+
+  // Реакция: ставим сразу, на сервере сохраняем следом; повторная такая же снимает
+  Future<void> _react(Map<String, dynamic> m, String e) async {
+    final old = m['rx'] is Map ? Map<String, dynamic>.from(m['rx'] as Map) : <String, dynamic>{'me': '', 'th': ''};
+    final cur = (old['me'] ?? '').toString();
+    final next = cur == e ? '' : e;
+    setState(() => m['rx'] = {'me': next, 'th': (old['th'] ?? '').toString()});
+    try {
+      await Api.call('react', {'id': m['id'], 'e': next});
+    } catch (err) {
+      if (!mounted) return;
+      setState(() => m['rx'] = old);
+      toast(context, S.i.fail(err), err: true);
+    }
+  }
+
   void _startEdit(Map<String, dynamic> m) {
     setState(() {
+      _reply = null;
       _editId = m['id'].toString();
       _emoji = false;
     });
@@ -1190,6 +1243,7 @@ class _ChatPageState extends State<ChatPage> {
           child: Column(key: _barKey, mainAxisSize: MainAxisSize.min, children: [
             if (S.i.chatQuickSuggestionsEnabled && !_chipsOff && _editId == null) _quick(p),
             if (_editId != null) _editBar(p),
+            if (_reply != null) _replyStrip(p),
             _input(p),
             if (_emoji) _emojiPanel(p),
           ]),
@@ -1413,26 +1467,160 @@ class _ChatPageState extends State<ChatPage> {
 
   Widget _bubble(Pal p, Map<String, dynamic> m) {
     final body = _bubbleBody(p, m);
-    final risk = (m['mine'] == true || m['gone'] == true) ? null : chatRisk((m['text'] ?? '').toString());
-    if (risk == null) return body;
+    final mine = m['mine'] == true, gone = m['gone'] == true;
+    final text = (m['text'] ?? '').toString();
+    final risk = (mine || gone) ? null : chatRisk(text);
+    final rx = gone ? null : _rxChips(p, m);
+    final extras = gone ? <Widget>[] : _smartExtras(p, text, mine);
+    if (risk == null && rx == null && extras.isEmpty) return body;
     return Column(children: [
       body,
-      Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .78),
-          margin: const EdgeInsets.only(bottom: 4),
-          padding: const EdgeInsets.fromLTRB(10, 7, 10, 7),
-          decoration: BoxDecoration(color: const Color(0xFFFFB400).withOpacity(.14), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFFFB400).withOpacity(.5))),
-          child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Icon(Icons.warning_amber_rounded, size: 17, color: Color(0xFFE09A00)),
-            const SizedBox(width: 7),
-            Flexible(child: Text(risk, style: TextStyle(fontSize: 12.5, height: 1.3, color: p.tx, fontWeight: FontWeight.w600))),
-          ]),
+      if (rx != null) rx,
+      ...extras,
+      if (risk != null)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Container(
+            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .78),
+            margin: const EdgeInsets.only(bottom: 4),
+            padding: const EdgeInsets.fromLTRB(10, 7, 10, 7),
+            decoration: BoxDecoration(color: const Color(0xFFFFB400).withOpacity(.14), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFFFB400).withOpacity(.5))),
+            child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Icon(Icons.warning_amber_rounded, size: 17, color: Color(0xFFE09A00)),
+              const SizedBox(width: 7),
+              Flexible(child: Text(risk, style: TextStyle(fontSize: 12.5, height: 1.3, color: p.tx, fontWeight: FontWeight.w600))),
+            ]),
+          ),
         ),
-      ),
     ]);
   }
+
+  // Цитата в ответе: кому и на что
+  Widget _quote(Pal p, Map<String, dynamic> rp, bool mine) {
+    final c = mine ? Colors.white : p.ac;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+        decoration: BoxDecoration(color: c.withOpacity(.16), borderRadius: BorderRadius.circular(8), border: Border(left: BorderSide(color: c, width: 3))),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          Text(rp['mine'] == true ? 'Вы' : name, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: mine ? Colors.white : p.ac)),
+          Text((rp['t'] ?? '').toString(), maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: mine ? Colors.white : p.tx)),
+        ]),
+      ),
+    );
+  }
+
+  // Реакции под сообщением: свои и собеседника
+  Widget? _rxChips(Pal p, Map<String, dynamic> m) {
+    final rx = m['rx'] is Map ? Map<String, dynamic>.from(m['rx'] as Map) : null;
+    if (rx == null) return null;
+    final me = (rx['me'] ?? '').toString(), th = (rx['th'] ?? '').toString();
+    if (me.isEmpty && th.isEmpty) return null;
+    final chips = <List<String>>[
+      if (me.isNotEmpty && me == th) [me, '2'] else ...[if (me.isNotEmpty) [me, ''], if (th.isNotEmpty) [th, '']],
+    ];
+    return Align(
+      alignment: m['mine'] == true ? Alignment.centerRight : Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 3),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          for (final c in chips)
+            Container(
+              margin: const EdgeInsets.only(left: 4, right: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
+              child: Text(c[1].isEmpty ? c[0] : '${c[0]} ${c[1]}', style: TextStyle(fontSize: 14, color: p.tx)),
+            ),
+        ]),
+      ),
+    );
+  }
+
+  // Ссылка на объявление превращается в карточку; телефон и адрес — в быстрые действия
+  List<Widget> _smartExtras(Pal p, String text, bool mine) {
+    if (text.isEmpty) return const [];
+    final out = <Widget>[];
+    final idm = RegExp(r'#/ad/([A-Za-z0-9_-]+)').firstMatch(text);
+    Ad? ad;
+    if (idm != null) {
+      for (final a in S.i.ads) {
+        if (a.id == idm.group(1)) {
+          ad = a;
+          break;
+        }
+      }
+    }
+    if (ad != null) {
+      final a = ad;
+      out.add(Align(
+        alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+        child: Tap(
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: a))),
+          scale: .98,
+          child: Container(
+            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .78),
+            margin: const EdgeInsets.only(bottom: 4),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 52,
+                height: 52,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(color: p.ac.withOpacity(.12), borderRadius: BorderRadius.circular(10)),
+                child: a.imgs.isNotEmpty
+                    ? CachedNetworkImage(imageUrl: imgUrl(a.imgs.first, 200), fit: BoxFit.cover, errorWidget: (c, u, e) => Icon(catIcon(a.category), color: p.ac))
+                    : Icon(catIcon(a.category), color: p.ac),
+              ),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                  Text(a.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: p.tx)),
+                  const SizedBox(height: 2),
+                  Text([adPay(a), a.city].where((e) => e.isNotEmpty).join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: p.mu)),
+                ]),
+              ),
+              Icon(Icons.chevron_right_rounded, size: 18, color: p.mu),
+            ]),
+          ),
+        ),
+      ));
+    }
+    final chips = <Widget>[];
+    final ph = RegExp(r'(?:\+7|8)[\s(\-]*\d{3}[\s)\-]*\d{3}[\s\-]*\d{2}[\s\-]*\d{2}').firstMatch(text);
+    if (ph != null) {
+      final digits = ph.group(0)!.replaceAll(RegExp(r'[^0-9+]'), '');
+      chips.add(_actChip(p, Icons.phone_outlined, 'Позвонить', () => launchUrl(Uri.parse('tel:${digits.startsWith('8') ? '+7${digits.substring(1)}' : digits}'))));
+    }
+    final ad2 = RegExp(r'(?:ул\.?|улица|проспект|пр-т|переулок|бульвар|шоссе|мкр\.?)\s+[А-ЯЁа-яё0-9\-\. ]{2,30}', caseSensitive: false).firstMatch(text);
+    if (ad2 != null) {
+      final q = ad2.group(0)!.trim();
+      chips.add(_actChip(p, Icons.map_outlined, 'На карте', () => launchUrl(Uri.parse('https://yandex.ru/maps/?text=${Uri.encodeComponent(q)}'), mode: LaunchMode.externalApplication)));
+    }
+    if (chips.isNotEmpty) {
+      out.add(Align(
+        alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+        child: Padding(padding: const EdgeInsets.only(bottom: 4), child: Wrap(spacing: 6, children: chips)),
+      ));
+    }
+    return out;
+  }
+
+  Widget _actChip(Pal p, IconData ic, String label, VoidCallback f) => Tap(
+        onTap: f,
+        scale: .96,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(color: p.ac.withOpacity(.12), borderRadius: BorderRadius.circular(14), border: Border.all(color: p.ac.withOpacity(.4))),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(ic, size: 16, color: p.ac),
+            const SizedBox(width: 6),
+            Text(label, style: TextStyle(color: p.ac, fontWeight: FontWeight.w700, fontSize: 13)),
+          ]),
+        ),
+      );
 
   Widget _bubbleBody(Pal p, Map<String, dynamic> m) {
     final mine = m['mine'] == true;
@@ -1485,6 +1673,7 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          if (m['rp'] is Map) _quote(p, Map<String, dynamic>.from(m['rp'] as Map), mine),
           if (imgs.isNotEmpty)
             Padding(
               padding: EdgeInsets.only(bottom: text.isEmpty ? 2 : 6),
@@ -1648,6 +1837,30 @@ class _ChatPageState extends State<ChatPage> {
             ),
         ]),
       ),
+    );
+  }
+
+  Widget _replyStrip(Pal p) {
+    final r = _reply!;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      padding: const EdgeInsets.fromLTRB(10, 6, 4, 6),
+      decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
+      child: Row(children: [
+        Container(width: 3, height: 32, decoration: BoxDecoration(color: p.ac, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(r['mine'] == true ? 'Ответ себе' : 'Ответ: $name', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800, fontSize: 12.5)),
+            Text(_replyText(r), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13)),
+          ]),
+        ),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => setState(() => _reply = null),
+          child: SizedBox(width: 36, height: 36, child: Icon(Icons.close_rounded, size: 18, color: p.mu)),
+        ),
+      ]),
     );
   }
 
