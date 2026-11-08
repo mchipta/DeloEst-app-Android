@@ -11,6 +11,7 @@ import 'messages.dart';
 import 'models.dart';
 import 'post.dart';
 import 'profile.dart';
+import 'review.dart';
 import 'settings.dart';
 import 'share.dart';
 import 'state.dart';
@@ -113,14 +114,16 @@ class _CabinetPageState extends State<CabinetPage> {
     if (ok == true) await _act('del', {'id': ad.id}, 'Объявление удалено');
   }
 
-  Future<void> _act(String a, Map<String, dynamic> d, String okMsg) async {
+  Future<bool> _act(String a, Map<String, dynamic> d, String okMsg) async {
     try {
       await Api.call(a, d);
       if (mounted) toast(context, okMsg);
       if (a == 'status' || a == 'del' || a == 'bump' || a == 'urgent' || a == 'renew') S.i.loadAds();
       await _load();
+      return true;
     } catch (e) {
       if (mounted) toast(context, S.i.fail(e), err: true);
+      return false;
     }
   }
 
@@ -786,12 +789,22 @@ class _CabinetPageState extends State<CabinetPage> {
               Row(children: [
                 Expanded(
                   child: _big(p, st == 'chosen' ? 'Работа выполнена' : 'Выбрать исполнителем', 'check',
-                      st == 'chosen' ? () => _act('fin', {'rid': rid}, 'Отмечено как выполнено') : () => _act('pick', {'rid': rid}, 'Исполнитель выбран'),
+                      st == 'chosen'
+                          ? () async {
+                              // работа выполнена: сразу просим оценить исполнителя
+                              if (await _act('fin', {'rid': rid}, 'Отмечено как выполнено') && mounted && pid.isNotEmpty) {
+                                showReviewSheet(context, pid: pid, name: name);
+                              }
+                            }
+                          : () => _act('pick', {'rid': rid}, 'Исполнитель выбран'),
                       main: true),
                 ),
                 const SizedBox(width: 8),
                 _sq(p, 'x', () => _act('rej', {'rid': rid}, 'Отклик отклонён'), color: p.dng),
               ]),
+            ] else if (pid.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _big(p, 'Оценить работу', 'star', () => showReviewSheet(context, pid: pid, name: name), accent: true),
             ],
           ],
         ]),
@@ -855,6 +868,10 @@ class _CabinetPageState extends State<CabinetPage> {
                 if (callPh.isNotEmpty && canWrite) const SizedBox(width: 8),
                 if (canWrite) Expanded(child: _big(p, 'Написать', 'chat', () => _chat(pid, '', adId: adId))),
               ]),
+            ],
+            if (st == 'done' && pid.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _big(p, 'Оценить работу', 'star', () => showReviewSheet(context, pid: pid), accent: true),
             ],
           ]),
         ),

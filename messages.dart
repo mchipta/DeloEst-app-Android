@@ -10,6 +10,7 @@ import 'ad_page.dart';
 import 'api.dart';
 import 'auth.dart';
 import 'models.dart';
+import 'review.dart';
 import 'profile.dart';
 import 'state.dart';
 import 'skeleton.dart';
@@ -31,6 +32,29 @@ int _n(dynamic v) => v is num ? v.toInt() : int.tryParse((v ?? '').toString()) ?
 
 String stamp(int ts) => siteChatStamp(ts, S.i.timeZone);
 
+final _cardRe = RegExp(r'(?:\d[ -]?){13,19}');
+
+// Опасное в переписке: просьба о предоплате, коды из СМС, данные карты, чужие ссылки
+String? chatRisk(String text) {
+  final t = text.toLowerCase();
+  if (_cardRe.hasMatch(t) || t.contains('cvv') || t.contains('cvc') || t.contains('код из смс') || t.contains('код из sms') || t.contains('код подтверждения')) {
+    return 'Не называйте коды из СМС и данные карты: так действуют мошенники.';
+  }
+  if (t.contains('предоплат') || t.contains('перевед') || t.contains('переведи') || t.contains('на карту') || t.contains('залог')) {
+    return 'Просят деньги вперёд? Не переводите предоплату незнакомым, платите после работы.';
+  }
+  if (RegExp(r'https?://|t\.me/|bit\.ly').hasMatch(t) && !t.contains('mchipta.github.io')) {
+    return 'Осторожно со ссылками: не вводите по ним данные карты и пароли.';
+  }
+  return null;
+}
+
+// То, что нельзя отправлять самому: номер карты и коды
+bool chatRiskOut(String text) {
+  final t = text.toLowerCase();
+  return _cardRe.hasMatch(t) || t.contains('cvv') || t.contains('cvc') || t.contains('код из смс') || t.contains('код из sms') || t.contains('код подтверждения');
+}
+
 // ---------- Список диалогов ----------
 class MessagesPage extends StatefulWidget {
   // embedded = true: страница живёт во вкладке нижнего меню (без кнопки «назад»)
@@ -44,7 +68,8 @@ class _MessagesPageState extends State<MessagesPage> {
   List<Map<String, dynamic>> list = [];
   bool loading = false;
   bool loaded = false;
-  bool _onlyUnread = false; // фильтр «Непрочитанные»
+  String _folder = 'all'; // all · unread · cust · exec · arch
+  Set<String> _pins = {}, _arch = {}; // закреплённые и архивные чаты (хранятся на устройстве)
   String? err;
   int _tick = -1;
   Timer? _t;
@@ -54,6 +79,17 @@ class _MessagesPageState extends State<MessagesPage> {
     super.initState();
     S.i.addListener(_onState);
     S.i.messagesOpen = !widget.embedded;
+    final pr = S.i.prefs;
+    _pins = (pr.getStringList('chat_pins') ?? const <String>[]).toSet();
+    _arch = (pr.getStringList('chat_arch') ?? const <String>[]).toSet();
+    // список открывается сразу из памяти устройства, а свежий подтягивается следом
+    final cache = pr.getString('dlg_cache');
+    if (cache != null && S.i.logged) {
+      try {
+        list = (jsonDecode(cache) as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        loaded = list.isNotEmpty;
+      } catch (_) {}
+    }
     _t = Timer.periodic(const Duration(seconds: 8), (_) {
       if (mounted && _isCurrent && S.i.logged) _load(silent: true);
     });
@@ -107,6 +143,7 @@ class _MessagesPageState extends State<MessagesPage> {
           err = null;
         });
       }
+      S.i.prefs.setString('dlg_cache', jsonEncode(l.take(60).toList()));
       S.i.refreshUnread();
     } catch (e) {
       final m = S.i.fail(e);
@@ -155,12 +192,15 @@ class _MessagesPageState extends State<MessagesPage> {
                       if (err != null && !loaded)
                         Padding(padding: const EdgeInsets.all(24), child: Text(err!, textAlign: TextAlign.center, style: TextStyle(color: p.mu))),
                       if (loaded && list.isNotEmpty)
-                        Padding(
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.only(bottom: 12),
                           child: Row(children: [
-                            _filterChip(p, 'Все', !_onlyUnread, () => setState(() => _onlyUnread = false)),
-                            const SizedBox(width: 8),
-                            _filterChip(p, 'Непрочитанные', _onlyUnread, () => setState(() => _onlyUnread = true)),
+                            for (final f in const [['all', 'Все'], ['unread', 'Непрочитанные'], ['cust', 'Я заказчик'], ['exec', 'Я исполнитель']]) ...[
+                              _filterChip(p, f[1], _folder == f[0], () => setState(() => _folder = f[0])),
+                              const SizedBox(width: 8),
+                            ],
+                            if (_arch.isNotEmpty) _filterChip(p, 'Архив · ${_arch.length}', _folder == 'arch', () => setState(() => _folder = 'arch')),
                           ]),
                         ),
                       if (loaded && list.isEmpty)
@@ -170,18 +210,86 @@ class _MessagesPageState extends State<MessagesPage> {
                           text: 'Откройте объявление и нажмите «Написать» — переписка появится здесь.',
                           button: 'Найти объявление',
                           onTap: () => S.i.goTab(1)),
-                      if (loaded && list.isNotEmpty && _onlyUnread && !list.any((d) => _n(d['n']) > 0))
+                      if (loaded && list.isNotEmpty && _shown.isEmpty)
                         Padding(
                           padding: const EdgeInsets.all(32),
-                          child: Text('Непрочитанных сообщений нет', textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 15)),
+                          child: Text(_folder == 'unread' ? 'Непрочитанных сообщений нет' : _folder == 'arch' ? 'Архив пуст' : 'В этой папке пока ничего нет',
+                              textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 15)),
                         ),
-                      for (final d in list.where((d) => !_onlyUnread || _n(d['n']) > 0)) _dismiss(p, d),
+                      for (final d in _shown) _dismiss(p, d),
                     ],
                   ),
                 ),
         );
       },
     );
+  }
+
+  String _k(Map<String, dynamic> d) => '${d['pid']}|${d['ad']}';
+
+  // Архивный чат возвращается в общий список, как только в нём появляется новое сообщение
+  bool _isArch(Map<String, dynamic> d) => _arch.contains(_k(d)) && _n(d['n']) == 0;
+
+  List<Map<String, dynamic>> get _shown {
+    final l = list.where((d) {
+      switch (_folder) {
+        case 'unread':
+          return !_isArch(d) && _n(d['n']) > 0;
+        case 'cust':
+          return !_isArch(d) && d['own'] == true;
+        case 'exec':
+          return !_isArch(d) && d['own'] != true && (d['ad'] ?? '').toString().isNotEmpty;
+        case 'arch':
+          return _isArch(d);
+        default:
+          return !_isArch(d);
+      }
+    }).toList();
+    return [...l.where((d) => _pins.contains(_k(d))), ...l.where((d) => !_pins.contains(_k(d)))];
+  }
+
+  void _togglePin(Map<String, dynamic> d) {
+    setState(() => _pins.contains(_k(d)) ? _pins.remove(_k(d)) : _pins.add(_k(d)));
+    S.i.prefs.setStringList('chat_pins', _pins.toList());
+  }
+
+  void _toggleArch(Map<String, dynamic> d) {
+    setState(() {
+      _arch.contains(_k(d)) ? _arch.remove(_k(d)) : _arch.add(_k(d));
+      if (_arch.isEmpty && _folder == 'arch') _folder = 'all';
+    });
+    S.i.prefs.setStringList('chat_arch', _arch.toList());
+  }
+
+  // Долгое нажатие на чат: закрепить, в архив, удалить
+  Future<void> _chatMenu(Map<String, dynamic> d) async {
+    haptic();
+    final p = pal(context);
+    final pinned = _pins.contains(_k(d)), arch = _arch.contains(_k(d));
+    final act = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (c) => Container(
+        padding: EdgeInsets.fromLTRB(8, 10, 8, 10 + MediaQuery.of(c).viewPadding.bottom),
+        decoration: BoxDecoration(color: p.card, borderRadius: const BorderRadius.vertical(top: Radius.circular(26))),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 42, height: 4, margin: const EdgeInsets.only(bottom: 8), decoration: BoxDecoration(color: p.bd, borderRadius: BorderRadius.circular(4))),
+          ListTile(leading: Icon(pinned ? Icons.push_pin_outlined : Icons.push_pin_rounded, color: p.tx), title: Text(pinned ? 'Открепить' : 'Закрепить'), onTap: () => Navigator.pop(c, 'pin')),
+          ListTile(leading: Icon(arch ? Icons.unarchive_outlined : Icons.archive_outlined, color: p.tx), title: Text(arch ? 'Вернуть из архива' : 'В архив'), onTap: () => Navigator.pop(c, 'arch')),
+          ListTile(leading: Icon(Icons.delete_outline_rounded, color: p.dng), title: Text('Удалить переписку', style: TextStyle(color: p.dng)), onTap: () => Navigator.pop(c, 'del')),
+        ]),
+      ),
+    );
+    if (!mounted || act == null) return;
+    if (act == 'pin') _togglePin(d);
+    if (act == 'arch') _toggleArch(d);
+    if (act == 'del') {
+      final pid = (d['pid'] ?? '').toString(), ad = (d['ad'] ?? '').toString();
+      if (await _delChat(context, pid, (d['name'] ?? '').toString(), ad: ad) && mounted) {
+        setState(() => list.removeWhere((x) => _k(x) == _k(d)));
+        S.i.refreshUnread();
+      }
+    }
   }
 
   Widget _filterChip(Pal p, String label, bool on, VoidCallback f) => Tap(
@@ -203,13 +311,31 @@ class _MessagesPageState extends State<MessagesPage> {
     final pid = (d['pid'] ?? '').toString(), ad = (d['ad'] ?? '').toString();
     return Dismissible(
       key: ValueKey('dlg-$pid-$ad'),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (_) => _delChat(context, pid, (d['name'] ?? '').toString(), ad: ad),
+      direction: DismissDirection.horizontal,
+      confirmDismiss: (dir) async {
+        if (dir == DismissDirection.startToEnd) {
+          haptic();
+          _toggleArch(d);
+          return false;
+        }
+        return _delChat(context, pid, (d['name'] ?? '').toString(), ad: ad);
+      },
       onDismissed: (_) {
         setState(() => list.removeWhere((x) => (x['pid'] ?? '').toString() == pid && (x['ad'] ?? '').toString() == ad));
         S.i.refreshUnread();
       },
       background: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.only(left: 24),
+        alignment: Alignment.centerLeft,
+        decoration: BoxDecoration(color: p.ac, borderRadius: BorderRadius.circular(16)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(_arch.contains(_k(d)) ? Icons.unarchive_outlined : Icons.archive_outlined, color: Colors.white, size: 22),
+          const SizedBox(width: 8),
+          Text(_arch.contains(_k(d)) ? 'Вернуть' : 'В архив', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+        ]),
+      ),
+      secondaryBackground: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.only(right: 24),
         alignment: Alignment.centerRight,
@@ -285,7 +411,9 @@ class _MessagesPageState extends State<MessagesPage> {
   Widget _item(Pal p, Map<String, dynamic> d) {
     final n = _n(d['n']);
     final text = (d['text'] ?? '').toString();
+    final draft = (S.i.prefs.getString('draft_${d['pid']}_${d['ad']}') ?? '').trim();
     return GestureDetector(
+      onLongPress: () => _chatMenu(d),
       onTap: () async {
         haptic();
         await Navigator.push(
@@ -326,15 +454,25 @@ class _MessagesPageState extends State<MessagesPage> {
                   ]),
                 ),
                 const SizedBox(width: 8),
+                if (_pins.contains(_k(d))) ...[Icon(Icons.push_pin_rounded, size: 14, color: p.mu), const SizedBox(width: 4)],
                 Text(siteListTime(_n(d['ts']), S.i.timeZone), style: TextStyle(color: p.mu, fontSize: 11.5)),
               ]),
               const SizedBox(height: 2),
               _adChip(p, d),
               const SizedBox(height: 2),
-              Text('${d['mine'] == true ? 'Вы: ' : ''}${text.isEmpty ? 'Фото' : text}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: n > 0 ? p.tx : p.mu, fontWeight: n > 0 ? FontWeight.w700 : FontWeight.w500, fontSize: 14)),
+              draft.isNotEmpty
+                  ? Text.rich(
+                      TextSpan(children: [
+                        TextSpan(text: 'Черновик: ', style: TextStyle(color: p.dng, fontWeight: FontWeight.w700)),
+                        TextSpan(text: draft),
+                      ]),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: p.mu, fontSize: 14))
+                  : Text('${d['mine'] == true ? 'Вы: ' : ''}${text.isEmpty ? 'Фото' : text}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: n > 0 ? p.tx : p.mu, fontWeight: n > 0 ? FontWeight.w700 : FontWeight.w500, fontSize: 14)),
             ]),
           ),
           if (S.i.isChatMuted((d['pid'] ?? '').toString())) ...[
@@ -416,6 +554,8 @@ class _ChatPageState extends State<ChatPage> {
   Timer? _recT;
   String? err;
   Map<String, dynamic>? adCard; // карточка объявления, по которому идёт диалог
+  Map<String, dynamic>? rv; // можно ли оценить собеседника (после выполненной работы) и какую оценку уже поставили
+  String deal = ''; // статус отклика по этому объявлению: '' · new · chosen · done · rejected
   Map<String, dynamic>? choice; // выбор исполнителя (только у автора объявления): st — none/new/chosen/done, rid — id отклика
   DateTime _lastTyping = DateTime.fromMillisecondsSinceEpoch(0);
 
@@ -429,6 +569,7 @@ class _ChatPageState extends State<ChatPage> {
     avatar = widget.avatar;
     ver = widget.ver;
     _muted = S.i.isChatMuted(widget.pid);
+    _ctl.text = S.i.prefs.getString(_draftKey) ?? '';
     _poll(first: true);
     _timer = Timer.periodic(const Duration(seconds: 4), (_) => _poll());
   }
@@ -444,6 +585,8 @@ class _ChatPageState extends State<ChatPage> {
     _fn.dispose();
     super.dispose();
   }
+
+  String get _draftKey => 'draft_${widget.pid}_${widget.adId}';
 
   Future<void> _poll({bool first = false}) async {
     if (polling) return;
@@ -466,6 +609,8 @@ class _ChatPageState extends State<ChatPage> {
         seen = _n(j['seen']);
         if (j['ad'] is Map) adCard = Map<String, dynamic>.from(j['ad'] as Map);
         if (j.containsKey('choice')) choice = j['choice'] is Map ? Map<String, dynamic>.from(j['choice'] as Map) : null;
+        if (j['rv'] is Map) rv = Map<String, dynamic>.from(j['rv'] as Map);
+        if (j['deal'] != null) deal = j['deal'].toString();
         if (o.isNotEmpty) {
           name = (o['name'] ?? name).toString();
           ver = o['ver'] == true;
@@ -520,6 +665,11 @@ class _ChatPageState extends State<ChatPage> {
       _lastTyping = now;
       Api.call('typing', {'with': widget.pid}).then((_) {}, onError: (_) {});
     }
+    // недописанное сообщение запоминаем: оно останется в чате и покажется в списке диалогов
+    if (_editId == null) {
+      final t = _ctl.text.trim();
+      t.isEmpty ? S.i.prefs.remove(_draftKey) : S.i.prefs.setString(_draftKey, _ctl.text);
+    }
     setState(() {});
   }
 
@@ -527,6 +677,22 @@ class _ChatPageState extends State<ChatPage> {
     if (_editId != null && imgs.isEmpty) return _saveEdit();
     final text = _ctl.text.trim();
     if (text.isEmpty && imgs.isEmpty) return;
+    if (text.isNotEmpty && chatRiskOut(text)) {
+      final p = pal(context);
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          backgroundColor: p.card,
+          title: Text('Это безопасно отправлять?', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
+          content: Text('В сообщении похоже на номер карты или код из СМС. Такие данные нельзя передавать никому: так действуют мошенники.', style: TextStyle(color: p.mu, height: 1.35)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: Text('Не отправлять', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800))),
+            TextButton(onPressed: () => Navigator.pop(c, true), child: Text('Всё равно отправить', style: TextStyle(color: p.mu))),
+          ],
+        ),
+      );
+      if (go != true) return;
+    }
     final tmp = 'tmp${DateTime.now().microsecondsSinceEpoch}';
     setState(() {
       msgs.add({
@@ -541,6 +707,7 @@ class _ChatPageState extends State<ChatPage> {
       });
     });
     _ctl.clear();
+    S.i.prefs.remove(_draftKey);
     try {
       final j = await Api.call('send', {
         'with': widget.pid,
@@ -1001,7 +1168,7 @@ class _ChatPageState extends State<ChatPage> {
       ),
       body: Column(children: [
         if (adCard != null) _adHeader(p),
-        if (choice != null && choice!['can'] == true && widget.adId.isNotEmpty) _choiceBar(p),
+        if (adCard != null && widget.adId.isNotEmpty && deal != 'rejected' && (choice != null || deal.isNotEmpty)) _dealCard(p),
         if (!_safeOff) _safeBanner(p),
         Expanded(child: Stack(children: [
         Positioned.fill(
@@ -1067,44 +1234,105 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  // Окно «Оцените работу»
+  Future<void> _rate() async {
+    final r = await showReviewSheet(context, pid: widget.pid, name: name);
+    if (r > 0 && mounted) setState(() => rv = {'can': true, 'mine': r});
+  }
+
   Future<void> _finish() async {
     haptic();
     try {
       await Api.call('fin', {'rid': choice!['rid']});
       if (mounted) {
-        setState(() => choice = {...choice!, 'st': 'done'});
+        setState(() {
+          choice = {...choice!, 'st': 'done'};
+          rv = {'can': true, 'mine': (rv?['mine'] as num?)?.toInt() ?? 0};
+        });
         toast(context, 'Работа отмечена выполненной');
         S.i.bumpCab();
+        _rate(); // сразу предлагаем оценить работу
       }
     } catch (e) {
       if (mounted) toast(context, S.i.fail(e), err: true);
     }
   }
 
-  Widget _choiceBar(Pal p) {
-    final st = (choice!['st'] ?? '').toString();
-    final done = st == 'done', chosen = st == 'chosen';
-    if (done) return const SizedBox.shrink(); // работа выполнена: отдельная полоса уже не нужна
+  // Сделка по шагам: Обсуждаем → Исполнитель выбран → Выполнено → Отзыв. Справа от шагов одно действие.
+  Widget _dealCard(Pal p) {
+    final st = (choice?['st'] ?? '').toString();
+    final isDone = deal == 'done' || st == 'done';
+    final isChosen = isDone || deal == 'chosen' || st == 'chosen';
+    final mine = (rv?['mine'] as num?)?.toInt() ?? 0;
+    final reached = [true, isChosen, isDone, mine > 0];
+    final cur = reached.indexOf(false); // первый ещё не пройденный шаг; -1 — всё пройдено
+    const labels = ['Обсуждаем', 'Исполнитель', 'Выполнено', 'Отзыв'];
+    final owner = choice != null && choice!['can'] == true;
+    String? act;
+    VoidCallback? f;
+    if (owner && !isChosen) {
+      act = 'Выбрать исполнителем';
+      f = _choose;
+    } else if (owner && isChosen && !isDone) {
+      act = 'Работа выполнена';
+      f = _finish;
+    } else if (isDone) {
+      act = mine > 0 ? 'Изменить отзыв' : 'Оценить работу';
+      f = _rate;
+    }
+
+    Widget step(int i) {
+      final on = reached[i], now = i == cur;
+      final line = (bool filled) => Expanded(child: Container(height: 2, color: filled ? p.ac : p.bd));
+      return Expanded(
+        child: Column(children: [
+          Row(children: [
+            i == 0 ? const Expanded(child: SizedBox()) : line(reached[i]),
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                gradient: on ? LinearGradient(colors: [p.ac, p.ac2]) : null,
+                shape: BoxShape.circle,
+                border: on ? null : Border.all(color: now ? p.ac : p.bd, width: now ? 2 : 1.4),
+              ),
+              child: on ? const Icon(Icons.check_rounded, size: 14, color: Colors.white) : (now ? Center(child: Container(width: 7, height: 7, decoration: BoxDecoration(color: p.ac, shape: BoxShape.circle))) : null),
+            ),
+            i == 3 ? const Expanded(child: SizedBox()) : line(reached[i + 1]),
+          ]),
+          const SizedBox(height: 4),
+          Text(labels[i], maxLines: 1, style: TextStyle(fontSize: 11, fontWeight: now || on ? FontWeight.w800 : FontWeight.w600, color: now ? p.ac : (on ? p.tx : p.mu))),
+        ]),
+      );
+    }
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(color: p.bg2, border: Border(bottom: BorderSide(color: p.bd))),
-      child: Row(children: [
-        Icon(chosen ? Icons.handshake_outlined : Icons.person_add_alt_1_outlined, size: 20, color: chosen ? p.ok : p.ac),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(chosen ? 'Исполнитель выбран' : 'Договорились? Выберите исполнителем',
-              style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 13.5)),
-        ),
-        TextButton(
-            onPressed: chosen ? _finish : _choose,
-            child: Text(chosen ? 'Выполнено' : 'Выбрать', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
+      child: Column(children: [
+        Row(children: [for (var i = 0; i < 4; i++) step(i)]),
+        if (act != null) ...[
+          const SizedBox(height: 8),
+          Tap(
+            onTap: () {
+              haptic();
+              f!();
+            },
+            scale: .98,
+            child: Container(
+              width: double.infinity,
+              height: 38,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: p.ac.withOpacity(.12), borderRadius: BorderRadius.circular(12), border: Border.all(color: p.ac.withOpacity(.45))),
+              child: Text(act, style: TextStyle(color: p.ac, fontWeight: FontWeight.w800, fontSize: 14)),
+            ),
           ),
+        ],
       ]),
     );
   }
 
-  // Карточка объявления над перепиской, как в Авито (оформление такое же, как на сайте)
   Widget _adHeader(Pal p) {
     final c = adCard!;
     final gone = c['gone'] == true;
@@ -1184,6 +1412,29 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _bubble(Pal p, Map<String, dynamic> m) {
+    final body = _bubbleBody(p, m);
+    final risk = (m['mine'] == true || m['gone'] == true) ? null : chatRisk((m['text'] ?? '').toString());
+    if (risk == null) return body;
+    return Column(children: [
+      body,
+      Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .78),
+          margin: const EdgeInsets.only(bottom: 4),
+          padding: const EdgeInsets.fromLTRB(10, 7, 10, 7),
+          decoration: BoxDecoration(color: const Color(0xFFFFB400).withOpacity(.14), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFFFB400).withOpacity(.5))),
+          child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Icon(Icons.warning_amber_rounded, size: 17, color: Color(0xFFE09A00)),
+            const SizedBox(width: 7),
+            Flexible(child: Text(risk, style: TextStyle(fontSize: 12.5, height: 1.3, color: p.tx, fontWeight: FontWeight.w600))),
+          ]),
+        ),
+      ),
+    ]);
+  }
+
+  Widget _bubbleBody(Pal p, Map<String, dynamic> m) {
     final mine = m['mine'] == true;
     final text = (m['text'] ?? '').toString();
     final imgs = m['img'] is List ? (m['img'] as List).map((e) => e.toString()).toList() : <String>[];
@@ -1337,30 +1588,66 @@ class _ChatPageState extends State<ChatPage> {
   // Предупреждение про предоплату: закрывается навсегда для этого собеседника
   Widget _safeBanner(Pal p) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
-      decoration: BoxDecoration(
-        color: p.ac2.withOpacity(.12),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: p.ac.withOpacity(.28)),
-      ),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(padding: const EdgeInsets.only(top: 1), child: Icon(Icons.shield_outlined, size: 19, color: p.ac)),
-        const SizedBox(width: 10),
+      margin: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+      padding: const EdgeInsets.fromLTRB(10, 0, 0, 0),
+      height: 36,
+      decoration: BoxDecoration(color: p.ac2.withOpacity(.12), borderRadius: BorderRadius.circular(12), border: Border.all(color: p.ac.withOpacity(.25))),
+      child: Row(children: [
+        Icon(Icons.shield_outlined, size: 17, color: p.ac),
+        const SizedBox(width: 8),
         Expanded(
-          child: Text.rich(
-            TextSpan(style: TextStyle(color: p.tx, fontSize: 13, height: 1.35), children: const [
-              TextSpan(text: 'Осторожно: ', style: TextStyle(fontWeight: FontWeight.w800)),
-              TextSpan(text: 'не переводите предоплату незнакомым и не называйте коды из СМС. Расплачивайтесь после работы.'),
-            ]),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _safeSheet,
+            child: Text('Не переводите предоплату · Подробнее', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.tx, fontSize: 13, fontWeight: FontWeight.w700)),
           ),
         ),
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: _hideSafe,
-          child: SizedBox(width: 32, height: 28, child: Icon(Icons.close_rounded, size: 19, color: p.mu)),
+          child: SizedBox(width: 36, height: 36, child: Icon(Icons.close_rounded, size: 18, color: p.mu)),
         ),
       ]),
+    );
+  }
+
+  // Четыре правила безопасной сделки
+  void _safeSheet() {
+    final p = pal(context);
+    const tips = [
+      [Icons.payments_outlined, 'Платите после работы', 'Не переводите предоплату и залог незнакомым.'],
+      [Icons.sms_failed_outlined, 'Коды и пароли — только вам', 'Никому не называйте коды из СМС, пароли и CVC-код карты.'],
+      [Icons.link_off_rounded, 'Не переходите по чужим ссылкам', 'Общайтесь в чате ДелоЕсть и не уходите в сомнительные мессенджеры.'],
+      [Icons.flag_outlined, 'Нашли обман — пожаловайтесь', 'Заблокируйте человека в меню чата и сообщите нам.'],
+    ];
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (c) => Container(
+        padding: EdgeInsets.fromLTRB(20, 12, 20, 18 + MediaQuery.of(c).viewPadding.bottom),
+        decoration: BoxDecoration(color: p.card, borderRadius: const BorderRadius.vertical(top: Radius.circular(26))),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Center(child: Container(width: 42, height: 4, decoration: BoxDecoration(color: p.bd, borderRadius: BorderRadius.circular(4)))),
+          const SizedBox(height: 14),
+          Text('Безопасная сделка', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900, color: p.tx, letterSpacing: -.3)),
+          const SizedBox(height: 12),
+          for (final t in tips)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(width: 38, height: 38, decoration: BoxDecoration(color: p.ac.withOpacity(.12), borderRadius: BorderRadius.circular(12)), child: Icon(t[0] as IconData, size: 20, color: p.ac)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(t[1] as String, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.tx)),
+                    const SizedBox(height: 2),
+                    Text(t[2] as String, style: TextStyle(color: p.mu, fontSize: 13.5, height: 1.3)),
+                  ]),
+                ),
+              ]),
+            ),
+        ]),
+      ),
     );
   }
 

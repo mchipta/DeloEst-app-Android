@@ -4,6 +4,7 @@ import 'home.dart';
 import 'near.dart';
 import 'state.dart';
 import 'shortcuts.dart';
+import 'welcome.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -16,14 +17,16 @@ class SplashGate extends StatefulWidget {
 
 class _SplashGateState extends State<SplashGate> {
   bool done = false;
+  // новичку (не вошёл и регион ещё не выбирал) сначала задаём один вопрос: «Где вы ищете?»
+  late bool welcome = !S.i.regionChosen && !S.i.logged;
 
   @override
   void initState() {
     super.initState();
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) setState(() => done = true);
-      // сразу при запуске просим доступ к геолокации (если ещё не спрашивали), чтобы показывать ближайшие объявления
-      Near.i.auto().then((_) => Near.i.fill(S.i.ads), onError: (_) {});
+      // доступ к геолокации (если ещё не спрашивали): чтобы показывать ближайшие объявления; новичку — после выбора города
+      if (!welcome) Near.i.auto().then((_) => Near.i.fill(S.i.ads), onError: (_) {});
     });
   }
 
@@ -45,7 +48,11 @@ class _SplashGateState extends State<SplashGate> {
         opacity: anim,
         child: ScaleTransition(scale: Tween<double>(begin: .96, end: 1.0).animate(anim), child: child),
       ),
-      child: done ? const ShortcutHost(key: ValueKey('home'), child: HomeShell()) : const _Splash(key: ValueKey('splash')),
+      child: !done
+          ? const _Splash(key: ValueKey('splash'))
+          : welcome
+              ? WelcomeRegionPage(key: const ValueKey('welcome'), onDone: () => setState(() => welcome = false))
+              : const ShortcutHost(key: ValueKey('home'), child: HomeShell()),
       ),
     );
   }
