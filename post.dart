@@ -50,6 +50,7 @@ class _PostScreenState extends State<PostScreen> {
   String dur = ''; // длительность
   int need = 1; // сколько людей нужно
   bool urgent = false; // метка «Срочно»
+  bool autoRenew = true; // автопродление каждые 30 дней
   List<_Ph> photos = [];
   bool showPhone = true;
   bool busy = false;
@@ -93,6 +94,7 @@ class _PostScreenState extends State<PostScreen> {
       dur = e.dur;
       need = e.need > 0 ? e.need : 1;
       urgent = e.urgent;
+      autoRenew = e.autoRenew;
     }
     for (final c in [title, payA, city, addr, desc, phone]) {
       c.addListener(_touch);
@@ -502,6 +504,7 @@ class _PostScreenState extends State<PostScreen> {
         if (unit != 'x') 'payType': const {'h': 'hour', 'd': 'day', 't': 'job', 'm': 'month', 'n': 'neg'}[unit],
         if (unit != 'x' && unit != 'n') 'payAmt': digitsOnly(payA.text),
         'urgent': urgent,
+        'autoRenew': autoRenew,
       };
       if (_isEdit) {
         data['id'] = widget.edit!.id;
@@ -882,6 +885,22 @@ class _PostScreenState extends State<PostScreen> {
                 ),
               ),
       ),
+      if (catPriceHint(cat, unit) != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(color: p.ac.withOpacity(.10), borderRadius: BorderRadius.circular(12), border: Border.all(color: p.ac.withOpacity(.3))),
+            child: Row(children: [
+              Icon(Icons.lightbulb_outline_rounded, size: 17, color: p.ac),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Обычно в категории «$cat» ставят ${catPriceHint(cat, unit)}',
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: p.tx)),
+              ),
+            ]),
+          ),
+        ),
       ..._whenBlock(p),
       _label(p, 'Город'),
       CityField(
@@ -970,6 +989,14 @@ class _PostScreenState extends State<PostScreen> {
         title: Text('Срочно', style: TextStyle(fontWeight: FontWeight.w800, color: p.tx)),
         subtitle: Text('Метка на карточке и показ выше на 3 дня', style: TextStyle(color: p.mu, fontSize: 13)),
         onChanged: (v) => _set(() => urgent = v),
+      ),
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        value: autoRenew,
+        activeColor: p.ok,
+        title: Text('Автопродление', style: TextStyle(fontWeight: FontWeight.w800, color: p.tx)),
+        subtitle: Text('Автоматически продлевать каждые 30 дней, пока объявление открыто', style: TextStyle(color: p.mu, fontSize: 13)),
+        onChanged: (v) => _set(() => autoRenew = v),
       ),
     ];
   }

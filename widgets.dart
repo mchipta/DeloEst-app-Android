@@ -783,29 +783,40 @@ class AdCard extends StatelessWidget {
   }
 
 
-  // Одна строка: цветная точка и тип, дальше категория тихим серым
+  // Одна строка: цветная точка и тип, дальше живые бейджи («Срочно», «Новое», «Свободен сегодня») и категория
   Widget _tagLine(Pal p) {
     final need = ad.type == kTypes[0];
     final col = need ? p.ac : p.ok;
-    return Row(children: [
-      Container(width: 7, height: 7, decoration: BoxDecoration(color: col, shape: BoxShape.circle)),
-      const SizedBox(width: 6),
-      Text(ad.type, maxLines: 1, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: p.tx)),
-      if (ad.urgent) ...[
+    final isNew = ad.ts > 0 && DateTime.now().millisecondsSinceEpoch - ad.ts < 3 * 3600000;
+    return Wrap(spacing: 5, runSpacing: 3, crossAxisAlignment: WrapCrossAlignment.center, children: [
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 7, height: 7, decoration: BoxDecoration(color: col, shape: BoxShape.circle)),
         const SizedBox(width: 6),
+        Text(ad.type, maxLines: 1, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: p.tx)),
+      ]),
+      if (ad.urgent)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
           decoration: BoxDecoration(color: p.dng.withOpacity(.14), borderRadius: BorderRadius.circular(6)),
           child: Text('Срочно', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: p.dng)),
         ),
-      ],
-      if (ad.category.isNotEmpty)
-        Flexible(
-          child: Text(' · ${ad.category}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: p.mu)),
+      if (isNew)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          decoration: BoxDecoration(color: p.ac.withOpacity(.14), borderRadius: BorderRadius.circular(6)),
+          child: Text('Новое', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: p.ac)),
         ),
+      if (ad.freeToday)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          decoration: BoxDecoration(color: p.ok.withOpacity(.14), borderRadius: BorderRadius.circular(6)),
+          child: Text('Свободен сегодня', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: p.ok)),
+        ),
+      if (ad.category.isNotEmpty)
+        Text('· ${ad.category}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: p.mu)),
     ]);
   }
 
@@ -1611,11 +1622,13 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-/// Панель владельца: статистика объявления и управление (в «Моих объявлениях» и на странице объявления)
+/// Панель владельца: статистика объявления по дням, автопродление и управление (в «Моих объявлениях» и на странице объявления)
 class OwnerPanel extends StatelessWidget {
   final Ad ad;
   final VoidCallback onEdit, onToggle, onUrgent, onShare, onDelete;
   final VoidCallback? onRenew;
+  final VoidCallback? onRepublish;
+  final ValueChanged<bool>? onAutoRenew;
   const OwnerPanel({
     super.key,
     required this.ad,
@@ -1625,7 +1638,67 @@ class OwnerPanel extends StatelessWidget {
     required this.onShare,
     required this.onDelete,
     this.onRenew,
+    this.onRepublish,
+    this.onAutoRenew,
   });
+
+  Widget _analytics(Pal p) {
+    final now = DateTime.now();
+    const wdays = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+    final days = <Map<String, dynamic>>[];
+    var maxV = 1;
+    var totV = 0, totP = 0, totR = 0;
+    for (var i = 6; i >= 0; i--) {
+      final d = now.subtract(Duration(days: i));
+      final key = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      final row = ad.dailyStats[key] is Map ? Map<String, dynamic>.from(ad.dailyStats[key] as Map) : <String, dynamic>{};
+      final v = (row['v'] as num?)?.toInt() ?? (i == 0 && ad.dailyStats.isEmpty ? ad.opens : 0);
+      final ph = (row['p'] as num?)?.toInt() ?? (i == 0 && ad.dailyStats.isEmpty ? ad.views : 0);
+      final r = (row['r'] as num?)?.toInt() ?? 0;
+      if (v > maxV) maxV = v;
+      totV += v;
+      totP += ph;
+      totR += r;
+      days.add({'lbl': '${d.day} ${wdays[d.weekday - 1]}', 'v': v, 'p': ph, 'r': r});
+    }
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.bar_chart_rounded, size: 16, color: p.ac),
+          const SizedBox(width: 6),
+          Expanded(child: Text('Аналитика за 7 дней', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: p.tx))),
+          Text('👁 $totV · 📞 $totP · 💬 $totR', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: p.mu)),
+        ]),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 54,
+          child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            for (final d in days)
+              Expanded(
+                child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  Text('${d['v']}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: (d['v'] as int) > 0 ? p.tx : p.mu)),
+                  const SizedBox(height: 3),
+                  Container(
+                    height: (6 + ((d['v'] as int) / maxV) * 22).clamp(4.0, 28.0),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      gradient: (d['v'] as int) > 0 ? LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.bottomCenter, end: Alignment.topCenter) : null,
+                      color: (d['v'] as int) > 0 ? null : p.bd,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(d['lbl'] as String, style: TextStyle(fontSize: 9.5, color: p.mu)),
+                ]),
+              ),
+          ]),
+        ),
+      ]),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1671,11 +1744,11 @@ class OwnerPanel extends StatelessWidget {
           ]),
         );
 
-    // активное: изменить, снять, срочно, поделиться; снятое: вернуть или удалить (изменять — только после возврата); скрытое модератором: только изменить
+    // активное: изменить, снять, срочно, поделиться; снятое: опубликовать снова или удалить; скрытое модератором: только изменить
     final btns = <Widget>[
       if (isOpen || hidden) icon(Icons.edit_outlined, 'Изменить', onEdit),
       if (isOpen) icon(Icons.visibility_off_outlined, 'Снять', onToggle, color: p.dng),
-      if (!isOpen && !hidden) icon(Icons.publish_rounded, 'Опубликовать', onToggle, color: p.ok),
+      if (!isOpen && !hidden) icon(Icons.publish_rounded, 'Опубликовать снова', onRepublish ?? onToggle, color: p.ok),
       if (isOpen) icon(Icons.bolt_rounded, ad.urgent ? 'Без «Срочно»' : 'Срочно', onUrgent, on: ad.urgent),
       if (isOpen) icon(Icons.ios_share_rounded, 'Поделиться', onShare),
       if (!isOpen && !hidden) icon(Icons.delete_outline_rounded, 'Удалить', onDelete, color: p.dng),
@@ -1691,6 +1764,25 @@ class OwnerPanel extends StatelessWidget {
         const SizedBox(width: 10),
         stat(Icons.phone_outlined, ad.views, 'Открыли телефон'),
       ]),
+      _analytics(p),
+      if (onAutoRenew != null && !hidden) ...[
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
+          decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
+          child: Row(children: [
+            Icon(Icons.autorenew_rounded, size: 18, color: ad.autoRenew ? p.ok : p.mu),
+            const SizedBox(width: 8),
+            Expanded(child: Text('Автопродление каждые 30 дней', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: p.tx))),
+            Switch(
+              value: ad.autoRenew,
+              activeColor: p.ok,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              onChanged: onAutoRenew,
+            ),
+          ]),
+        ),
+      ],
       if (onRenew != null) ...[
         const SizedBox(height: 10),
         Container(

@@ -256,6 +256,9 @@ class _AdPageState extends State<AdPage> {
                           CatChip(ad.category),
                           if (ad.status == 'closed') Tag('Закрыто', p.mu),
                           if (ad.urgent) Tag('Срочно', p.dng),
+                          if (ad.ts > 0 && DateTime.now().millisecondsSinceEpoch - ad.ts < 3 * 3600000) Tag('Новое', p.ac),
+                          if (ad.freeToday) Tag('Свободен сегодня', p.ok),
+                          if (ad.innOk) Tag('Самозанятый · ИНН', p.ok),
                         ]),
                         const SizedBox(height: 10),
                         Text(ad.title, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: p.tx, height: 1.2)),
@@ -414,12 +417,12 @@ class _AdPageState extends State<AdPage> {
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(.14), blurRadius: 18, offset: const Offset(0, 6))],
       ),
       child: Row(children: [
-        _sq(p, 'chat', _write, tooltip: 'Написать'),
         if (ph.isNotEmpty) ...[
-          const SizedBox(width: 8),
-          _sq(p, 'phone', () => _call(ph), tooltip: 'Позвонить'),
+          _sq(p, 'phone', () => _call(ph), label: 'Позвонить', tooltip: 'Позвонить'),
+          const SizedBox(width: 6),
         ],
-        const SizedBox(width: 8),
+        _sq(p, 'chat', _write, label: 'Написать', tooltip: 'Написать'),
+        const SizedBox(width: 6),
         Expanded(
           child: GradBtn(
             _replied ? 'Вы откликнулись' : 'Откликнуться',
@@ -447,21 +450,27 @@ class _AdPageState extends State<AdPage> {
     );
   }
 
-  // Круглая контурная кнопка-иконка в плавающей таблетке
-  Widget _sq(Pal p, String ico, VoidCallback onTap, {String? tooltip}) {
+  // Кнопка «Позвонить / Написать» в плавающей нижней панели
+  Widget _sq(Pal p, String ico, VoidCallback onTap, {String? label, String? tooltip}) {
     final btn = Tap(
       onTap: onTap,
       scale: .92,
       child: Container(
-        width: 46,
         height: 46,
+        padding: EdgeInsets.symmetric(horizontal: label != null ? 13 : 12),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: p.ac.withOpacity(.10),
           borderRadius: BorderRadius.circular(23),
           border: Border.all(color: p.ac, width: 1.5),
         ),
-        child: Ico(ico, size: 21, color: p.ac),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Ico(ico, size: 19, color: p.ac),
+          if (label != null) ...[
+            const SizedBox(width: 6),
+            Text(label, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: p.ac)),
+          ],
+        ]),
       ),
     );
     return tooltip != null ? Tooltip(message: tooltip, child: btn) : btn;

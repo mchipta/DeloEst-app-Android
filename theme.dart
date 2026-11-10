@@ -42,12 +42,40 @@ class Pal {
     ok: Color(0xFF34D399),
     dng: Color(0xFFF87171),
   );
+
+  static int accentIndex = 0;
+
+  static const List<List<Object>> accents = [
+    ['Оранжевый', Color(0xFFFF6838), Color(0xFFFFA02E)],
+    ['Бирюзовый', Color(0xFF14B8C4), Color(0xFF38BDF8)],
+    ['Изумрудный', Color(0xFF10B981), Color(0xFF34D399)],
+    ['Янтарный', Color(0xFFF59E0B), Color(0xFFFBBF24)],
+    ['Коралловый', Color(0xFFF43F5E), Color(0xFFFB923C)],
+  ];
+
+  Pal withAccent(int idx) {
+    if (idx <= 0 || idx >= accents.length) return this;
+    final a = accents[idx];
+    return Pal(
+      bg: bg,
+      bg2: bg2,
+      card: card,
+      tx: tx,
+      mu: mu,
+      bd: bd,
+      ac: a[1] as Color,
+      ac2: a[2] as Color,
+      ok: ok,
+      dng: dng,
+    );
+  }
 }
 
-Pal pal(BuildContext c) => Theme.of(c).brightness == Brightness.dark ? Pal.dark : Pal.light;
+Pal pal(BuildContext c) =>
+    (Theme.of(c).brightness == Brightness.dark ? Pal.dark : Pal.light).withAccent(Pal.accentIndex);
 
 ThemeData buildTheme(Brightness b) {
-  final p = b == Brightness.dark ? Pal.dark : Pal.light;
+  final p = (b == Brightness.dark ? Pal.dark : Pal.light).withAccent(Pal.accentIndex);
   return ThemeData(
     useMaterial3: true,
     brightness: b,

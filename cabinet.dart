@@ -705,6 +705,8 @@ class _CabinetPageState extends State<CabinetPage> {
             if (r == true) _load();
           },
           onToggle: () => _act('status', {'id': ad.id, 's': isOpen ? 'closed' : 'open'}, isOpen ? 'Объявление снято' : 'Объявление снова опубликовано'),
+          onRepublish: () => _act('republish', {'id': ad.id}, 'Объявление опубликовано снова и поднято в ленте'),
+          onAutoRenew: (v) => _act('autoRenew', {'id': ad.id, 'on': v}, v ? 'Автопродление включено' : 'Автопродление выключено'),
           onUrgent: () => _act('urgent', {'id': ad.id, 'on': !ad.urgent}, ad.urgent ? 'Метка снята' : 'Метка «Срочно» на 3 дня'),
           onShare: () => showShare(context, ad),
           onDelete: () => _confirmDelete(ad),

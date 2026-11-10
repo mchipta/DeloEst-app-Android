@@ -68,6 +68,10 @@ class Ad {
   final String payType, when, dur; // тип оплаты (hour/day/job/neg), дата и время работы, длительность
   final bool urgent;
   final bool ver;
+  final bool freeToday;
+  final bool innOk;
+  final bool autoRenew;
+  final Map<String, dynamic> dailyStats;
   final double rt;
   final List<String> imgs;
 
@@ -103,11 +107,16 @@ class Ad {
     this.when = '',
     this.dur = '',
     this.urgent = false,
+    this.freeToday = false,
+    this.innOk = false,
+    this.autoRenew = false,
+    this.dailyStats = const {},
   });
 
   factory Ad.fromJson(Map<String, dynamic> j) {
     String s(String k) => (j[k] ?? '').toString();
     final im = j['imgs'];
+    final ds = j['dailyStats'];
     return Ad(
       id: s('id'),
       author: s('author'),
@@ -140,8 +149,31 @@ class Ad {
       when: s('when'),
       dur: s('dur'),
       urgent: j['urgent'] == true,
+      freeToday: j['freeToday'] == true,
+      innOk: j['innOk'] == true,
+      autoRenew: j['autoRenew'] == true,
+      dailyStats: ds is Map ? Map<String, dynamic>.from(ds) : const {},
     );
   }
+}
+
+const Map<String, Map<String, String>> kCatPriceHints = {
+  'Строительство и ремонт': {'h': '600–1 500 ₽/час', 'd': '3 500–7 000 ₽/день', 't': '2 000–15 000 ₽ за задачу'},
+  'Грузчики и переезд': {'h': '500–900 ₽/час', 'd': '3 000–5 000 ₽/день', 't': '1 500–6 000 ₽ за задачу'},
+  'Уборка': {'h': '400–800 ₽/час', 'd': '2 500–4 500 ₽/день', 't': '2 000–5 000 ₽ за задачу'},
+  'Курьеры и доставка': {'h': '350–600 ₽/час', 'd': '2 500–4 500 ₽/день', 't': '400–1 500 ₽ за задачу'},
+  'Сад и огород': {'h': '400–800 ₽/час', 'd': '2 500–4 500 ₽/день', 't': '1 500–5 000 ₽ за задачу'},
+  'Репетиторство': {'h': '600–1 500 ₽/час', 'd': '2 000–4 000 ₽/день', 't': '800–2 000 ₽ за занятие'},
+  'Компьютеры и IT': {'h': '700–1 800 ₽/час', 'd': '3 500–8 000 ₽/день', 't': '1 000–10 000 ₽ за задачу'},
+  'Ремонт техники': {'h': '600–1 400 ₽/час', 'd': '3 000–6 000 ₽/день', 't': '1 200–5 000 ₽ за ремонт'},
+  'Мероприятия': {'h': '500–1 500 ₽/час', 'd': '3 000–7 000 ₽/день', 't': '2 000–10 000 ₽ за задачу'},
+  'Прочее': {'h': '400–900 ₽/час', 'd': '2 500–4 500 ₽/день', 't': '1 000–4 000 ₽ за задачу'},
+};
+
+String? catPriceHint(String cat, String unit) {
+  if (unit == 'n' || unit == 'x') return null;
+  final m = kCatPriceHints[cat] ?? kCatPriceHints['Прочее']!;
+  return m[unit] ?? m['t'];
 }
 
 String payF(String v) {

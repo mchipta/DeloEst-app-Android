@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api.dart';
 import 'models.dart';
+import 'theme.dart';
 import 'util.dart';
 import 'widgets.dart';
 
@@ -38,7 +39,17 @@ class S extends ChangeNotifier {
   List<Ad> ads = [];
   bool loading = false;
   String? loadError;
-  ThemeMode themeMode = ThemeMode.system;
+  ThemeMode themeMode = ThemeMode.dark;
+  int accentIdx = 0;
+  String phonePrivacy = 'all'; // all, reply, chat
+  Map<String, bool> notifTypes = {'msg': true, 'reply': true, 'ss': true, 'rev': true};
+  bool dndOn = false;
+  String dndFrom = '22:00';
+  String dndTo = '08:00';
+  String homePlace = '';
+  String workPlace = '';
+  List<Map<String, String>> favCols = [];
+  Map<String, String> favMap = {};
   int tab = 0;
   // корневая вкладка: у вошедшего «Главной» нет, ею служит «Поиск»
   int get rootTab => logged ? 1 : 0;
@@ -92,6 +103,38 @@ class S extends ChangeNotifier {
     i.messageNotificationsEnabled = p.getBool('messages_notifications') ?? true;
     i.navTransparent = p.getBool('nav_transparent') ?? true;
     i.feedMode = (p.getInt('feed_mode') ?? 0).clamp(0, 2).toInt();
+    i.accentIdx = (p.getInt('accent_idx') ?? 0).clamp(0, Pal.accents.length - 1).toInt();
+    Pal.accentIndex = i.accentIdx;
+    i.phonePrivacy = p.getString('phone_privacy') ?? 'all';
+    i.homePlace = p.getString('home_place') ?? '';
+    i.workPlace = p.getString('work_place') ?? '';
+    i.dndOn = p.getBool('dnd_on') ?? false;
+    i.dndFrom = p.getString('dnd_from') ?? '22:00';
+    i.dndTo = p.getString('dnd_to') ?? '08:00';
+    final ntRaw = p.getString('notif_types');
+    if (ntRaw != null) {
+      try {
+        final m = Map<String, dynamic>.from(jsonDecode(ntRaw) as Map);
+        i.notifTypes = {
+          'msg': m['msg'] != false,
+          'reply': m['reply'] != false,
+          'ss': m['ss'] != false,
+          'rev': m['rev'] != false,
+        };
+      } catch (_) {}
+    }
+    final fcRaw = p.getString('fav_cols');
+    if (fcRaw != null) {
+      try {
+        i.favCols = (jsonDecode(fcRaw) as List).map((e) => Map<String, String>.from(e as Map)).toList();
+      } catch (_) {}
+    }
+    final fmRaw = p.getString('fav_map');
+    if (fmRaw != null) {
+      try {
+        i.favMap = Map<String, String>.from(jsonDecode(fmRaw) as Map);
+      } catch (_) {}
+    }
     applyEdgeToEdge(true); // панель всегда плавающая, вокруг неё ничего нет
     i.chatQuickSuggestionsEnabled = p.getBool('chat_quick_suggestions') ?? true;
     i.timeZone = p.getString('timezone') ?? '';
@@ -99,12 +142,12 @@ class S extends ChangeNotifier {
     if (!p.containsKey('last_push_ts')) {
       await p.setInt('last_push_ts', i.lastPushTs);
     }
-    final tm = p.getString('theme');
-    i.themeMode = tm == 'dark'
-        ? ThemeMode.dark
-        : tm == 'light'
-            ? ThemeMode.light
-            : ThemeMode.system;
+    final tm = p.getString('theme') ?? 'dark';
+    i.themeMode = tm == 'light'
+        ? ThemeMode.light
+        : tm == 'system'
+            ? ThemeMode.system
+            : ThemeMode.dark;
     var c = p.getString('cid');
     if (c == null || c.isEmpty) {
       final r = Random();
@@ -638,6 +681,94 @@ class S extends ChangeNotifier {
     vibrate();
     themeMode = m;
     await prefs.setString('theme', m == ThemeMode.dark ? 'dark' : m == ThemeMode.light ? 'light' : 'system');
+    notifyListeners();
+  }
+
+  Future<void> setAccent(int idx) async {
+    vibrate();
+    accentIdx = idx.clamp(0, Pal.accents.length - 1).toInt();
+    Pal.accentIndex = accentIdx;
+    await prefs.setInt('accent_idx', accentIdx);
+    notifyListeners();
+  }
+
+  Future<void> setPhonePrivacy(String v) async {
+    vibrate();
+    phonePrivacy = v;
+    await prefs.setString('phone_privacy', v);
+    notifyListeners();
+    if (logged) {
+      Api.call('saveSettings', {'privacy': v}).then((_) {}, onError: (_) {});
+    }
+  }
+
+  Future<void> setNotifType(String k, bool v) async {
+    vibrate();
+    notifTypes = {...notifTypes, k: v};
+    await prefs.setString('notif_types', jsonEncode(notifTypes));
+    notifyListeners();
+    if (logged) {
+      Api.call('saveSettings', {'notifPrefs': notifTypes}).then((_) {}, onError: (_) {});
+    }
+  }
+
+  Future<void> setDnd({bool? on, String? from, String? to}) async {
+    vibrate();
+    if (on != null) {
+      dndOn = on;
+      await prefs.setBool('dnd_on', on);
+    }
+    if (from != null) {
+      dndFrom = from;
+      await prefs.setString('dnd_from', from);
+    }
+    if (to != null) {
+      dndTo = to;
+      await prefs.setString('dnd_to', to);
+    }
+    notifyListeners();
+    if (logged) {
+      Api.call('saveSettings', {
+        'dnd': {'on': dndOn, 'from': dndFrom, 'to': dndTo}
+      }).then((_) {}, onError: (_) {});
+    }
+  }
+
+  Future<void> setPlaces(String home, String work) async {
+    vibrate();
+    homePlace = home.trim();
+    workPlace = work.trim();
+    await prefs.setString('home_place', homePlace);
+    await prefs.setString('work_place', workPlace);
+    notifyListeners();
+    if (logged) {
+      Api.call('saveSettings', {
+        'places': [
+          {'kind': 'home', 'label': 'Дом', 'addr': homePlace},
+          {'kind': 'work', 'label': 'Работа', 'addr': workPlace},
+        ]
+      }).then((_) {}, onError: (_) {});
+    }
+  }
+
+  Future<void> addFavCol(String name) async {
+    final nm = name.trim();
+    if (nm.isEmpty) return;
+    vibrate();
+    final id = 'c${DateTime.now().millisecondsSinceEpoch}';
+    favCols.add({'id': id, 'name': nm});
+    await prefs.setString('fav_cols', jsonEncode(favCols));
+    notifyListeners();
+  }
+
+  Future<void> setFavCol(String adId, String colId) async {
+    vibrate();
+    if (colId.isEmpty) {
+      favMap.remove(adId);
+    } else {
+      favMap[adId] = colId;
+    }
+    await prefs.setString('fav_map', jsonEncode(favMap));
     notifyListeners();
   }
 

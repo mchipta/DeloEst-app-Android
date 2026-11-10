@@ -288,42 +288,82 @@ class _SettingsBodyState extends State<SettingsBody> {
             _tile(p, Icons.call_outlined, 'Телефон', S.i.phone.isEmpty ? '—' : fmtPhone(S.i.phone), _phone),
           ],
           if (!widget.profileOnly) ...[
-          _label(p, 'Поиск'),
+          _label(p, 'Поиск и мои места'),
           _tile(p, Icons.place_outlined, 'Регион для поиска', S.i.regionCity.isEmpty ? 'Все города' : (S.i.regionRad.isEmpty ? S.i.regionCity : '${S.i.regionCity} +${S.i.regionRad} км'),
               () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegionPage()))),
-          _label(p, 'Внешний вид'),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Text('Тема применяется ко всему приложению и меняется только здесь.',
-                style: TextStyle(color: p.mu, fontSize: 13)),
-          ),
-          Row(children: [
-            for (final t in [
-              [ThemeMode.system, 'Системная'],
-              [ThemeMode.light, 'Светлая'],
-              [ThemeMode.dark, 'Тёмная'],
-            ])
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: GestureDetector(
-                    onTap: () => S.i.setTheme(t[0] as ThemeMode),
-                    child: Container(
-                      height: 44,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        gradient: tm == t[0] ? LinearGradient(colors: [p.ac, p.ac2]) : null,
-                        color: tm == t[0] ? null : p.card,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: tm == t[0] ? Colors.transparent : p.bd),
+          _placesCard(p),
+          _savedSearchesCard(p),
+          _label(p, 'Внешний вид и цвет акцента'),
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(14),
+            decoration: cardDeco(p, r: 16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(11)),
+                  child: Icon(Icons.palette_outlined, color: p.ac, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Тема и акцент', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.tx)),
+                    Text('Тёмная по умолчанию, 5 фирменных акцентов', style: TextStyle(color: p.mu, fontSize: 12.5)),
+                  ]),
+                ),
+              ]),
+              const SizedBox(height: 12),
+              Row(children: [
+                for (final t in [
+                  [ThemeMode.dark, 'Тёмная'],
+                  [ThemeMode.light, 'Светлая'],
+                  [ThemeMode.system, 'Авто'],
+                ])
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: GestureDetector(
+                        onTap: () => S.i.setTheme(t[0] as ThemeMode),
+                        child: Container(
+                          height: 42,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            gradient: tm == t[0] ? LinearGradient(colors: [p.ac, p.ac2]) : null,
+                            color: tm == t[0] ? null : p.bg2,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: tm == t[0] ? Colors.transparent : p.bd),
+                          ),
+                          child: Text(t[1] as String,
+                              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: tm == t[0] ? Colors.white : p.tx)),
+                        ),
                       ),
-                      child: Text(t[1] as String,
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: tm == t[0] ? Colors.white : p.tx)),
                     ),
                   ),
-                ),
-              ),
-          ]),
+              ]),
+              const SizedBox(height: 12),
+              Row(children: [
+                for (var i = 0; i < Pal.accents.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: GestureDetector(
+                      onTap: () => S.i.setAccent(i),
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(colors: [Pal.accents[i][1] as Color, Pal.accents[i][2] as Color]),
+                          border: Border.all(color: S.i.accentIdx == i ? p.tx : Colors.transparent, width: 2.5),
+                        ),
+                        child: S.i.accentIdx == i ? const Icon(Icons.check_rounded, size: 17, color: Colors.white) : null,
+                      ),
+                    ),
+                  ),
+              ]),
+            ]),
+          ),
           _label(p, 'Нижняя панель'),
           Container(
             margin: const EdgeInsets.only(bottom: 10),
@@ -340,7 +380,7 @@ class _SettingsBodyState extends State<SettingsBody> {
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Прозрачная панель', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: p.tx)),
                 const SizedBox(height: 3),
-                Text('Нижнее меню становится стеклянным: экран просвечивает сквозь него с мягким размытием. Если выключить, меню станет сплошным, без размытия.', style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.3)),
+                Text('Нижнее меню становится стеклянным: экран просвечивает сквозь него с мягким размытием.', style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.3)),
               ])),
               Switch(
                 value: S.i.navTransparent,
@@ -349,33 +389,10 @@ class _SettingsBodyState extends State<SettingsBody> {
               ),
             ]),
           ),
-          _label(p, 'Уведомления и Push'),
-          Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-            decoration: cardDeco(p, r: 16),
-            child: Column(children: [
-              Row(children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12)),
-                  child: Icon(Icons.notifications_active_outlined, color: p.ac),
-                ),
-                const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Push-уведомления', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: p.tx)),
-                  const SizedBox(height: 3),
-                  Text('Системные уведомления в шторке телефона о новых сообщениях, откликах и важных новостях.', style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.3)),
-                ])),
-                Switch(
-                  value: S.i.messageNotificationsEnabled,
-                  activeColor: p.ac,
-                  onChanged: (v) { S.i.setMessageNotificationsEnabled(v); },
-                ),
-              ]),
-            ]),
-          ),
+          _label(p, 'Приватность номера'),
+          _privacyCard(p),
+          _label(p, 'Уведомления и «Не беспокоить»'),
+          _notifCard(p),
           if (S.i.mutedChats.isNotEmpty)
             Container(
               margin: const EdgeInsets.only(bottom: 10),
@@ -398,8 +415,10 @@ class _SettingsBodyState extends State<SettingsBody> {
               ]),
             ),
           if (S.i.logged) ...[
-            _label(p, 'Устройства и сеансы'),
+            _label(p, 'Самозанятость и безопасность'),
+            _innCard(p),
             const _DevicesCard(),
+            _securityActionsCard(p),
           ],
           if (S.i.blockedUsers.isNotEmpty) ...[
             _label(p, 'Чёрный список'),
@@ -465,6 +484,358 @@ class _SettingsBodyState extends State<SettingsBody> {
           ],
         ]);
       },
+    );
+  }
+
+  Widget _placesCard(Pal p) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: cardDeco(p, r: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(11)),
+            child: Icon(Icons.home_work_outlined, color: p.ac, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Мои места (Дом и Работа)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.tx)),
+              Text('Быстрые чипы фильтрации над лентой объявлений', style: TextStyle(color: p.mu, fontSize: 12.5)),
+            ]),
+          ),
+          TextButton(
+            onPressed: () async {
+              final r = await askFields(context, 'Мои места', [
+                FieldSpec('Дом (город или район)', initial: S.i.homePlace),
+                FieldSpec('Работа (город или район)', initial: S.i.workPlace),
+              ]);
+              if (r != null) {
+                await S.i.setPlaces(r[0], r[1]);
+                if (mounted) toast(context, 'Мои места сохранены');
+              }
+            },
+            child: Text('Изменить', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
+          ),
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12)),
+              child: Text('🏠 Дом: ${S.i.homePlace.isEmpty ? 'не указан' : S.i.homePlace}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: p.tx)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12)),
+              child: Text('💼 Работа: ${S.i.workPlace.isEmpty ? 'не указана' : S.i.workPlace}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: p.tx)),
+            ),
+          ),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _savedSearchesCard(Pal p) {
+    final list = S.i.ss;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: cardDeco(p, r: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.bookmark_outline_rounded, color: p.ac, size: 20),
+          const SizedBox(width: 8),
+          Expanded(child: Text('Сохранённые поиски (${list.length})', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.tx))),
+        ]),
+        const SizedBox(height: 6),
+        if (list.isEmpty)
+          Text('Сохраняйте частые запросы в поиске — мы пришлём уведомление о новых объявлениях.', style: TextStyle(color: p.mu, fontSize: 12.5))
+        else
+          for (final s in list)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      S.i.pendingSearch = s;
+                      Navigator.pop(context);
+                      S.i.goTab(1);
+                    },
+                    child: Text(ssLabel(s), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 13.5)),
+                  ),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(Icons.close_rounded, size: 18, color: p.mu),
+                  onPressed: () => S.i.delSS(s),
+                ),
+              ]),
+            ),
+      ]),
+    );
+  }
+
+  Widget _privacyCard(Pal p) {
+    final cur = S.i.phonePrivacy;
+    final opts = const [
+      ['all', 'Всем вошедшим', 'Номер виден авторизованным пользователям'],
+      ['reply', 'По откликам', 'Номер открывается после отклика на объявление'],
+      ['chat', 'Только чат', 'Связь только через сообщения внутри сервиса'],
+    ];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: cardDeco(p, r: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        for (var i = 0; i < opts.length; i++) ...[
+          if (i > 0) Divider(height: 14, color: p.bd),
+          Tap(
+            onTap: () => S.i.setPhonePrivacy(opts[i][0]),
+            scale: .99,
+            child: Row(children: [
+              Icon(
+                cur == opts[i][0] ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+                color: cur == opts[i][0] ? p.ac : p.mu,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(opts[i][1], style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: p.tx)),
+                  Text(opts[i][2], style: TextStyle(color: p.mu, fontSize: 12.5)),
+                ]),
+              ),
+            ]),
+          ),
+        ],
+      ]),
+    );
+  }
+
+  Widget _notifCard(Pal p) {
+    final nt = S.i.notifTypes;
+    Widget row(String k, String title, String sub) => Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: p.tx)),
+              Text(sub, style: TextStyle(color: p.mu, fontSize: 12)),
+            ]),
+          ),
+          Switch(
+            value: nt[k] != false,
+            activeColor: p.ac,
+            onChanged: (v) => S.i.setNotifType(k, v),
+          ),
+        ]);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: cardDeco(p, r: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Push-уведомления', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.tx)),
+              Text('Главный переключатель уведомлений на телефоне', style: TextStyle(color: p.mu, fontSize: 12.5)),
+            ]),
+          ),
+          Switch(
+            value: S.i.messageNotificationsEnabled,
+            activeColor: p.ac,
+            onChanged: (v) => S.i.setMessageNotificationsEnabled(v),
+          ),
+        ]),
+        Divider(height: 16, color: p.bd),
+        row('msg', 'Новые сообщения', 'Личные сообщения и предложения задач'),
+        row('reply', 'Отклики на объявления', 'Новые отклики и смена статуса'),
+        row('ss', 'Сохранённые поиски', 'Новые объявления по вашим фильтрам'),
+        row('rev', 'Новые отзывы', 'Оценки и ответы на отзывы'),
+        Divider(height: 16, color: p.bd),
+        Row(children: [
+          Icon(Icons.bedtime_outlined, color: S.i.dndOn ? p.ac : p.mu, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Не беспокоить (${S.i.dndFrom} – ${S.i.dndTo})', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: p.tx)),
+              Text('Без звуковых уведомлений в ночные часы', style: TextStyle(color: p.mu, fontSize: 12)),
+            ]),
+          ),
+          Switch(
+            value: S.i.dndOn,
+            activeColor: p.ac,
+            onChanged: (v) => S.i.setDnd(on: v),
+          ),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _innCard(Pal p) {
+    final inn = (S.i.user?['inn'] ?? '').toString();
+    final ok = S.i.user?['innOk'] == true || inn.length == 12;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: cardDeco(p, r: 16),
+      child: Row(children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(color: (ok ? p.ok : p.ac).withOpacity(.14), borderRadius: BorderRadius.circular(12)),
+          child: Icon(Icons.verified_user_outlined, color: ok ? p.ok : p.ac, size: 21),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(ok ? 'Самозанятый · ИНН $inn' : 'Статус самозанятого (ИНН)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: p.tx)),
+            Text(ok ? 'Значок «Самозанятый» отображается в вашем профиле' : 'Подтвердите 12-значный ИНН для значка доверия в профиле', style: TextStyle(color: p.mu, fontSize: 12.5)),
+          ]),
+        ),
+        TextButton(
+          onPressed: () async {
+            final r = await askFields(context, 'Проверка ИНН самозанятого', [
+              FieldSpec('ИНН (12 цифр)', initial: inn, type: TextInputType.number),
+            ], ok: 'Проверить', hint: 'Проверим контрольную сумму ФНС и статус плательщика НПД.');
+            if (r == null) return;
+            await _run(() async {
+              final res = await Api.call('verifyInn', {'inn': r[0]});
+              await S.i.patchUser({'inn': res['inn'] ?? '', 'innOk': res['innOk'] == true});
+              if (mounted) toast(context, res['msg']?.toString() ?? 'Статус обновлён');
+            });
+          },
+          child: Text(ok ? 'Изменить' : 'Подтвердить', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
+        ),
+      ]),
+    );
+  }
+
+  Future<void> _openSupportSheet() async {
+    final p = pal(context);
+    final msgC = TextEditingController();
+    List<Map<String, dynamic>> tickets = [];
+    var loading = true;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: p.card,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (c) => StatefulBuilder(
+        builder: (c, setS) {
+          if (loading) {
+            loading = false;
+            Api.call('supportList').then((r) {
+              if (c.mounted) {
+                final raw = r['list'];
+                setS(() {
+                  tickets = raw is List ? raw.map((e) => Map<String, dynamic>.from(e as Map)).toList() : [];
+                });
+              }
+            }).catchError((_) {});
+          }
+          return Padding(
+            padding: EdgeInsets.fromLTRB(16, 18, 16, 16 + MediaQuery.of(c).viewInsets.bottom),
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Text('Поддержка ДелоЕсть', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: p.tx)),
+                const SizedBox(height: 6),
+                Text('Напишите вопрос или проблему — ответим прямо здесь.', style: TextStyle(color: p.mu, fontSize: 13.5)),
+                const SizedBox(height: 12),
+                for (final t in tickets.take(5))
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text((t['msg'] ?? '').toString(), style: TextStyle(color: p.tx, fontWeight: FontWeight.w600, fontSize: 13.5)),
+                      if ((t['reply'] ?? '').toString().isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text('Ответ поддержки: ${t['reply']}', style: TextStyle(color: p.ok, fontWeight: FontWeight.w700, fontSize: 13)),
+                      ] else
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text('В обработке', style: TextStyle(color: p.mu, fontSize: 11.5)),
+                        ),
+                    ]),
+                  ),
+                TextField(
+                  contextMenuBuilder: appContextMenu,
+                  controller: msgC,
+                  minLines: 2,
+                  maxLines: 4,
+                  style: TextStyle(color: p.tx),
+                  decoration: deco(c, 'Ваше обращение'),
+                ),
+                const SizedBox(height: 12),
+                GradBtn('Отправить в поддержку', onTap: () async {
+                  final text = msgC.text.trim();
+                  if (text.length < 3) {
+                    toast(c, 'Опишите ваш вопрос');
+                    return;
+                  }
+                  try {
+                    await Api.call('supportSend', {'subject': 'Обращение', 'msg': text});
+                    if (c.mounted) {
+                      Navigator.pop(c);
+                      toast(context, 'Обращение отправлено в поддержку');
+                    }
+                  } catch (e) {
+                    if (c.mounted) toast(c, S.i.fail(e), err: true);
+                  }
+                }),
+              ]),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _securityActionsCard(Pal p) {
+    final delAt = (S.i.user?['delAt'] as num?)?.toInt() ?? 0;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: cardDeco(p, r: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        _tile(p, Icons.support_agent_rounded, 'Чат с поддержкой', 'Задать вопрос внутри приложения', _openSupportSheet),
+        _tile(p, Icons.download_outlined, 'Скачать мои данные (JSON)', 'Профиль, объявления, отклики и отзывы', () async {
+          await _run(() async {
+            final res = await Api.call('exportData');
+            final jsonStr = const JsonEncoder.withIndent('  ').convert(res['data'] ?? res);
+            await Clipboard.setData(ClipboardData(text: jsonStr));
+            if (mounted) toast(context, 'Архив ваших данных скопирован в буфер обмена');
+          });
+        }),
+        if (delAt > 0)
+          _tile(p, Icons.restore_from_trash_rounded, 'Отменить удаление аккаунта', 'Аккаунт в очереди на удаление (7 дней)', () async {
+            await _run(() async {
+              await Api.call('cancelDelete');
+              await S.i.patchUser({'delAt': 0});
+              if (mounted) toast(context, 'Удаление аккаунта отменено');
+            });
+          }, color: p.ok)
+        else
+          _tile(p, Icons.delete_forever_outlined, 'Удалить аккаунт (отсрочка 7 дней)', 'Можно восстановить в течение 7 дней', () async {
+            final r = await askFields(context, 'Удаление аккаунта', [
+              const FieldSpec('Причина удаления (необязательно)'),
+            ], ok: 'Запланировать удаление', hint: 'Аккаунт будет удалён через 7 дней. В течение этого срока удаление можно отменить.');
+            if (r == null) return;
+            await _run(() async {
+              final res = await Api.call('deleteAccount', {'reason': r[0]});
+              await S.i.patchUser({'delAt': res['delAt'] ?? DateTime.now().add(const Duration(days: 7)).millisecondsSinceEpoch});
+              if (mounted) toast(context, 'Удаление аккаунта запланировано через 7 дней');
+            });
+          }, color: p.dng),
+      ]),
     );
   }
 }

@@ -528,9 +528,9 @@ Future<bool> _delChat(BuildContext context, String pid, String name, {String ad 
 
 // ---------- Переписка ----------
 class ChatPage extends StatefulWidget {
-  final String pid, name, avatar, adId, prefill;
+  final String pid, name, avatar, adId;
   final bool ver;
-  const ChatPage({super.key, required this.pid, required this.name, this.avatar = '', this.ver = false, this.adId = '', this.prefill = ''});
+  const ChatPage({super.key, required this.pid, required this.name, this.avatar = '', this.ver = false, this.adId = ''});
   @override
   State<ChatPage> createState() => _ChatPageState();
 }
@@ -571,7 +571,7 @@ class _ChatPageState extends State<ChatPage> {
     avatar = widget.avatar;
     ver = widget.ver;
     _muted = S.i.isChatMuted(widget.pid);
-    _ctl.text = S.i.prefs.getString(_draftKey) ?? widget.prefill;
+    _ctl.text = S.i.prefs.getString(_draftKey) ?? '';
     _poll(first: true);
     _timer = Timer.periodic(const Duration(seconds: 4), (_) => _poll());
   }
