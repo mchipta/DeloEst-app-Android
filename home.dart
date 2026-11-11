@@ -9,6 +9,7 @@ import 'landing.dart';
 import 'messages.dart';
 import 'post.dart';
 import 'state.dart';
+import 'welcome.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -24,6 +25,13 @@ class HomeShell extends StatelessWidget {
     return ListenableBuilder(
       listenable: S.i,
       builder: (context, _) {
+        // после входа в аккаунт один раз спрашиваем «Где вы ищете?» (если регион ещё не выбирали)
+        if (S.i.logged && !S.i.regionChosen && !S.i.regionAsked) {
+          S.i.regionAsked = true;
+          Future.delayed(const Duration(milliseconds: 700), () {
+            if (context.mounted && !S.i.regionChosen) showRegionSheet(context);
+          });
+        }
         final p = pal(context);
         final dark = Theme.of(context).brightness == Brightness.dark;
         return AnnotatedRegion<SystemUiOverlayStyle>(

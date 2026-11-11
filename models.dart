@@ -68,7 +68,6 @@ class Ad {
   final String payType, when, dur; // тип оплаты (hour/day/job/neg), дата и время работы, длительность
   final bool urgent;
   final bool ver;
-  final bool freeToday;
   final bool innOk;
   final bool autoRenew;
   final Map<String, dynamic> dailyStats;
@@ -107,7 +106,6 @@ class Ad {
     this.when = '',
     this.dur = '',
     this.urgent = false,
-    this.freeToday = false,
     this.innOk = false,
     this.autoRenew = false,
     this.dailyStats = const {},
@@ -149,7 +147,6 @@ class Ad {
       when: s('when'),
       dur: s('dur'),
       urgent: j['urgent'] == true,
-      freeToday: j['freeToday'] == true,
       innOk: j['innOk'] == true,
       autoRenew: j['autoRenew'] == true,
       dailyStats: ds is Map ? Map<String, dynamic>.from(ds) : const {},

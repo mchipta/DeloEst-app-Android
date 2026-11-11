@@ -257,7 +257,6 @@ class _AdPageState extends State<AdPage> {
                           if (ad.status == 'closed') Tag('Закрыто', p.mu),
                           if (ad.urgent) Tag('Срочно', p.dng),
                           if (ad.ts > 0 && DateTime.now().millisecondsSinceEpoch - ad.ts < 3 * 3600000) Tag('Новое', p.ac),
-                          if (ad.freeToday) Tag('Свободен сегодня', p.ok),
                           if (ad.innOk) Tag('Самозанятый · ИНН', p.ok),
                         ]),
                         const SizedBox(height: 10),

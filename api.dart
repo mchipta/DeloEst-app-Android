@@ -95,42 +95,6 @@ class Api {
 
   static Future<Map<String, dynamic>?> _fallback(String a, Map<String, dynamic> d) async {
     switch (a) {
-      case 'setFreeToday':
-        final on = d['on'] == true;
-        return {'ok': true, 'freeToday': on, 'freeUntil': on ? DateTime.now().millisecondsSinceEpoch + 86400000 : 0};
-      case 'savePortfolio':
-        return {'ok': true, 'portfolio': d['list'] ?? []};
-      case 'savePricelist':
-        return {'ok': true, 'pricelist': d['list'] ?? []};
-      case 'saveSettings':
-        return {'ok': true, ...d};
-      case 'verifyInn':
-        return {'ok': true, 'inn': d['inn'] ?? '', 'verified': true, 'note': 'ИНН проверен по контрольной сумме ФНС'};
-      case 'exportData':
-        return {
-          'ok': true,
-          'data': {'exportedAt': DateTime.now().toIso8601String(), 'note': 'Данные аккаунта ДелоЕсть'}
-        };
-      case 'deleteAccount':
-        return {'ok': true, 'delAt': DateTime.now().millisecondsSinceEpoch + 7 * 86400000};
-      case 'cancelDelete':
-        return {'ok': true, 'delAt': 0};
-      case 'supportList':
-        return {'ok': true, 'list': <dynamic>[]};
-      case 'supportSend':
-        return {
-          'ok': true,
-          'ticket': {
-            'id': 'sup_${DateTime.now().millisecondsSinceEpoch}',
-            'subj': d['subj'] ?? 'Обращение',
-            'text': d['text'] ?? '',
-            'status': 'open',
-            'reply': '',
-            'ts': DateTime.now().millisecondsSinceEpoch,
-          }
-        };
-      case 'autoRenew':
-        return {'ok': true, 'autoRenew': d['on'] == true};
       case 'republish':
         await call('status', {'id': d['id'], 's': 'open'});
         try {
@@ -145,8 +109,8 @@ class Api {
             '${pay.isNotEmpty ? '\n💰 Бюджет: $pay' : ''}'
             '${desc.isNotEmpty ? '\n📝 $desc' : ''}';
         return await call('send', {
-          'to': d['to'],
-          'ad': d['adId'] ?? '',
+          'with': d['to'],
+          'adId': d['adId'] ?? '',
           'text': txt,
           'imgs': <String>[],
         });

@@ -62,19 +62,6 @@ class _ProfilePageState extends State<ProfilePage> {
     if (mounted) setState(() => loading = false);
   }
 
-  Future<void> _toggleFreeToday(bool on) async {
-    haptic();
-    try {
-      final r = await Api.call('setFreeToday', {'on': on});
-      await S.i.patchUser({'freeToday': r['freeToday'] == true, 'freeUntil': r['freeUntil'] ?? 0});
-      S.i.loadAds();
-      await _load();
-      if (mounted) toast(context, on ? 'Статус «Свободен сегодня» включён на 24 часа' : 'Статус «Свободен сегодня» выключен');
-    } catch (e) {
-      if (mounted) toast(context, S.i.fail(e), err: true);
-    }
-  }
-
   Future<void> _offerTask(String uName) async {
     if (!S.i.logged) {
       await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
@@ -140,129 +127,6 @@ class _ProfilePageState extends State<ProfilePage> {
     if (ok == true && mounted) {
       toast(context, 'Предложение отправлено в чат');
       Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(pid: widget.pid, name: uName)));
-    }
-  }
-
-  Future<void> _addPortfolio(List<Map<String, dynamic>> cur) async {
-    final titleC = TextEditingController();
-    final descC = TextEditingController();
-    final priceC = TextEditingController();
-    final ok = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: pal(context).card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (c) {
-        final p = pal(c);
-        var busy = false;
-        return StatefulBuilder(
-          builder: (c, setS) => Padding(
-            padding: EdgeInsets.fromLTRB(16, 18, 16, 16 + MediaQuery.of(c).viewInsets.bottom),
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                Text('Добавить работу в портфолио', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: p.tx)),
-                const SizedBox(height: 12),
-                TextField(contextMenuBuilder: appContextMenu, controller: titleC, style: TextStyle(color: p.tx), decoration: deco(c, 'Название работы')),
-                const SizedBox(height: 10),
-                TextField(contextMenuBuilder: appContextMenu, controller: descC, minLines: 2, maxLines: 4, style: TextStyle(color: p.tx), decoration: deco(c, 'Описание работы')),
-                const SizedBox(height: 10),
-                TextField(contextMenuBuilder: appContextMenu, controller: priceC, style: TextStyle(color: p.tx), decoration: deco(c, 'Стоимость (необязательно)')),
-                const SizedBox(height: 14),
-                GradBtn('Сохранить', busy: busy, onTap: () async {
-                  if (titleC.text.trim().length < 2) {
-                    toast(c, 'Укажите название работы');
-                    return;
-                  }
-                  setS(() => busy = true);
-                  try {
-                    final next = [
-                      ...cur,
-                      {
-                        'id': 'pf${DateTime.now().millisecondsSinceEpoch}',
-                        'title': titleC.text.trim(),
-                        'desc': descC.text.trim(),
-                        'price': priceC.text.trim(),
-                        'img': '',
-                      }
-                    ];
-                    await Api.call('savePortfolio', {'list': next});
-                    if (c.mounted) Navigator.pop(c, true);
-                  } catch (e) {
-                    if (c.mounted) toast(c, S.i.fail(e), err: true);
-                    setS(() => busy = false);
-                  }
-                }),
-              ]),
-            ),
-          ),
-        );
-      },
-    );
-    if (ok == true && mounted) {
-      toast(context, 'Работа добавлена в портфолио');
-      _load();
-    }
-  }
-
-  Future<void> _addPricelist(List<Map<String, dynamic>> cur) async {
-    final titleC = TextEditingController();
-    final priceC = TextEditingController();
-    final unitC = TextEditingController(text: 'за услугу');
-    final ok = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: pal(context).card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (c) {
-        final p = pal(c);
-        var busy = false;
-        return StatefulBuilder(
-          builder: (c, setS) => Padding(
-            padding: EdgeInsets.fromLTRB(16, 18, 16, 16 + MediaQuery.of(c).viewInsets.bottom),
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                Text('Добавить услугу в прайс', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: p.tx)),
-                const SizedBox(height: 12),
-                TextField(contextMenuBuilder: appContextMenu, controller: titleC, style: TextStyle(color: p.tx), decoration: deco(c, 'Название услуги')),
-                const SizedBox(height: 10),
-                Row(children: [
-                  Expanded(child: TextField(contextMenuBuilder: appContextMenu, controller: priceC, style: TextStyle(color: p.tx), decoration: deco(c, 'Цена (например: от 1 000 ₽)'))),
-                  const SizedBox(width: 10),
-                  Expanded(child: TextField(contextMenuBuilder: appContextMenu, controller: unitC, style: TextStyle(color: p.tx), decoration: deco(c, 'Единица (за час / м²)'))),
-                ]),
-                const SizedBox(height: 14),
-                GradBtn('Сохранить', busy: busy, onTap: () async {
-                  if (titleC.text.trim().length < 2) {
-                    toast(c, 'Укажите название услуги');
-                    return;
-                  }
-                  setS(() => busy = true);
-                  try {
-                    final next = [
-                      ...cur,
-                      {
-                        'id': 'pr${DateTime.now().millisecondsSinceEpoch}',
-                        'title': titleC.text.trim(),
-                        'price': priceC.text.trim().isEmpty ? 'Договорная' : priceC.text.trim(),
-                        'unit': unitC.text.trim(),
-                      }
-                    ];
-                    await Api.call('savePricelist', {'list': next});
-                    if (c.mounted) Navigator.pop(c, true);
-                  } catch (e) {
-                    if (c.mounted) toast(c, S.i.fail(e), err: true);
-                    setS(() => busy = false);
-                  }
-                }),
-              ]),
-            ),
-          ),
-        );
-      },
-    );
-    if (ok == true && mounted) {
-      toast(context, 'Услуга добавлена в прайс');
-      _load();
     }
   }
 
@@ -342,10 +206,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final dn = (d['dn'] as num?)?.toInt() ?? 0;
     final ver = d['ver'] == true;
     final innOk = d['innOk'] == true;
-    final freeToday = d['freeToday'] == true;
     final ads = (d['ads'] is List ? d['ads'] as List : <dynamic>[]).map((e) => Ad.fromJson(Map<String, dynamic>.from(e as Map))).toList();
-    final pf = (d['portfolio'] is List ? d['portfolio'] as List : <dynamic>[]).map((e) => Map<String, dynamic>.from(e as Map)).toList();
-    final pr = (d['pricelist'] is List ? d['pricelist'] as List : <dynamic>[]).map((e) => Map<String, dynamic>.from(e as Map)).toList();
     final revs = (d['reviews'] is List ? d['reviews'] as List : <dynamic>[]).map((e) => Map<String, dynamic>.from(e as Map)).toList();
 
     final dist = <int, int>{5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
@@ -422,9 +283,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   Wrap(spacing: 6, runSpacing: 6, children: [
                     if (ver) const VerifiedBadge(size: 16, label: true),
                     if (innOk) _badge(p, Icons.verified_user_outlined, 'Самозанятый · ИНН', col: p.ok),
-                    if (freeToday) _badge(p, Icons.bolt_rounded, 'Свободен сегодня', col: p.ok),
                     if (dn >= 5 && rt >= 4.5) _badge(p, Icons.workspace_premium_outlined, 'Надёжный исполнитель', col: p.ac),
-                    _badge(p, Icons.schedule_rounded, 'Отвечает быстро'),
                   ]),
                 ]),
               ),
@@ -478,24 +337,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ]),
               ),
             ),
-            if (me) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-                decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.bd)),
-                child: Row(children: [
-                  Icon(Icons.bolt_rounded, color: freeToday ? p.ok : p.ac),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Свободен сегодня', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: p.tx)),
-                      Text('Зелёная метка в профиле и на ваших объявлениях на 24 ч', style: TextStyle(fontSize: 12, color: p.mu)),
-                    ]),
-                  ),
-                  Switch(value: freeToday, activeColor: p.ok, onChanged: _toggleFreeToday),
-                ]),
-              ),
-            ] else if (!blocked) ...[
+            if (!me && !blocked) ...[
               const SizedBox(height: 12),
               Row(children: [
                 Expanded(child: GradBtn('Предложить задачу', icon: Icons.assignment_add, onTap: () => _offerTask(name))),
@@ -534,8 +376,6 @@ class _ProfilePageState extends State<ProfilePage> {
           scrollDirection: Axis.horizontal,
           child: Row(children: [
             tabChip('ads', 'Объявления', ads.length),
-            tabChip('pf', 'Портфолио', pf.length),
-            tabChip('price', 'Прайс услуг', pr.length),
             tabChip('rev', 'Отзывы', rc),
           ]),
         ),
@@ -544,84 +384,6 @@ class _ProfilePageState extends State<ProfilePage> {
           if (ads.isEmpty) EmptyState(icon: Icons.campaign_outlined, title: 'Активных объявлений нет', text: me ? 'Опубликуйте объявление, чтобы находить заказы или исполнителей.' : 'У пользователя сейчас нет активных объявлений.'),
           for (final a in ads)
             AdCard(ad: a, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: a)))),
-        ] else if (_tab == 'pf') ...[
-          if (me)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: OutBtn('Добавить пример работы', icon: Icons.add_photo_alternate_outlined, onTap: () => _addPortfolio(pf)),
-            ),
-          if (pf.isEmpty)
-            EmptyState(icon: Icons.photo_library_outlined, title: 'Портфолио пока пусто', text: me ? 'Добавьте примеры выполненных работ, чтобы заказчики выбирали вас чаще.' : 'Пользователь ещё не добавил примеры работ.'),
-          for (var i = 0; i < pf.length; i++)
-            Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
-              decoration: cardDeco(p, r: 16),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(color: p.ac.withOpacity(.14), borderRadius: BorderRadius.circular(12)),
-                  child: Icon(Icons.work_outline_rounded, color: p.ac),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text((pf[i]['title'] ?? '').toString(), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: p.tx)),
-                    if ((pf[i]['desc'] ?? '').toString().isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text((pf[i]['desc'] ?? '').toString(), style: TextStyle(color: p.mu, fontSize: 13.5, height: 1.35)),
-                    ],
-                    if ((pf[i]['price'] ?? '').toString().isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(payF((pf[i]['price'] ?? '').toString()), style: TextStyle(color: p.ok, fontWeight: FontWeight.w800, fontSize: 14)),
-                    ],
-                  ]),
-                ),
-                if (me)
-                  IconButton(
-                    icon: Icon(Icons.delete_outline, color: p.dng, size: 20),
-                    onPressed: () async {
-                      final next = [...pf]..removeAt(i);
-                      await Api.call('savePortfolio', {'list': next});
-                      _load();
-                    },
-                  ),
-              ]),
-            ),
-        ] else if (_tab == 'price') ...[
-          if (me)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: OutBtn('Добавить услугу в прайс', icon: Icons.add_rounded, onTap: () => _addPricelist(pr)),
-            ),
-          if (pr.isEmpty)
-            EmptyState(icon: Icons.receipt_long_outlined, title: 'Прайс-лист не заполнен', text: me ? 'Укажите базовые расценки на ваши услуги.' : 'Пользователь ещё не указал прайс услуг.'),
-          for (var i = 0; i < pr.length; i++)
-            Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: cardDeco(p, r: 16),
-              child: Row(children: [
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text((pr[i]['title'] ?? '').toString(), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.tx)),
-                    if ((pr[i]['unit'] ?? '').toString().isNotEmpty)
-                      Text((pr[i]['unit'] ?? '').toString(), style: TextStyle(color: p.mu, fontSize: 12.5)),
-                  ]),
-                ),
-                Text(payF((pr[i]['price'] ?? '').toString()), style: TextStyle(color: p.ok, fontWeight: FontWeight.w800, fontSize: 15)),
-                if (me)
-                  IconButton(
-                    icon: Icon(Icons.close_rounded, color: p.dng, size: 18),
-                    onPressed: () async {
-                      final next = [...pr]..removeAt(i);
-                      await Api.call('savePricelist', {'list': next});
-                      _load();
-                    },
-                  ),
-              ]),
-            ),
         ] else ...[
           Padding(
             padding: const EdgeInsets.only(bottom: 10),

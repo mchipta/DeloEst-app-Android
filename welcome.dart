@@ -6,15 +6,28 @@ import 'theme.dart';
 import 'util.dart';
 import 'widgets.dart';
 
-/// Первый запуск: один вопрос «Где вы ищете?». Город сохраняется как «Регион для поиска».
-class WelcomeRegionPage extends StatefulWidget {
-  final VoidCallback onDone;
-  const WelcomeRegionPage({super.key, required this.onDone});
-  @override
-  State<WelcomeRegionPage> createState() => _WelcomeRegionPageState();
+/// После входа в аккаунт: один вопрос «Где вы ищете?» в нижней шторке. Город сохраняется как «Регион для поиска».
+/// Закрыли шторку или нажали «Пропустить»: ищем везде и больше не спрашиваем.
+Future<void> showRegionSheet(BuildContext context) async {
+  final p = pal(context);
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    backgroundColor: p.card,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+    builder: (_) => const _RegionSheet(),
+  );
+  if (!S.i.regionChosen) await S.i.setRegion('', '', true);
 }
 
-class _WelcomeRegionPageState extends State<WelcomeRegionPage> {
+class _RegionSheet extends StatefulWidget {
+  const _RegionSheet();
+  @override
+  State<_RegionSheet> createState() => _RegionSheetState();
+}
+
+class _RegionSheetState extends State<_RegionSheet> {
   final _c = TextEditingController();
   bool _busy = false;
 
@@ -47,66 +60,73 @@ class _WelcomeRegionPageState extends State<WelcomeRegionPage> {
     haptic();
     final city = skip ? '' : _c.text.trim();
     await S.i.setRegion(city, city.isEmpty ? '' : '50', true);
-    // геолокацию (для расстояния до объявлений) запрашиваем уже после выбора города
     Near.i.auto().then((_) => Near.i.fill(S.i.ads), onError: (_) {});
-    widget.onDone();
+    if (mounted) Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
     final has = _c.text.trim().isNotEmpty;
-    return Scaffold(
-      backgroundColor: p.bg,
-      resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: const EdgeInsets.fromLTRB(22, 28, 22, 20),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              const Logo(size: 46),
-              const SizedBox(width: 12),
-              Text('Дело', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: p.tx)),
-              const GradText('Есть', size: 24),
-            ]),
-            const SizedBox(height: 44),
-            Text('Где вы ищете?', style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900, color: p.tx, letterSpacing: -.8, height: 1.1)),
-            const SizedBox(height: 10),
-            Text('Покажем подработки и услуги рядом с вами. Город можно сменить в любой момент в настройках.',
-                style: TextStyle(fontSize: 15.5, color: p.mu, height: 1.4)),
-            const SizedBox(height: 28),
-            CityField(
-              controller: _c,
-              decoration: deco(context, 'Город или регион', prefix: Icon(Icons.place_outlined, color: p.mu)),
-              onChanged: (_) => setState(() {}),
+    return Padding(
+      padding: EdgeInsets.fromLTRB(22, 4, 22, 20 + MediaQuery.viewInsetsOf(context).bottom),
+      child: SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              borderRadius: BorderRadius.circular(17),
+              boxShadow: [BoxShadow(color: p.ac.withOpacity(.3), blurRadius: 18, offset: const Offset(0, 8))],
             ),
-            const SizedBox(height: 12),
-            Tap(
-              onTap: _busy ? null : _locate,
-              scale: .98,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-                decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
-                child: Row(children: [
-                  Icon(Icons.my_location_rounded, color: p.ac, size: 21),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text('Определить автоматически', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: p.tx))),
-                  if (_busy) SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: p.ac)),
-                ]),
-              ),
+            child: const Icon(Icons.place_rounded, color: Colors.white, size: 26),
+          ),
+          const SizedBox(height: 14),
+          Text('Где вы ищете?', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: p.tx, letterSpacing: -.5, height: 1.1)),
+          const SizedBox(height: 8),
+          Text('Покажем подработки и услуги рядом с вами. Город можно сменить в любой момент в настройках.',
+              style: TextStyle(fontSize: 15, color: p.mu, height: 1.4)),
+          const SizedBox(height: 18),
+          CityField(
+            controller: _c,
+            decoration: deco(context, 'Город или регион', prefix: Icon(Icons.place_outlined, color: p.mu)),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 10),
+          Tap(
+            onTap: _busy ? null : _locate,
+            scale: .98,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              decoration: BoxDecoration(color: p.bg, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
+              child: Row(children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(color: p.ac.withOpacity(.14), borderRadius: BorderRadius.circular(12)),
+                  child: Icon(Icons.my_location_rounded, color: p.ac, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Определить автоматически', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: p.tx)),
+                    Text('Нужен доступ к геолокации', style: TextStyle(fontSize: 12.5, color: p.mu)),
+                  ]),
+                ),
+                if (_busy) SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: p.ac)),
+              ]),
             ),
-            const SizedBox(height: 24),
-            GradBtn('Продолжить', radius: 18, onTap: has ? () => _done(skip: false) : null),
-            const SizedBox(height: 6),
-            Center(
-              child: TextButton(
-                onPressed: () => _done(skip: true),
-                child: Text('Пропустить, искать везде', style: TextStyle(color: p.mu, fontWeight: FontWeight.w700, fontSize: 15)),
-              ),
+          ),
+          const SizedBox(height: 18),
+          GradBtn('Продолжить', radius: 18, onTap: has ? () => _done(skip: false) : null),
+          Center(
+            child: TextButton(
+              onPressed: () => _done(skip: true),
+              child: Text('Пропустить, искать везде', style: TextStyle(color: p.mu, fontWeight: FontWeight.w700, fontSize: 15)),
             ),
-          ]),
-        ),
+          ),
+        ]),
       ),
     );
   }

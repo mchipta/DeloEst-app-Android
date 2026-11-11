@@ -197,7 +197,7 @@ class _MessagesPageState extends State<MessagesPage> {
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.only(bottom: 12),
                           child: Row(children: [
-                            for (final f in const [['all', 'Все'], ['unread', 'Непрочитанные'], ['cust', 'Я заказчик'], ['exec', 'Я исполнитель']]) ...[
+                            for (final f in const [['all', 'Все'], ['unread', 'Непрочитанные']]) ...[
                               _filterChip(p, f[1], _folder == f[0], () => setState(() => _folder = f[0])),
                               const SizedBox(width: 8),
                             ],
@@ -236,10 +236,6 @@ class _MessagesPageState extends State<MessagesPage> {
       switch (_folder) {
         case 'unread':
           return !_isArch(d) && _n(d['n']) > 0;
-        case 'cust':
-          return !_isArch(d) && d['own'] == true;
-        case 'exec':
-          return !_isArch(d) && d['own'] != true && (d['ad'] ?? '').toString().isNotEmpty;
         case 'arch':
           return _isArch(d);
         default:
@@ -353,9 +349,10 @@ class _MessagesPageState extends State<MessagesPage> {
 
   // Объявление в списке диалогов: компактная «таблетка» с фото и ценой (как на сайте)
   Widget _adChip(Pal p, Map<String, dynamic> d) {
-    final gone = d['adg'] == true;
-    final title = (d['adt'] ?? '').toString();
-    final noAd = !gone && title.isEmpty && (d['ad'] ?? '').toString().isEmpty;
+    final sup = _n(d['sup']) == 1;
+    final gone = !sup && d['adg'] == true;
+    final title = sup ? 'Поддержка' : (d['adt'] ?? '').toString();
+    final noAd = !sup && !gone && title.isEmpty && (d['ad'] ?? '').toString().isEmpty;
     final muted = gone || noAd;
     final pay = muted ? '' : payF((d['adp'] ?? '').toString());
     final img = (d['adi'] ?? '').toString();
@@ -370,7 +367,7 @@ class _MessagesPageState extends State<MessagesPage> {
         errorWidget: (_, __, ___) => Icon(cat.isEmpty ? Icons.sell_outlined : catIcon(cat), size: 12, color: p.ac),
       );
     } else {
-      thumb = Icon(muted || cat.isEmpty ? Icons.sell_outlined : catIcon(cat), size: 12, color: muted ? p.mu : p.ac);
+      thumb = Icon(sup ? Icons.support_agent_rounded : (muted || cat.isEmpty ? Icons.sell_outlined : catIcon(cat)), size: 12, color: muted ? p.mu : p.ac);
     }
     return Padding(
       padding: const EdgeInsets.only(top: 4, bottom: 4),
@@ -553,6 +550,7 @@ class _ChatPageState extends State<ChatPage> {
   int _recMs = 0;
   DateTime? _recAt;
   Timer? _recT;
+  bool get _isSup => widget.adId == 'support' && S.i.user?['admin'] != true; // чат поддержки: у пользователя вместо профиля и блокировки
   String? err;
   Map<String, dynamic>? adCard; // карточка объявления, по которому идёт диалог
   Map<String, dynamic>? rv; // можно ли оценить собеседника (после выполненной работы) и какую оценку уже поставили
@@ -758,8 +756,8 @@ class _ChatPageState extends State<ChatPage> {
     final aud = (m['aud'] ?? '').toString();
     final p = pal(context);
     Widget row(IconData ic, String t, Color c) => Row(children: [
-          Icon(ic, size: 20, color: c),
-          const SizedBox(width: 12),
+          Icon(ic, size: 20, color: c == p.dng ? c : p.ac),
+          const SizedBox(width: 10),
           Text(t, style: TextStyle(fontWeight: FontWeight.w600, color: c)),
         ]);
     final items = <PopupMenuEntry<String>>[
@@ -775,6 +773,7 @@ class _ChatPageState extends State<ChatPage> {
             ),
         ]),
       ),
+      const PopupMenuDivider(height: 1),
       PopupMenuItem(value: 'reply', child: row(Icons.reply_rounded, 'Ответить', p.tx)),
       if (text.isNotEmpty) PopupMenuItem(value: 'copy', child: row(Icons.copy_rounded, 'Копировать', p.tx)),
       if (mine && aud.isEmpty) PopupMenuItem(value: 'edit', child: row(Icons.edit_outlined, 'Изменить', p.tx)),
@@ -785,7 +784,7 @@ class _ChatPageState extends State<ChatPage> {
     final act = await showMenu<String>(
       context: context,
       color: p.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: p.bd)),
       position: RelativeRect.fromLTRB(pos.dx, pos.dy, size.width - pos.dx, size.height - pos.dy),
       items: items,
     );
@@ -1191,17 +1190,18 @@ class _ChatPageState extends State<ChatPage> {
               }
             },
             itemBuilder: (c) => [
-              PopupMenuItem(
-                value: 'block',
-                child: menuRow(c, Icons.visibility_off_outlined, S.i.isBlocked(widget.pid) ? 'Разблокировать' : 'Заблокировать'),
-              ),
+              if (!_isSup)
+                PopupMenuItem(
+                  value: 'block',
+                  child: menuRow(c, Icons.visibility_off_outlined, S.i.isBlocked(widget.pid) ? 'Разблокировать' : 'Заблокировать'),
+                ),
               PopupMenuItem(value: 'del', child: menuRow(c, Icons.delete_outline_rounded, 'Удалить переписку')),
             ],
           ),
         ],
         title: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => Navigator.push(
+          onTap: _isSup ? null : () => Navigator.push(
               context, MaterialPageRoute(builder: (_) => ProfilePage(pid: widget.pid, name: name))),
           child: Row(children: [
             Avatar(name, data: avatar, size: 38),
@@ -1222,13 +1222,13 @@ class _ChatPageState extends State<ChatPage> {
       body: Column(children: [
         if (adCard != null) _adHeader(p),
         if (adCard != null && widget.adId.isNotEmpty && deal != 'rejected' && (choice != null || deal.isNotEmpty)) _dealCard(p),
-        if (!_safeOff) _safeBanner(p),
+        if (!_safeOff && !_isSup) _safeBanner(p),
         Expanded(child: Stack(children: [
         Positioned.fill(
           child: !loaded
               ? Center(child: err != null ? Text(err!, style: TextStyle(color: p.mu)) : CircularProgressIndicator(color: p.ac))
               : msgs.isEmpty
-                  ? Center(child: Text('Напишите первое сообщение', style: TextStyle(color: p.mu, fontSize: 15)))
+                  ? Center(child: Text(_isSup ? 'Задайте вопрос, ответим здесь' : 'Напишите первое сообщение', style: TextStyle(color: p.mu, fontSize: 15)))
                   : ListView.builder(
                       reverse: true,
                       padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + _barH),

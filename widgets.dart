@@ -783,7 +783,7 @@ class AdCard extends StatelessWidget {
   }
 
 
-  // Одна строка: цветная точка и тип, дальше живые бейджи («Срочно», «Новое», «Свободен сегодня») и категория
+  // Одна строка: цветная точка и тип, дальше живые бейджи («Срочно», «Новое») и категория
   Widget _tagLine(Pal p) {
     final need = ad.type == kTypes[0];
     final col = need ? p.ac : p.ok;
@@ -805,12 +805,6 @@ class AdCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
           decoration: BoxDecoration(color: p.ac.withOpacity(.14), borderRadius: BorderRadius.circular(6)),
           child: Text('Новое', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: p.ac)),
-        ),
-      if (ad.freeToday)
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-          decoration: BoxDecoration(color: p.ok.withOpacity(.14), borderRadius: BorderRadius.circular(6)),
-          child: Text('Свободен сегодня', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: p.ok)),
         ),
       if (ad.category.isNotEmpty)
         Text('· ${ad.category}',
@@ -1652,8 +1646,8 @@ class OwnerPanel extends StatelessWidget {
       final d = now.subtract(Duration(days: i));
       final key = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
       final row = ad.dailyStats[key] is Map ? Map<String, dynamic>.from(ad.dailyStats[key] as Map) : <String, dynamic>{};
-      final v = (row['v'] as num?)?.toInt() ?? (i == 0 && ad.dailyStats.isEmpty ? ad.opens : 0);
-      final ph = (row['p'] as num?)?.toInt() ?? (i == 0 && ad.dailyStats.isEmpty ? ad.views : 0);
+      final v = (row['v'] as num?)?.toInt() ?? 0;
+      final ph = (row['p'] as num?)?.toInt() ?? 0;
       final r = (row['r'] as num?)?.toInt() ?? 0;
       if (v > maxV) maxV = v;
       totV += v;

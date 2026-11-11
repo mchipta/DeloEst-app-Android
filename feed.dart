@@ -34,7 +34,6 @@ class _FeedPageState extends State<FeedPage> {
   VoidCallback? _filterRefresh; // перерисовать открытый экран фильтров
   String _pt = '', _wh = ''; // тип оплаты и когда нужно (today / tomorrow / week)
   bool _urg = false; // только срочные
-  bool _qfFree = false; // свободен сегодня
   bool _qfPhoto = false; // с фото
   bool _qfVer = false; // проверенные (ver или ИНН)
   bool _auto = false;
@@ -81,7 +80,6 @@ class _FeedPageState extends State<FeedPage> {
       (_pt.isNotEmpty ? 1 : 0) +
       (_wh.isNotEmpty ? 1 : 0) +
       (_urg ? 1 : 0) +
-      (_qfFree ? 1 : 0) +
       (_qfPhoto ? 1 : 0) +
       (_qfVer ? 1 : 0) +
       (Near.i.has && _rad.isNotEmpty ? 1 : 0);
@@ -140,7 +138,6 @@ class _FeedPageState extends State<FeedPage> {
       if (mn > 0 && (n == null || n < mn)) return false;
       if (mx > 0 && (n == null || n > mx)) return false;
       if (_urg && !a.urgent) return false;
-      if (_qfFree && !a.freeToday) return false;
       if (_qfPhoto && a.imgs.isEmpty) return false;
       if (_qfVer && !(a.ver || a.innOk)) return false;
       if (_pt.isNotEmpty && _ptOf(a) != _pt) return false;
@@ -262,7 +259,6 @@ class _FeedPageState extends State<FeedPage> {
       _pt = '';
       _wh = '';
       _urg = false;
-      _qfFree = false;
       _qfPhoto = false;
       _qfVer = false;
       _minC.clear();
@@ -300,7 +296,7 @@ class _FeedPageState extends State<FeedPage> {
         ),
       );
 
-  Widget _qChip(Pal p, String label, bool on, VoidCallback f) => Padding(
+  Widget _qChip(Pal p, IconData ic, String label, bool on, VoidCallback f) => Padding(
         padding: const EdgeInsets.only(right: 8),
         child: Tap(
           onTap: () {
@@ -317,7 +313,11 @@ class _FeedPageState extends State<FeedPage> {
               borderRadius: BorderRadius.circular(99),
               border: Border.all(color: on ? Colors.transparent : p.bd),
             ),
-            child: Text(label, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: on ? Colors.white : p.tx)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(ic, size: 15, color: on ? Colors.white : p.tx),
+              const SizedBox(width: 5),
+              Text(label, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: on ? Colors.white : p.tx)),
+            ]),
           ),
         ),
       );
@@ -1239,34 +1239,9 @@ class _FeedPageState extends State<FeedPage> {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
           children: [
-            _qChip(p, '🔥 Срочно', _urg, () => setState(() => _urg = !_urg)),
-            _qChip(p, '🟢 Свободен сегодня', _qfFree, () => setState(() => _qfFree = !_qfFree)),
-            _qChip(p, '📷 С фото', _qfPhoto, () => setState(() => _qfPhoto = !_qfPhoto)),
-            _qChip(p, '✓ Проверенные', _qfVer, () => setState(() => _qfVer = !_qfVer)),
-            if (S.i.homePlace.isNotEmpty)
-              _qChip(p, '🏠 Дом: ${S.i.homePlace}', _city.toLowerCase() == S.i.homePlace.toLowerCase(), () {
-                setState(() {
-                  if (_city.toLowerCase() == S.i.homePlace.toLowerCase()) {
-                    _city = '';
-                    _cityC.clear();
-                  } else {
-                    _setCity(S.i.homePlace);
-                    _cityC.text = S.i.homePlace;
-                  }
-                });
-              }),
-            if (S.i.workPlace.isNotEmpty)
-              _qChip(p, '💼 Работа: ${S.i.workPlace}', _city.toLowerCase() == S.i.workPlace.toLowerCase(), () {
-                setState(() {
-                  if (_city.toLowerCase() == S.i.workPlace.toLowerCase()) {
-                    _city = '';
-                    _cityC.clear();
-                  } else {
-                    _setCity(S.i.workPlace);
-                    _cityC.text = S.i.workPlace;
-                  }
-                });
-              }),
+            _qChip(p, Icons.bolt_rounded, 'Срочно', _urg, () => setState(() => _urg = !_urg)),
+            _qChip(p, Icons.photo_camera_outlined, 'С фото', _qfPhoto, () => setState(() => _qfPhoto = !_qfPhoto)),
+            _qChip(p, Icons.verified_user_outlined, 'Проверенные', _qfVer, () => setState(() => _qfVer = !_qfVer)),
           ],
         ),
       ),

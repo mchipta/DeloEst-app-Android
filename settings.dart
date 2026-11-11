@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import 'admin.dart';
@@ -10,6 +12,7 @@ import 'legal.dart';
 import 'models.dart';
 import 'near.dart';
 import 'map_page.dart';
+import 'messages.dart';
 import 'state.dart';
 import 'theme.dart';
 import 'util.dart';
@@ -288,11 +291,10 @@ class _SettingsBodyState extends State<SettingsBody> {
             _tile(p, Icons.call_outlined, 'Телефон', S.i.phone.isEmpty ? '—' : fmtPhone(S.i.phone), _phone),
           ],
           if (!widget.profileOnly) ...[
-          _label(p, 'Поиск и мои места'),
+          _label(p, 'Поиск'),
           _tile(p, Icons.place_outlined, 'Регион для поиска', S.i.regionCity.isEmpty ? 'Все города' : (S.i.regionRad.isEmpty ? S.i.regionCity : '${S.i.regionCity} +${S.i.regionRad} км'),
               () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegionPage()))),
-          _placesCard(p),
-          _savedSearchesCard(p),
+            _savedSearchesCard(p),
           _label(p, 'Внешний вид и цвет акцента'),
           Container(
             margin: const EdgeInsets.only(bottom: 10),
@@ -487,62 +489,6 @@ class _SettingsBodyState extends State<SettingsBody> {
     );
   }
 
-  Widget _placesCard(Pal p) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: cardDeco(p, r: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(11)),
-            child: Icon(Icons.home_work_outlined, color: p.ac, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Мои места (Дом и Работа)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.tx)),
-              Text('Быстрые чипы фильтрации над лентой объявлений', style: TextStyle(color: p.mu, fontSize: 12.5)),
-            ]),
-          ),
-          TextButton(
-            onPressed: () async {
-              final r = await askFields(context, 'Мои места', [
-                FieldSpec('Дом (город или район)', initial: S.i.homePlace),
-                FieldSpec('Работа (город или район)', initial: S.i.workPlace),
-              ]);
-              if (r != null) {
-                await S.i.setPlaces(r[0], r[1]);
-                if (mounted) toast(context, 'Мои места сохранены');
-              }
-            },
-            child: Text('Изменить', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
-          ),
-        ]),
-        const SizedBox(height: 8),
-        Row(children: [
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12)),
-              child: Text('🏠 Дом: ${S.i.homePlace.isEmpty ? 'не указан' : S.i.homePlace}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: p.tx)),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12)),
-              child: Text('💼 Работа: ${S.i.workPlace.isEmpty ? 'не указана' : S.i.workPlace}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: p.tx)),
-            ),
-          ),
-        ]),
-      ]),
-    );
-  }
-
   Widget _savedSearchesCard(Pal p) {
     final list = S.i.ss;
     return Container(
@@ -681,7 +627,7 @@ class _SettingsBodyState extends State<SettingsBody> {
 
   Widget _innCard(Pal p) {
     final inn = (S.i.user?['inn'] ?? '').toString();
-    final ok = S.i.user?['innOk'] == true || inn.length == 12;
+    final ok = S.i.user?['innOk'] == true && inn.length == 12;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -718,85 +664,15 @@ class _SettingsBodyState extends State<SettingsBody> {
     );
   }
 
+  // Чат поддержки живёт в «Сообщениях», как в Авито: отсюда просто открываем его
   Future<void> _openSupportSheet() async {
-    final p = pal(context);
-    final msgC = TextEditingController();
-    List<Map<String, dynamic>> tickets = [];
-    var loading = true;
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: p.card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (c) => StatefulBuilder(
-        builder: (c, setS) {
-          if (loading) {
-            loading = false;
-            Api.call('supportList').then((r) {
-              if (c.mounted) {
-                final raw = r['list'];
-                setS(() {
-                  tickets = raw is List ? raw.map((e) => Map<String, dynamic>.from(e as Map)).toList() : [];
-                });
-              }
-            }).catchError((_) {});
-          }
-          return Padding(
-            padding: EdgeInsets.fromLTRB(16, 18, 16, 16 + MediaQuery.of(c).viewInsets.bottom),
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                Text('Поддержка ДелоЕсть', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: p.tx)),
-                const SizedBox(height: 6),
-                Text('Напишите вопрос или проблему — ответим прямо здесь.', style: TextStyle(color: p.mu, fontSize: 13.5)),
-                const SizedBox(height: 12),
-                for (final t in tickets.take(5))
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.bd)),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text((t['msg'] ?? '').toString(), style: TextStyle(color: p.tx, fontWeight: FontWeight.w600, fontSize: 13.5)),
-                      if ((t['reply'] ?? '').toString().isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text('Ответ поддержки: ${t['reply']}', style: TextStyle(color: p.ok, fontWeight: FontWeight.w700, fontSize: 13)),
-                      ] else
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text('В обработке', style: TextStyle(color: p.mu, fontSize: 11.5)),
-                        ),
-                    ]),
-                  ),
-                TextField(
-                  contextMenuBuilder: appContextMenu,
-                  controller: msgC,
-                  minLines: 2,
-                  maxLines: 4,
-                  style: TextStyle(color: p.tx),
-                  decoration: deco(c, 'Ваше обращение'),
-                ),
-                const SizedBox(height: 12),
-                GradBtn('Отправить в поддержку', onTap: () async {
-                  final text = msgC.text.trim();
-                  if (text.length < 3) {
-                    toast(c, 'Опишите ваш вопрос');
-                    return;
-                  }
-                  try {
-                    await Api.call('supportSend', {'subject': 'Обращение', 'msg': text});
-                    if (c.mounted) {
-                      Navigator.pop(c);
-                      toast(context, 'Обращение отправлено в поддержку');
-                    }
-                  } catch (e) {
-                    if (c.mounted) toast(c, S.i.fail(e), err: true);
-                  }
-                }),
-              ]),
-            ),
-          );
-        },
-      ),
-    );
+    await _run(() async {
+      final j = await Api.call('dialogs');
+      final l = j['list'] is List ? j['list'] as List : const [];
+      final d = l.firstWhere((e) => e is Map && e['sup'] == 1, orElse: () => null);
+      if (d == null || !mounted) return;
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(pid: d['pid'].toString(), name: 'Поддержка ДелоЕсть', adId: 'support')));
+    });
   }
 
   Widget _securityActionsCard(Pal p) {
@@ -811,8 +687,14 @@ class _SettingsBodyState extends State<SettingsBody> {
           await _run(() async {
             final res = await Api.call('exportData');
             final jsonStr = const JsonEncoder.withIndent('  ').convert(res['data'] ?? res);
-            await Clipboard.setData(ClipboardData(text: jsonStr));
-            if (mounted) toast(context, 'Архив ваших данных скопирован в буфер обмена');
+            try {
+              // отдаём файлом: через «Поделиться» его можно сохранить в «Файлы» или отправить себе
+              await Share.shareXFiles([XFile.fromData(Uint8List.fromList(utf8.encode(jsonStr)), mimeType: 'application/json', name: 'deloest-data.json')],
+                  fileNameOverrides: ['deloest-data.json'], subject: 'Мои данные ДелоЕсть');
+            } catch (_) {
+              await Clipboard.setData(ClipboardData(text: jsonStr));
+              if (mounted) toast(context, 'Не удалось создать файл, данные скопированы в буфер обмена');
+            }
           });
         }),
         if (delAt > 0)

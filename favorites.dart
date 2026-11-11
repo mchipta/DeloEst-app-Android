@@ -16,7 +16,6 @@ class FavoritesPage extends StatefulWidget {
 
 class _FavoritesPageState extends State<FavoritesPage> {
   int _t = 0; // 0 — объявления, 1 — сохранённые поиски
-  String _col = 'all'; // all, srv, req, urg, or custom id
 
   Widget _tab(Pal p, String text, int n, int i) {
     final on = _t == i;
@@ -40,35 +39,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
     );
   }
 
-  Future<void> _addCol(BuildContext context) async {
-    final p = pal(context);
-    final ctl = TextEditingController();
-    final nm = await showDialog<String>(
-      context: context,
-      builder: (c) => AlertDialog(
-        backgroundColor: p.card,
-        title: Text('Новая подборка', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
-        content: TextField(
-          contextMenuBuilder: appContextMenu,
-          controller: ctl,
-          autofocus: true,
-          style: TextStyle(color: p.tx),
-          decoration: deco(c, 'Название подборки', hint: 'Например: Ремонт дачи'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: Text('Отмена', style: TextStyle(color: p.mu))),
-          TextButton(onPressed: () => Navigator.pop(c, ctl.text.trim()), child: Text('Создать', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800))),
-        ],
-      ),
-    );
-    if (nm != null && nm.isNotEmpty) {
-      await S.i.addFavCol(nm);
-      if (mounted && S.i.favCols.isNotEmpty) {
-        setState(() => _col = S.i.favCols.last['id'] ?? 'all');
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -76,21 +46,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
       builder: (context, _) {
         final p = pal(context);
         final allAds = S.i.ads.where((a) => S.i.isFav(a.id)).toList();
-        final ads = allAds.where((a) {
-          if (_col == 'all') return true;
-          if (_col == 'srv') return a.type == kTypes[1];
-          if (_col == 'req') return a.type == kTypes[0];
-          if (_col == 'urg') return a.urgent;
-          return S.i.favMap[a.id] == _col;
-        }).toList();
+        final ads = allAds;
         final ss = List<Map<String, String>>.of(S.i.ss);
-        final cols = <List<String>>[
-          ['all', 'Все (${allAds.length})'],
-          ['srv', 'Исполнители'],
-          ['req', 'Заказы'],
-          ['urg', 'Срочные'],
-          for (final c in S.i.favCols) [c['id'] ?? '', c['name'] ?? 'Подборка'],
-        ];
         return Scaffold(
           appBar: AppBar(
             automaticallyImplyLeading: !widget.embedded,
@@ -105,47 +62,10 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   Row(children: [_tab(p, 'Объявления', allAds.length, 0), _tab(p, 'Поиски', ss.length, 1)]),
                   const SizedBox(height: 14),
                   if (_t == 0) ...[
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Row(children: [
-                        for (final c in cols)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: Tap(
-                              onTap: () => setState(() => _col = c[0]),
-                              scale: .96,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-                                decoration: BoxDecoration(
-                                  gradient: _col == c[0] ? LinearGradient(colors: [p.ac, p.ac2]) : null,
-                                  color: _col == c[0] ? null : p.card,
-                                  borderRadius: BorderRadius.circular(99),
-                                  border: Border.all(color: _col == c[0] ? Colors.transparent : p.bd),
-                                ),
-                                child: Text(c[1], style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _col == c[0] ? Colors.white : p.tx)),
-                              ),
-                            ),
-                          ),
-                        Tap(
-                          onTap: () => _addCol(context),
-                          scale: .96,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(99), border: Border.all(color: p.bd)),
-                            child: Row(mainAxisSize: MainAxisSize.min, children: [
-                              Icon(Icons.add_rounded, size: 16, color: p.ac),
-                              const SizedBox(width: 4),
-                              Text('Подборка', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: p.ac)),
-                            ]),
-                          ),
-                        ),
-                      ]),
-                    ),
                     if (ads.isEmpty)
                       EmptyState(
                           icon: Icons.favorite_border_rounded,
-                          title: allAds.isEmpty ? 'Здесь пока пусто' : 'В этой подборке пока пусто',
+                          title: 'Здесь пока пусто',
                           text: 'Нажмите на сердечко ♡ на карточке объявления, чтобы сохранить его сюда.',
                           button: 'Найти объявления',
                           onTap: () => S.i.goTab(1)),
@@ -153,27 +73,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
                       AdCard(
                         ad: a,
                         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: a))),
-                        footer: S.i.favCols.isEmpty
-                            ? null
-                            : Wrap(spacing: 6, runSpacing: 6, children: [
-                                for (final c in S.i.favCols)
-                                  Tap(
-                                    onTap: () => S.i.setFavCol(a.id, S.i.favMap[a.id] == c['id'] ? '' : (c['id'] ?? '')),
-                                    scale: .96,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: S.i.favMap[a.id] == c['id'] ? p.ac.withOpacity(.16) : p.bg2,
-                                        borderRadius: BorderRadius.circular(99),
-                                        border: Border.all(color: S.i.favMap[a.id] == c['id'] ? p.ac : p.bd),
-                                      ),
-                                      child: Text(
-                                        '📁 ${c['name'] ?? ''}',
-                                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: S.i.favMap[a.id] == c['id'] ? p.ac : p.mu),
-                                      ),
-                                    ),
-                                  ),
-                              ]),
                       ),
                   ] else ...[
                     if (ss.isEmpty)

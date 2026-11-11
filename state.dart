@@ -44,12 +44,9 @@ class S extends ChangeNotifier {
   String phonePrivacy = 'all'; // all, reply, chat
   Map<String, bool> notifTypes = {'msg': true, 'reply': true, 'ss': true, 'rev': true};
   bool dndOn = false;
+  bool regionAsked = false; // шторку «Где вы ищете?» за запуск показываем один раз
   String dndFrom = '22:00';
   String dndTo = '08:00';
-  String homePlace = '';
-  String workPlace = '';
-  List<Map<String, String>> favCols = [];
-  Map<String, String> favMap = {};
   int tab = 0;
   // корневая вкладка: у вошедшего «Главной» нет, ею служит «Поиск»
   int get rootTab => logged ? 1 : 0;
@@ -106,8 +103,6 @@ class S extends ChangeNotifier {
     i.accentIdx = (p.getInt('accent_idx') ?? 0).clamp(0, Pal.accents.length - 1).toInt();
     Pal.accentIndex = i.accentIdx;
     i.phonePrivacy = p.getString('phone_privacy') ?? 'all';
-    i.homePlace = p.getString('home_place') ?? '';
-    i.workPlace = p.getString('work_place') ?? '';
     i.dndOn = p.getBool('dnd_on') ?? false;
     i.dndFrom = p.getString('dnd_from') ?? '22:00';
     i.dndTo = p.getString('dnd_to') ?? '08:00';
@@ -121,18 +116,6 @@ class S extends ChangeNotifier {
           'ss': m['ss'] != false,
           'rev': m['rev'] != false,
         };
-      } catch (_) {}
-    }
-    final fcRaw = p.getString('fav_cols');
-    if (fcRaw != null) {
-      try {
-        i.favCols = (jsonDecode(fcRaw) as List).map((e) => Map<String, String>.from(e as Map)).toList();
-      } catch (_) {}
-    }
-    final fmRaw = p.getString('fav_map');
-    if (fmRaw != null) {
-      try {
-        i.favMap = Map<String, String>.from(jsonDecode(fmRaw) as Map);
       } catch (_) {}
     }
     applyEdgeToEdge(true); // панель всегда плавающая, вокруг неё ничего нет
@@ -193,6 +176,7 @@ class S extends ChangeNotifier {
       if (i.logged) {
         i.syncBlocks();
         i.syncSS();
+        i.syncAccount();
       }
     });
     i._timer = Timer.periodic(const Duration(seconds: 30), (_) => i.refreshUnread());
@@ -277,7 +261,49 @@ class S extends ChangeNotifier {
       refreshUnread();
       syncBlocks();
       syncSS();
+      _applyAccount(j);
     }
+  }
+
+  // Настройки аккаунта (приватность номера, типы уведомлений, «Не беспокоить», ИНН, удаление) хранятся на сервере
+  Future<void> _applyAccount(Map<String, dynamic> j) async {
+    final pr = j['privacy'];
+    if (pr is Map) {
+      phonePrivacy = (pr['phoneMode'] ?? 'all').toString();
+      await prefs.setString('phone_privacy', phonePrivacy);
+    }
+    final np = j['notifPrefs'];
+    if (np is Map) {
+      notifTypes = {...notifTypes, for (final e in np.entries) e.key.toString(): e.value == true};
+      await prefs.setString('notif_types', jsonEncode(notifTypes));
+    }
+    final d = j['dnd'];
+    if (d is Map) {
+      dndOn = d['on'] == true;
+      dndFrom = (d['from'] ?? dndFrom).toString();
+      dndTo = (d['to'] ?? dndTo).toString();
+      await prefs.setBool('dnd_on', dndOn);
+      await prefs.setString('dnd_from', dndFrom);
+      await prefs.setString('dnd_to', dndTo);
+    }
+    await patchUser({'inn': j['inn'] ?? '', 'innOk': j['innVerified'] == true, 'delAt': j['delAt'] ?? 0});
+  }
+
+  Future<void> syncAccount() async {
+    try {
+      await _applyAccount(await Api.call('me'));
+    } catch (_) {}
+  }
+
+  // «Не беспокоить»: сейчас ночное окно, звук уведомлений не нужен
+  bool get dndNow {
+    if (!dndOn) return false;
+    int m(String t) {
+      final p = t.split(':');
+      return (int.tryParse(p[0]) ?? 0) * 60 + (int.tryParse(p.length > 1 ? p[1] : '0') ?? 0);
+    }
+    final n = DateTime.now(), c = n.hour * 60 + n.minute, f = m(dndFrom), t = m(dndTo);
+    return f <= t ? c >= f && c < t : c >= f || c < t;
   }
 
   Future<void> patchUser(Map<String, dynamic> m) async {
@@ -442,7 +468,7 @@ class S extends ChangeNotifier {
           final body = (m['body'] ?? '').toString();
           if (ts > maxTs) maxTs = ts;
           if (messageNotificationsEnabled && body.isNotEmpty) {
-            if (_resumed) await showSystemPush(title, body);
+            if (_resumed && !dndNow) await showSystemPush(title, body);
             TopToastHost.show(body, title: title, seconds: 5);
           }
         }
@@ -732,44 +758,6 @@ class S extends ChangeNotifier {
         'dnd': {'on': dndOn, 'from': dndFrom, 'to': dndTo}
       }).then((_) {}, onError: (_) {});
     }
-  }
-
-  Future<void> setPlaces(String home, String work) async {
-    vibrate();
-    homePlace = home.trim();
-    workPlace = work.trim();
-    await prefs.setString('home_place', homePlace);
-    await prefs.setString('work_place', workPlace);
-    notifyListeners();
-    if (logged) {
-      Api.call('saveSettings', {
-        'places': [
-          {'kind': 'home', 'label': 'Дом', 'addr': homePlace},
-          {'kind': 'work', 'label': 'Работа', 'addr': workPlace},
-        ]
-      }).then((_) {}, onError: (_) {});
-    }
-  }
-
-  Future<void> addFavCol(String name) async {
-    final nm = name.trim();
-    if (nm.isEmpty) return;
-    vibrate();
-    final id = 'c${DateTime.now().millisecondsSinceEpoch}';
-    favCols.add({'id': id, 'name': nm});
-    await prefs.setString('fav_cols', jsonEncode(favCols));
-    notifyListeners();
-  }
-
-  Future<void> setFavCol(String adId, String colId) async {
-    vibrate();
-    if (colId.isEmpty) {
-      favMap.remove(adId);
-    } else {
-      favMap[adId] = colId;
-    }
-    await prefs.setString('fav_map', jsonEncode(favMap));
-    notifyListeners();
   }
 
   void goTab(int t) {

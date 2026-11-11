@@ -209,7 +209,7 @@ class _CabinetPageState extends State<CabinetPage> {
   // Вкладка «Объявления»: мои объявления, отклики мне, мои отклики + кнопка «Разместить объявление»
   Widget _buildAds(Pal p) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Мои объявления'), centerTitle: true),
+      appBar: AppBar(title: const Text('Объявления'), centerTitle: true),
       body: !S.i.logged
           ? const NeedAuth(icon: Icons.add_box_outlined, title: 'Мои объявления', text: 'Войдите, чтобы размещать объявления и видеть отклики на них.')
           : Stack(children: [

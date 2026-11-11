@@ -205,6 +205,9 @@ object DeloEstNotif {
     // true только пока приложение открыто (живёт в памяти процесса, после закрытия сбрасывается само)
     @Volatile var appFg = false
 
+    // true на время показа push, который сервер пометил как «тихий» (режим «Не беспокоить»)
+    @Volatile var quiet = false
+
     fun ensureChannel(ctx: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val ch = NotificationChannel(
@@ -261,6 +264,7 @@ object DeloEstNotif {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setAutoCancel(true)
+            .setSilent(quiet)
             .setContentIntent(pi)
 
         if (largeBmp != null) {
@@ -343,6 +347,7 @@ object DeloEstNotif {
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setOnlyAlertOnce(!alert)
             .setAutoCancel(true)
+            .setSilent(quiet)
             .setContentIntent(openPi)
             .addAction(replyAction)
 
@@ -402,6 +407,15 @@ class DeloEstFcmService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(msg: RemoteMessage) {
+        DeloEstNotif.quiet = msg.data["silent"] == "1"
+        try {
+            handle(msg)
+        } finally {
+            DeloEstNotif.quiet = false
+        }
+    }
+
+    private fun handle(msg: RemoteMessage) {
         val p = getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
         if (!p.getBoolean("enabled", true)) return
         if (DeloEstNotif.appFg) return
