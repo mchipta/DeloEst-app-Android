@@ -8,6 +8,7 @@ import 'feed.dart';
 import 'landing.dart';
 import 'messages.dart';
 import 'post.dart';
+import 'settings.dart' show RegionPage;
 import 'state.dart';
 import 'welcome.dart';
 import 'theme.dart';
@@ -29,7 +30,7 @@ class HomeShell extends StatelessWidget {
         if (S.i.logged && !S.i.regionChosen && !S.i.regionAsked) {
           S.i.regionAsked = true;
           Future.delayed(const Duration(milliseconds: 700), () {
-            if (context.mounted && !S.i.regionChosen) showRegionSheet(context);
+            if (context.mounted && !S.i.regionChosen) Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegionPage()));
           });
         }
         final p = pal(context);
