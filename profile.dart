@@ -337,24 +337,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 ]),
               ),
             ),
-            if (!me && !blocked) ...[
-              const SizedBox(height: 12),
-              Row(children: [
-                Expanded(child: GradBtn('Предложить задачу', icon: Icons.assignment_add, onTap: () => _offerTask(name))),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutBtn('Написать', icon: Icons.chat_bubble_outline_rounded, onTap: () async {
-                    if (!S.i.logged) {
-                      await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()));
-                      if (!mounted || !S.i.logged) return;
-                    }
-                    if (mounted) {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(pid: widget.pid, name: name, ver: ver)));
-                    }
-                  }),
-                ),
-              ]),
-            ],
             if (since.isNotEmpty || dn > 0) ...[
               const SizedBox(height: 14),
               Container(height: 1, color: p.bd),
@@ -372,15 +354,11 @@ class _ProfilePageState extends State<ProfilePage> {
           ]),
         ),
         const SizedBox(height: 14),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(children: [
-            tabChip('ads', 'Объявления', ads.length),
-            tabChip('rev', 'Отзывы', rc),
-          ]),
+        Padding(
+          padding: const EdgeInsets.only(left: 2, bottom: 10),
+          child: Text('Объявления · ${ads.length}', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx)),
         ),
-        const SizedBox(height: 12),
-        if (_tab == 'ads') ...[
+        if (true) ...[
           if (ads.isEmpty) EmptyState(icon: Icons.campaign_outlined, title: 'Активных объявлений нет', text: me ? 'Опубликуйте объявление, чтобы находить заказы или исполнителей.' : 'У пользователя сейчас нет активных объявлений.'),
           for (final a in ads)
             AdCard(ad: a, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdPage(ad: a)))),

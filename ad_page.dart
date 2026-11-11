@@ -417,10 +417,10 @@ class _AdPageState extends State<AdPage> {
       ),
       child: Row(children: [
         if (ph.isNotEmpty) ...[
-          _sq(p, 'phone', () => _call(ph), label: 'Позвонить', tooltip: 'Позвонить'),
+          _sq(p, 'phone', () => _call(ph), tooltip: 'Позвонить'),
           const SizedBox(width: 6),
         ],
-        _sq(p, 'chat', _write, label: 'Написать', tooltip: 'Написать'),
+        _sq(p, 'chat', _write, tooltip: 'Написать'),
         const SizedBox(width: 6),
         Expanded(
           child: GradBtn(
@@ -456,7 +456,8 @@ class _AdPageState extends State<AdPage> {
       scale: .92,
       child: Container(
         height: 46,
-        padding: EdgeInsets.symmetric(horizontal: label != null ? 13 : 12),
+        width: label != null ? null : 52,
+        padding: EdgeInsets.symmetric(horizontal: label != null ? 13 : 0),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: p.ac.withOpacity(.10),
@@ -464,7 +465,7 @@ class _AdPageState extends State<AdPage> {
           border: Border.all(color: p.ac, width: 1.5),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Ico(ico, size: 19, color: p.ac),
+          Ico(ico, size: 22, color: p.ac),
           if (label != null) ...[
             const SizedBox(width: 6),
             Text(label, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: p.ac)),

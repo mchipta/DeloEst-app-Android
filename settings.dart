@@ -292,9 +292,8 @@ class _SettingsBodyState extends State<SettingsBody> {
           ],
           if (!widget.profileOnly) ...[
           _label(p, 'Поиск'),
-          _tile(p, Icons.place_outlined, 'Регион для поиска', S.i.regionCity.isEmpty ? 'Все города' : (S.i.regionRad.isEmpty ? S.i.regionCity : '${S.i.regionCity} +${S.i.regionRad} км'),
+          _tile(p, Icons.place_outlined, 'Регион для поиска', S.i.regionCity.isEmpty ? 'Все города' : S.i.regionCity,
               () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegionPage()))),
-            _savedSearchesCard(p),
           _label(p, 'Внешний вид и цвет акцента'),
           Container(
             margin: const EdgeInsets.only(bottom: 10),
@@ -347,19 +346,30 @@ class _SettingsBodyState extends State<SettingsBody> {
               const SizedBox(height: 12),
               Row(children: [
                 for (var i = 0; i < Pal.accents.length; i++)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: GestureDetector(
-                      onTap: () => S.i.setAccent(i),
-                      child: Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(colors: [Pal.accents[i][1] as Color, Pal.accents[i][2] as Color]),
-                          border: Border.all(color: S.i.accentIdx == i ? p.tx : Colors.transparent, width: 2.5),
-                        ),
-                        child: S.i.accentIdx == i ? const Icon(Icons.check_rounded, size: 17, color: Colors.white) : null,
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(right: i == Pal.accents.length - 1 ? 0 : 8),
+                      child: GestureDetector(
+                        onTap: () => S.i.setAccent(i),
+                        child: Column(children: [
+                          Container(
+                            height: 44,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              gradient: LinearGradient(colors: [Pal.accents[i][1] as Color, Pal.accents[i][2] as Color], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                              border: Border.all(color: S.i.accentIdx == i ? p.tx : Colors.transparent, width: 2),
+                            ),
+                            child: S.i.accentIdx == i ? const Icon(Icons.check_rounded, size: 20, color: Colors.white) : null,
+                          ),
+                          const SizedBox(height: 5),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(Pal.accents[i][0] as String,
+                                maxLines: 1,
+                                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: S.i.accentIdx == i ? p.tx : p.mu)),
+                          ),
+                        ]),
                       ),
                     ),
                   ),
@@ -677,13 +687,9 @@ class _SettingsBodyState extends State<SettingsBody> {
 
   Widget _securityActionsCard(Pal p) {
     final delAt = (S.i.user?['delAt'] as num?)?.toInt() ?? 0;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: cardDeco(p, r: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        _tile(p, Icons.support_agent_rounded, 'Чат с поддержкой', 'Задать вопрос внутри приложения', _openSupportSheet),
-        _tile(p, Icons.download_outlined, 'Скачать мои данные (JSON)', 'Профиль, объявления, отклики и отзывы', () async {
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        _tile(p, Icons.support_agent_rounded, 'Чат с поддержкой', 'Ответим прямо в приложении', _openSupportSheet),
+        _tile(p, Icons.download_outlined, 'Скачать мои данные', 'Файл JSON: профиль, объявления, отзывы', () async {
           await _run(() async {
             final res = await Api.call('exportData');
             final jsonStr = const JsonEncoder.withIndent('  ').convert(res['data'] ?? res);
@@ -698,7 +704,7 @@ class _SettingsBodyState extends State<SettingsBody> {
           });
         }),
         if (delAt > 0)
-          _tile(p, Icons.restore_from_trash_rounded, 'Отменить удаление аккаунта', 'Аккаунт в очереди на удаление (7 дней)', () async {
+          _tile(p, Icons.restore_from_trash_rounded, 'Отменить удаление аккаунта', 'Удаление запланировано на 7 дней', () async {
             await _run(() async {
               await Api.call('cancelDelete');
               await S.i.patchUser({'delAt': 0});
@@ -706,7 +712,7 @@ class _SettingsBodyState extends State<SettingsBody> {
             });
           }, color: p.ok)
         else
-          _tile(p, Icons.delete_forever_outlined, 'Удалить аккаунт (отсрочка 7 дней)', 'Можно восстановить в течение 7 дней', () async {
+          _tile(p, Icons.delete_forever_outlined, 'Удалить аккаунт', 'Отсрочка 7 дней, можно восстановить', () async {
             final r = await askFields(context, 'Удаление аккаунта', [
               const FieldSpec('Причина удаления (необязательно)'),
             ], ok: 'Запланировать удаление', hint: 'Аккаунт будет удалён через 7 дней. В течение этого срока удаление можно отменить.');
@@ -717,8 +723,7 @@ class _SettingsBodyState extends State<SettingsBody> {
               if (mounted) toast(context, 'Удаление аккаунта запланировано через 7 дней');
             });
           }, color: p.dng),
-      ]),
-    );
+    ]);
   }
 }
 
@@ -1085,8 +1090,6 @@ class _RegionPageState extends State<RegionPage> {
     setState(() {
       if (v.trim().isEmpty) {
         _rad = '';
-      } else if (!had && _rad.isEmpty) {
-        _rad = '50';
       }
     });
   }
@@ -1103,7 +1106,6 @@ class _RegionPageState extends State<RegionPage> {
       _busy = false;
       if (city != null) {
         _c.text = city;
-        if (_rad.isEmpty) _rad = '50';
       }
     });
     if (r != NearResult.ok) {
@@ -1114,7 +1116,7 @@ class _RegionPageState extends State<RegionPage> {
   }
 
   Future<void> _save() async {
-    await S.i.setRegion(_c.text, _rad, _first);
+    await S.i.setRegion(_c.text, '', false);
     if (!mounted) return;
     toast(context, _c.text.trim().isEmpty ? 'Ищем по всем городам' : 'Регион для поиска: ${_c.text.trim()}');
     Navigator.pop(context);
@@ -1180,37 +1182,6 @@ class _RegionPageState extends State<RegionPage> {
                 ]),
               ),
             ),
-            if (hasCity) ...[
-              const SizedBox(height: 20),
-              Text('Радиус', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx)),
-              const SizedBox(height: 10),
-              Wrap(spacing: 8, runSpacing: 8, children: [
-                chip('Только город', ''),
-                for (final v in const ['5', '15', '25', '50', '100', '150']) chip('$v км', v),
-              ]),
-              if (_rad.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                Tap(
-                  onTap: () {
-                    haptic();
-                    setState(() => _first = !_first);
-                  },
-                  scale: .99,
-                  child: Row(children: [
-                    Expanded(child: Text('Сначала из ${_c.text.trim()}', style: TextStyle(fontSize: 16, color: p.tx))),
-                    IgnorePointer(
-                      child: Switch(
-                        value: _first,
-                        onChanged: (_) {},
-                        activeColor: Colors.white,
-                        activeTrackColor: p.ok,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                  ]),
-                ),
-              ],
-            ],
             const SizedBox(height: 14),
             if (hasCity)
               TextButton(

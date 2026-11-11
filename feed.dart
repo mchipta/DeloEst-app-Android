@@ -73,16 +73,11 @@ class _FeedPageState extends State<FeedPage> {
 
   int get _activeFilters =>
       (_type.isNotEmpty ? 1 : 0) +
-      (_city.trim().isNotEmpty ? 1 : 0) +
       (_min.isNotEmpty ? 1 : 0) +
       (_max.isNotEmpty ? 1 : 0) +
       (_sort.isNotEmpty ? 1 : 0) +
       (_pt.isNotEmpty ? 1 : 0) +
-      (_wh.isNotEmpty ? 1 : 0) +
-      (_urg ? 1 : 0) +
-      (_qfPhoto ? 1 : 0) +
-      (_qfVer ? 1 : 0) +
-      (Near.i.has && _rad.isNotEmpty ? 1 : 0);
+      (_wh.isNotEmpty ? 1 : 0);
 
   String get _filterSummary => [
         if (_type.isNotEmpty) _type,
@@ -492,7 +487,6 @@ class _FeedPageState extends State<FeedPage> {
                   Wrap(spacing: 8, runSpacing: 8, children: [
                     _fChip(p, 'Любое время', _wh.isEmpty, () => upd(() => _wh = '')),
                     for (final w in const ['today', 'tomorrow', 'week']) _fChip(p, _whLabel(w), _wh == w, () => upd(() => _wh = _wh == w ? '' : w)),
-                    _fChip(p, 'Только срочные', _urg, () => upd(() => _urg = !_urg)),
                   ]),
                   title('Сортировка'),
                   Wrap(spacing: 8, runSpacing: 8, children: [
@@ -1229,19 +1223,6 @@ class _FeedPageState extends State<FeedPage> {
             _catTile(p, 'Все', Icons.apps_rounded, p.ac, _cat.isEmpty, () => setState(() => _cat = '')),
             for (final k in kCats)
               _catTile(p, k.name, k.icon, catHue(k.name), _cat == k.name, () => setState(() => _cat = _cat == k.name ? '' : k.name)),
-          ],
-        ),
-      ),
-      // Чипы быстрых фильтров над лентой
-      SizedBox(
-        height: 40,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-          children: [
-            _qChip(p, Icons.bolt_rounded, 'Срочно', _urg, () => setState(() => _urg = !_urg)),
-            _qChip(p, Icons.photo_camera_outlined, 'С фото', _qfPhoto, () => setState(() => _qfPhoto = !_qfPhoto)),
-            _qChip(p, Icons.verified_user_outlined, 'Проверенные', _qfVer, () => setState(() => _qfVer = !_qfVer)),
           ],
         ),
       ),

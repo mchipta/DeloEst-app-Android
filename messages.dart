@@ -762,7 +762,7 @@ class _ChatPageState extends State<ChatPage> {
         ]);
     final items = <PopupMenuEntry<String>>[
       PopupMenuItem<String>(
-        enabled: false,
+        enabled: true, // не false: иначе меню затемняет эмодзи как «неактивные»
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           for (final e in const ['👍', '❤️', '😂', '😮', '🙏', '✅'])

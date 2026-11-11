@@ -59,7 +59,7 @@ class _RegionSheetState extends State<_RegionSheet> {
   Future<void> _done({required bool skip}) async {
     haptic();
     final city = skip ? '' : _c.text.trim();
-    await S.i.setRegion(city, city.isEmpty ? '' : '50', true);
+    await S.i.setRegion(city, '', false);
     Near.i.auto().then((_) => Near.i.fill(S.i.ads), onError: (_) {});
     if (mounted) Navigator.pop(context);
   }
@@ -99,7 +99,7 @@ class _RegionSheetState extends State<_RegionSheet> {
             scale: .98,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-              decoration: BoxDecoration(color: p.bg, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
+              decoration: BoxDecoration(color: p.ac.withOpacity(.07), borderRadius: BorderRadius.circular(16), border: Border.all(color: p.ac.withOpacity(.35))),
               child: Row(children: [
                 Container(
                   width: 38,
