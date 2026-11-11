@@ -660,6 +660,42 @@ class CatChip extends StatelessWidget {
   }
 }
 
+/// Аватар официальной поддержки: гарнитура на градиенте + галочка подтверждения
+class SupportAvatar extends StatelessWidget {
+  final double size;
+  const SupportAvatar({super.key, this.size = 44});
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(clipBehavior: Clip.none, children: [
+        Container(
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(colors: [p.ac, p.ac2], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          ),
+          child: Icon(Icons.support_agent_rounded, size: size * .58, color: Colors.white),
+        ),
+        Positioned(
+          right: -2,
+          bottom: -2,
+          child: Container(
+            width: size * .38,
+            height: size * .38,
+            decoration: BoxDecoration(color: p.card, shape: BoxShape.circle),
+            child: Icon(Icons.verified_rounded, size: size * .34, color: p.ok),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
 class Avatar extends StatelessWidget {
   final String name;
   final String data;

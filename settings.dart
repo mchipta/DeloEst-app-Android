@@ -24,14 +24,16 @@ class FieldSpec {
   final bool secret;
   final bool multi;
   final TextInputType? type;
-  const FieldSpec(this.label, {this.initial = '', this.secret = false, this.multi = false, this.type});
+  final int? maxLen;
+  final bool digitsOnly;
+  const FieldSpec(this.label, {this.initial = '', this.secret = false, this.multi = false, this.type, this.maxLen, this.digitsOnly = false});
 }
 
 Future<List<String>?> askFields(BuildContext context, String title, List<FieldSpec> fields,
-    {String ok = 'Сохранить', String? hint}) {
+    {String ok = 'Сохранить', String? hint, Future<void> Function(List<String>)? onSubmit}) {
   return showDialog<List<String>>(
     context: context,
-    builder: (c) => _FieldsDialog(title: title, fields: fields, ok: ok, hint: hint),
+    builder: (c) => _FieldsDialog(title: title, fields: fields, ok: ok, hint: hint, onSubmit: onSubmit),
   );
 }
 
@@ -39,13 +41,40 @@ class _FieldsDialog extends StatefulWidget {
   final String title, ok;
   final String? hint;
   final List<FieldSpec> fields;
-  const _FieldsDialog({required this.title, required this.fields, required this.ok, this.hint});
+  final Future<void> Function(List<String>)? onSubmit;
+  const _FieldsDialog({required this.title, required this.fields, required this.ok, this.hint, this.onSubmit});
   @override
   State<_FieldsDialog> createState() => _FieldsDialogState();
 }
 
 class _FieldsDialogState extends State<_FieldsDialog> {
   late final List<TextEditingController> cs = [for (final f in widget.fields) TextEditingController(text: f.initial)];
+  bool _busy = false;
+  String? _err;
+
+  Future<void> _submit() async {
+    final vals = [for (final c in cs) c.text.trim()];
+    if (widget.onSubmit == null) {
+      Navigator.pop(context, vals);
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _busy = true;
+      _err = null;
+    });
+    try {
+      await widget.onSubmit!(vals);
+      if (mounted) Navigator.pop(context, vals);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _err = S.i.fail(e);
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -71,20 +100,26 @@ class _FieldsDialogState extends State<_FieldsDialog> {
                 controller: cs[i],
                 obscureText: widget.fields[i].secret,
                 keyboardType: widget.fields[i].type,
+                enabled: !_busy,
+                maxLength: widget.fields[i].maxLen,
+                inputFormatters: [if (widget.fields[i].digitsOnly) FilteringTextInputFormatter.digitsOnly],
                 minLines: widget.fields[i].multi ? 3 : 1,
                 maxLines: widget.fields[i].multi ? 5 : 1,
                 autocorrect: !widget.fields[i].secret,
                 style: TextStyle(color: p.tx),
-                decoration: deco(context, widget.fields[i].label),
+                decoration: deco(context, widget.fields[i].label).copyWith(counterText: ''),
               ),
             ),
+          if (_err != null) Padding(padding: const EdgeInsets.only(top: 2), child: Text(_err!, style: TextStyle(color: p.dng, fontSize: 13))),
         ]),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text('Отмена', style: TextStyle(color: p.mu))),
+        TextButton(onPressed: _busy ? null : () => Navigator.pop(context), child: Text('Отмена', style: TextStyle(color: p.mu))),
         TextButton(
-          onPressed: () => Navigator.pop(context, [for (final c in cs) c.text.trim()]),
-          child: Text(widget.ok, style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
+          onPressed: _busy ? null : _submit,
+          child: _busy
+              ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: p.ac))
+              : Text(widget.ok, style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
         ),
       ],
     );
@@ -658,15 +693,18 @@ class _SettingsBodyState extends State<SettingsBody> {
         ),
         TextButton(
           onPressed: () async {
+            String msg = 'Статус обновлён';
             final r = await askFields(context, 'Проверка ИНН самозанятого', [
-              FieldSpec('ИНН (12 цифр)', initial: inn, type: TextInputType.number),
-            ], ok: 'Проверить', hint: 'Проверим контрольную сумму ФНС и статус плательщика НПД.');
-            if (r == null) return;
-            await _run(() async {
-              final res = await Api.call('verifyInn', {'inn': r[0]});
+              FieldSpec('ИНН (12 цифр)', initial: inn, type: TextInputType.number, maxLen: 12, digitsOnly: true),
+            ], ok: 'Проверить', hint: 'Проверим контрольную сумму ФНС и статус плательщика НПД.', onSubmit: (v) async {
+              if (v[0].length != 12) throw Exception('ИНН должен содержать ровно 12 цифр');
+              final res = await Api.call('verifyInn', {'inn': v[0]});
               await S.i.patchUser({'inn': res['inn'] ?? '', 'innOk': res['innOk'] == true});
-              if (mounted) toast(context, res['msg']?.toString() ?? 'Статус обновлён');
+              msg = res['msg']?.toString() ?? msg;
             });
+            if (r == null || !mounted) return;
+            setState(() {});
+            toast(context, msg);
           },
           child: Text(ok ? 'Изменить' : 'Подтвердить', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
         ),
@@ -1116,7 +1154,7 @@ class _RegionPageState extends State<RegionPage> {
   }
 
   Future<void> _save() async {
-    await S.i.setRegion(_c.text, '', false);
+    await S.i.setRegion(_c.text, '100', true);
     if (!mounted) return;
     toast(context, _c.text.trim().isEmpty ? 'Ищем по всем городам' : 'Регион для поиска: ${_c.text.trim()}');
     Navigator.pop(context);

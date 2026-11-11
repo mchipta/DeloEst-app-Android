@@ -289,53 +289,24 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ]),
             const SizedBox(height: 14),
-            // Шапка с рейтингом и полосками оценок 5★–1★
+            // Компактный рейтинг, как на Авито: «5,0 ★★★★★ · 1 отзыв ›»
             Tap(
               onTap: () async {
                 await Navigator.push(context, MaterialPageRoute(builder: (_) => ReviewsPage(pid: widget.pid, name: name)));
                 if (mounted) _load();
               },
               scale: .99,
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
-                child: Row(children: [
-                  SizedBox(
-                    width: 88,
-                    child: Column(children: [
-                      Text(rc > 0 ? rt.toStringAsFixed(1) : '—', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: p.tx, height: 1.05)),
-                      const SizedBox(height: 4),
-                      StarsRow(rt, size: 15),
-                      const SizedBox(height: 3),
-                      Text(rc > 0 ? '$rc ${plural(rc, 'отзыв', 'отзыва', 'отзывов')}' : 'Нет отзывов', style: TextStyle(fontSize: 11.5, color: p.mu)),
-                    ]),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(children: [
-                      for (var s = 5; s >= 1; s--)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Row(children: [
-                            SizedBox(width: 24, child: Text('$s★', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: p.mu))),
-                            Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(99),
-                                child: LinearProgressIndicator(
-                                  value: rc > 0 ? (dist[s] ?? 0) / rc : 0,
-                                  minHeight: 6,
-                                  backgroundColor: p.card,
-                                  valueColor: AlwaysStoppedAnimation(p.ac),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 24, child: Text('${dist[s] ?? 0}', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, color: p.mu))),
-                          ]),
-                        ),
-                    ]),
-                  ),
-                ]),
-              ),
+              child: Row(children: [
+                if (rc > 0) ...[
+                  Text(rt.toStringAsFixed(1).replaceAll('.', ','), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: p.tx)),
+                  const SizedBox(width: 8),
+                  StarsRow(rt, size: 16),
+                  const SizedBox(width: 8),
+                  Text('$rc ${plural(rc, 'отзыв', 'отзыва', 'отзывов')}', style: TextStyle(color: p.ac, fontWeight: FontWeight.w700, fontSize: 14)),
+                ] else
+                  Text('Пока нет отзывов', style: TextStyle(color: p.mu, fontSize: 14)),
+                const Icon(Icons.chevron_right_rounded, size: 20),
+              ]),
             ),
             if (since.isNotEmpty || dn > 0) ...[
               const SizedBox(height: 14),

@@ -433,8 +433,8 @@ class S extends ChangeNotifier {
   // «Регион для поиска» из настроек: город, радиус и «сначала из города» по умолчанию для ленты
   bool get regionChosen => prefs.containsKey('region_city');
   String get regionCity => prefs.getString('region_city') ?? '';
-  String get regionRad => prefs.getString('region_rad') ?? '';
-  bool get regionFirst => prefs.getBool('region_first') ?? true;
+  String get regionRad => regionCity.isEmpty ? '' : '100';
+  bool get regionFirst => true;
   int regionStamp = 0;
 
   Future<void> setRegion(String city, String rad, bool first) async {

@@ -434,7 +434,7 @@ class _MessagesPageState extends State<MessagesPage> {
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
         decoration: cardDeco(p, r: 16),
         child: Row(children: [
-          Avatar((d['name'] ?? '').toString(), data: (d['avatar'] ?? '').toString(), size: 46),
+          _n(d['sup']) == 1 ? const SupportAvatar(size: 46) : Avatar((d['name'] ?? '').toString(), data: (d['avatar'] ?? '').toString(), size: 46),
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -448,7 +448,7 @@ class _MessagesPageState extends State<MessagesPage> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: p.tx)),
                     ),
-                    if (d['ver'] == true) ...[const SizedBox(width: 5), Icon(Icons.verified, size: 16, color: p.ok)],
+                    if (d['ver'] == true || _n(d['sup']) == 1) ...[const SizedBox(width: 5), Icon(Icons.verified, size: 16, color: p.ok)],
                   ]),
                 ),
                 const SizedBox(width: 8),
@@ -456,7 +456,7 @@ class _MessagesPageState extends State<MessagesPage> {
                 Text(siteListTime(_n(d['ts']), S.i.timeZone), style: TextStyle(color: p.mu, fontSize: 11.5)),
               ]),
               const SizedBox(height: 2),
-              _adChip(p, d),
+              if (_n(d['sup']) != 1) _adChip(p, d) else const SizedBox(height: 4),
               const SizedBox(height: 2),
               draft.isNotEmpty
                   ? Text.rich(
@@ -1204,13 +1204,13 @@ class _ChatPageState extends State<ChatPage> {
           onTap: _isSup ? null : () => Navigator.push(
               context, MaterialPageRoute(builder: (_) => ProfilePage(pid: widget.pid, name: name))),
           child: Row(children: [
-            Avatar(name, data: avatar, size: 38),
+            _isSup ? const SupportAvatar(size: 38) : Avatar(name, data: avatar, size: 38),
             const SizedBox(width: 10),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
                   Flexible(child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.tx))),
-                  if (ver) ...[const SizedBox(width: 5), Icon(Icons.verified, size: 16, color: p.ok)],
+                  if (ver || _isSup) ...[const SizedBox(width: 5), Icon(Icons.verified, size: 16, color: p.ok)],
                 ]),
                 if (_status.isNotEmpty)
                   Text(_status, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: (online || typing) ? p.ok : p.mu)),
@@ -1220,7 +1220,7 @@ class _ChatPageState extends State<ChatPage> {
         ),
       ),
       body: Column(children: [
-        if (adCard != null) _adHeader(p),
+        if (adCard != null && !_isSup) _adHeader(p),
         if (adCard != null && widget.adId.isNotEmpty && deal != 'rejected' && (choice != null || deal.isNotEmpty)) _dealCard(p),
         if (!_safeOff && !_isSup) _safeBanner(p),
         Expanded(child: Stack(children: [
