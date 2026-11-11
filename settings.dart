@@ -1248,3 +1248,143 @@ class _RegionPageState extends State<RegionPage> {
     );
   }
 }
+
+/// Шторка «Где вы ищете?» после первого входа (как на сайте): город, определение по геолокации, «Пропустить»
+Future<void> showRegionSheet(BuildContext context) {
+  final p = pal(context);
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  final surface = Color.alphaBlend(p.ac.withOpacity(dark ? .12 : .05), p.card);
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withOpacity(.6),
+    builder: (c) => Container(
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border.all(color: p.ac.withOpacity(.4), width: 1.2),
+        boxShadow: [BoxShadow(color: p.ac.withOpacity(.22), blurRadius: 32, offset: const Offset(0, -6))],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom),
+          child: const SingleChildScrollView(child: _RegionSheetBody()),
+        ),
+      ),
+    ),
+  );
+}
+
+class _RegionSheetBody extends StatefulWidget {
+  const _RegionSheetBody();
+  @override
+  State<_RegionSheetBody> createState() => _RegionSheetBodyState();
+}
+
+class _RegionSheetBodyState extends State<_RegionSheetBody> {
+  final _c = TextEditingController();
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  Future<void> _locate() async {
+    haptic();
+    setState(() => _busy = true);
+    final r = await Near.i.locate();
+    String? city;
+    final pos = Near.i.pos;
+    if (r == NearResult.ok && pos != null) city = await Geo.reverseCity(pos.latitude, pos.longitude);
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (city != null) _c.text = city;
+    });
+    if (r != NearResult.ok) {
+      toast(context, nearMsg(r), err: true);
+    } else if (city == null) {
+      toast(context, 'Не удалось определить город', err: true);
+    }
+  }
+
+  Future<void> _go(bool skip) async {
+    final nav = Navigator.of(context);
+    await S.i.setRegion(skip ? '' : _c.text, '100', true);
+    nav.pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    final has = _c.text.trim().isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Center(child: Container(width: 44, height: 4, decoration: BoxDecoration(color: p.mu.withOpacity(.45), borderRadius: BorderRadius.circular(99)))),
+        const SizedBox(height: 16),
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [p.ac, p.ac2]),
+            borderRadius: BorderRadius.circular(17),
+            boxShadow: [BoxShadow(color: p.ac.withOpacity(.4), blurRadius: 22, offset: const Offset(0, 8))],
+          ),
+          child: const Icon(Icons.place_rounded, color: Colors.white, size: 26),
+        ),
+        const SizedBox(height: 14),
+        Text('Где вы ищете?', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: p.tx, letterSpacing: -.4)),
+        const SizedBox(height: 6),
+        Text('Покажем подработки и услуги рядом с вами. Город можно сменить в любой момент в настройках.',
+            style: TextStyle(color: p.mu, fontSize: 14, height: 1.4)),
+        const SizedBox(height: 16),
+        CityField(
+          controller: _c,
+          decoration: deco(context, 'Город или регион', prefix: Icon(Icons.place_outlined, color: p.mu)),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 10),
+        Tap(
+          onTap: _busy ? null : _locate,
+          scale: .98,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(color: p.bg.withOpacity(.4), borderRadius: BorderRadius.circular(18), border: Border.all(color: p.bd)),
+            child: Row(children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: p.ac.withOpacity(.14), borderRadius: BorderRadius.circular(13)),
+                child: Icon(Icons.my_location_rounded, color: p.ac, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Определить автоматически', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: p.tx)),
+                  const SizedBox(height: 2),
+                  Text('Нужен доступ к геолокации', style: TextStyle(fontSize: 12.5, color: p.mu)),
+                ]),
+              ),
+              if (_busy) SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: p.ac)),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 14),
+        GradBtn('Продолжить', radius: 16, onTap: has ? () => _go(false) : null),
+        const SizedBox(height: 4),
+        SizedBox(
+          width: double.infinity,
+          child: TextButton(
+            onPressed: () => _go(true),
+            child: Text('Пропустить, искать везде', style: TextStyle(color: p.mu, fontWeight: FontWeight.w700)),
+          ),
+        ),
+      ]),
+    );
+  }
+}
