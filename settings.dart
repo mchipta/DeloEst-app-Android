@@ -258,50 +258,51 @@ class _SettingsBodyState extends State<SettingsBody> {
     }
   }
 
-  Widget _tile(Pal p, IconData icon, String title, String value, VoidCallback f, {Color? color}) {
-    return GestureDetector(
-      onTap: busy ? null : () { haptic(); f(); },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: cardDeco(p, r: 16),
-        child: Row(children: [
-          Icon(icon, color: color ?? p.ac, size: 24),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, color: color ?? p.tx)),
-              if (value.isNotEmpty) Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13.5)),
-            ]),
-          ),
-          Icon(Icons.chevron_right, color: p.mu),
-        ]),
-      ),
-    );
-  }
-
   Widget _label(Pal p, String t) => Padding(
         padding: const EdgeInsets.only(top: 14, bottom: 8),
         child: Text(t, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: p.tx)),
       );
 
   // ---------- Главный экран настроек: короткий список разделов с иконками ----------
-  Widget _group(Pal p, String title, List<Widget> rows) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 20, 0, 8),
-          child: Text(title.toUpperCase(), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5, letterSpacing: .6, color: p.mu)),
-        ),
-        Container(
-          decoration: cardDeco(p, r: 20),
-          clipBehavior: Clip.antiAlias,
-          child: Column(children: [
-            for (var i = 0; i < rows.length; i++) ...[
-              if (i > 0) Divider(height: 1, thickness: 1, indent: 64, color: p.bd),
-              rows[i],
-            ],
-          ]),
-        ),
-      ]);
+  Widget _rowsCard(Pal p, List<Widget> rows) => Container(
+        decoration: cardDeco(p, r: 20),
+        clipBehavior: Clip.antiAlias,
+        child: Column(children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) Divider(height: 1, thickness: 1, indent: 64, color: p.bd),
+            rows[i],
+          ],
+        ]),
+      );
+
+  Widget _cap(Pal p, String t) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 20, 0, 8),
+        child: Text(t.toUpperCase(), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5, letterSpacing: .6, color: p.mu)),
+      );
+
+  Widget _group(Pal p, String title, List<Widget> rows) =>
+      Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [_cap(p, title), _rowsCard(p, rows)]);
+
+  Widget _swRow(Pal p, IconData icon, Color k, String title, String sub, bool v, ValueChanged<bool> f) => Padding(
+        padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+        child: Row(children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(color: k.withOpacity(.16), borderRadius: BorderRadius.circular(11)),
+            child: Icon(icon, color: k, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, color: p.tx)),
+              if (sub.isNotEmpty)
+                Padding(padding: const EdgeInsets.only(top: 1), child: Text(sub, style: TextStyle(color: p.mu, fontSize: 13, height: 1.3))),
+            ]),
+          ),
+          Switch(value: v, activeColor: p.ac, onChanged: f),
+        ]),
+      );
 
   Widget _hubRow(Pal p, IconData icon, Color k, String title, String sub, VoidCallback f) {
     return Tap(
@@ -408,113 +409,76 @@ class _SettingsBodyState extends State<SettingsBody> {
     final tm = S.i.themeMode;
     return [
       if (sec == 'appear') ...[
-          _label(p, 'Внешний вид и цвет акцента'),
-          Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(14),
-            decoration: cardDeco(p, r: 16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(11)),
-                  child: Icon(Icons.palette_outlined, color: p.ac, size: 20),
+        _cap(p, 'Тема'),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: cardDeco(p, r: 20),
+          child: Row(children: [
+            for (final t in [
+              [ThemeMode.dark, 'Тёмная'],
+              [ThemeMode.light, 'Светлая'],
+              [ThemeMode.system, 'Авто'],
+            ])
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(right: t[0] == ThemeMode.system ? 0 : 8),
+                  child: GestureDetector(
+                    onTap: () => S.i.setTheme(t[0] as ThemeMode),
+                    child: Container(
+                      height: 46,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        gradient: tm == t[0] ? LinearGradient(colors: [p.ac, p.ac2]) : null,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: tm == t[0] ? Colors.transparent : p.bd),
+                      ),
+                      child: Text(t[1] as String,
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: tm == t[0] ? Colors.white : p.tx)),
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Тема и акцент', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.tx)),
-                    Text('Тёмная по умолчанию, 5 фирменных акцентов', style: TextStyle(color: p.mu, fontSize: 12.5)),
-                  ]),
-                ),
-              ]),
-              const SizedBox(height: 12),
-              Row(children: [
-                for (final t in [
-                  [ThemeMode.dark, 'Тёмная'],
-                  [ThemeMode.light, 'Светлая'],
-                  [ThemeMode.system, 'Авто'],
-                ])
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: GestureDetector(
-                        onTap: () => S.i.setTheme(t[0] as ThemeMode),
-                        child: Container(
-                          height: 42,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            gradient: tm == t[0] ? LinearGradient(colors: [p.ac, p.ac2]) : null,
-                            color: tm == t[0] ? null : p.bg2,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: tm == t[0] ? Colors.transparent : p.bd),
-                          ),
-                          child: Text(t[1] as String,
-                              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: tm == t[0] ? Colors.white : p.tx)),
+              ),
+          ]),
+        ),
+        _cap(p, 'Цвет акцента'),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: cardDeco(p, r: 20),
+          child: Row(children: [
+            for (var i = 0; i < Pal.accents.length; i++)
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(right: i == Pal.accents.length - 1 ? 0 : 8),
+                  child: GestureDetector(
+                    onTap: () => S.i.setAccent(i),
+                    child: Column(children: [
+                      Container(
+                        height: 52,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          gradient: LinearGradient(colors: [Pal.accents[i][1] as Color, Pal.accents[i][2] as Color], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                          border: Border.all(color: S.i.accentIdx == i ? p.tx : Colors.transparent, width: 2),
                         ),
+                        child: S.i.accentIdx == i ? const Icon(Icons.check_rounded, size: 22, color: Colors.white) : null,
                       ),
-                    ),
-                  ),
-              ]),
-              const SizedBox(height: 12),
-              Row(children: [
-                for (var i = 0; i < Pal.accents.length; i++)
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(right: i == Pal.accents.length - 1 ? 0 : 8),
-                      child: GestureDetector(
-                        onTap: () => S.i.setAccent(i),
-                        child: Column(children: [
-                          Container(
-                            height: 44,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(14),
-                              gradient: LinearGradient(colors: [Pal.accents[i][1] as Color, Pal.accents[i][2] as Color], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                              border: Border.all(color: S.i.accentIdx == i ? p.tx : Colors.transparent, width: 2),
-                            ),
-                            child: S.i.accentIdx == i ? const Icon(Icons.check_rounded, size: 20, color: Colors.white) : null,
-                          ),
-                          const SizedBox(height: 5),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(Pal.accents[i][0] as String,
-                                maxLines: 1,
-                                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: S.i.accentIdx == i ? p.tx : p.mu)),
-                          ),
-                        ]),
+                      const SizedBox(height: 5),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(Pal.accents[i][0] as String,
+                            maxLines: 1, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: S.i.accentIdx == i ? p.tx : p.mu)),
                       ),
-                    ),
+                    ]),
                   ),
-              ]),
-            ]),
-          ),
-          _label(p, 'Нижняя панель'),
-          Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
-            decoration: cardDeco(p, r: 16),
-            child: Row(children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(12)),
-                child: Icon(Icons.blur_on_rounded, color: p.ac),
+                ),
               ),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Прозрачная панель', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: p.tx)),
-                const SizedBox(height: 3),
-                Text('Нижнее меню становится стеклянным: экран просвечивает сквозь него с мягким размытием.', style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.3)),
-              ])),
-              Switch(
-                value: S.i.navTransparent,
-                activeColor: p.ac,
-                onChanged: (v) { S.i.setNavTransparent(v); },
-              ),
-            ]),
-          ),
+          ]),
+        ),
+        _cap(p, 'Нижняя панель'),
+        _rowsCard(p, [
+          _swRow(p, Icons.blur_on_rounded, const Color(0xFF4C8DFF), 'Прозрачная панель', 'Меню становится стеклянным, экран просвечивает',
+              S.i.navTransparent, (v) => S.i.setNavTransparent(v)),
+        ]),
       ],
       if (sec == 'privacy') ...[
         _privacyCard(p),
@@ -572,40 +536,25 @@ class _SettingsBodyState extends State<SettingsBody> {
       if (sec == 'inn' && S.i.logged) _innCard(p),
       if (sec == 'devices' && S.i.logged) const _DevicesCard(),
       if (sec == 'tz') ...[
-          Container(
-            padding: const EdgeInsets.all(14),
-            margin: const EdgeInsets.only(bottom: 10),
-            decoration: cardDeco(p, r: 16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Определять автоматически', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 15)),
-                    const SizedBox(height: 3),
-                    Text(
-                      S.i.timeZone.isEmpty ? 'Сейчас: ${deviceZoneLabel()}' : 'По нему показывается время сообщений и объявлений.',
-                      style: TextStyle(color: p.mu, fontSize: 13, height: 1.35),
-                    ),
-                  ]),
-                ),
-                Switch(
-                  value: S.i.timeZone.isEmpty,
-                  activeColor: p.ac,
-                  onChanged: (on) => S.i.setTimeZone(on ? '' : deviceZoneId()),
-                ),
-              ]),
-              if (S.i.timeZone.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                PickerField(
-                  label: 'Часовой пояс',
-                  sheetTitle: 'Часовой пояс',
-                  value: kSiteTimeZones.any((z) => z[0] == S.i.timeZone) ? S.i.timeZone : '',
-                  items: [for (final z in kSiteTimeZones.skip(1)) PickItem(z[0], z[1])],
-                  onChanged: (v) => S.i.setTimeZone(v),
-                ),
-              ],
-            ]),
+        _rowsCard(p, [
+          _swRow(p, Icons.schedule_rounded, const Color(0xFF1FB6D4), 'Определять автоматически',
+              S.i.timeZone.isEmpty ? 'Сейчас: ${deviceZoneLabel()}' : 'Выбран вручную', S.i.timeZone.isEmpty,
+              (on) => S.i.setTimeZone(on ? '' : deviceZoneId())),
+        ]),
+        if (S.i.timeZone.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          PickerField(
+            label: 'Часовой пояс',
+            sheetTitle: 'Часовой пояс',
+            value: kSiteTimeZones.any((z) => z[0] == S.i.timeZone) ? S.i.timeZone : '',
+            items: [for (final z in kSiteTimeZones.skip(1)) PickItem(z[0], z[1])],
+            onChanged: (v) => S.i.setTimeZone(v),
           ),
+        ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(6, 10, 6, 0),
+          child: Text('По часовому поясу показывается время откликов, сообщений и объявлений.', style: TextStyle(color: p.mu, fontSize: 13, height: 1.35)),
+        ),
       ],
     ];
   }
@@ -623,7 +572,7 @@ class _SettingsBodyState extends State<SettingsBody> {
             onTap: busy ? null : () { haptic(); _avatar(); },
             child: Container(
               padding: const EdgeInsets.all(16),
-              decoration: cardDeco(p),
+              decoration: cardDeco(p, r: 20),
               child: Row(children: [
                 Stack(children: [
                   Avatar(S.i.name, data: av, size: 64),
@@ -645,10 +594,12 @@ class _SettingsBodyState extends State<SettingsBody> {
             ),
           ),
           if (widget.profileOnly) ...[
-            _label(p, 'Данные профиля'),
-            _tile(p, Icons.person_outline, 'Имя', S.i.name, _name),
-            _tile(p, Icons.mail_outline, 'Почта', S.i.login.contains('@') ? S.i.login : '—', _email),
-            _tile(p, Icons.call_outlined, 'Телефон', S.i.phone.isEmpty ? '—' : fmtPhone(S.i.phone), _phone),
+            _cap(p, 'Данные профиля'),
+            _rowsCard(p, [
+              _hubRow(p, Icons.person_outline, const Color(0xFF4C8DFF), 'Имя', S.i.name, _name),
+              _hubRow(p, Icons.mail_outline, const Color(0xFFA678FF), 'Почта', S.i.login.contains('@') ? S.i.login : '—', _email),
+              _hubRow(p, Icons.call_outlined, p.ok, 'Телефон', S.i.phone.isEmpty ? '—' : fmtPhone(S.i.phone), _phone),
+            ]),
           ],
           if (!widget.profileOnly) ...(widget.section.isEmpty ? _hubItems(p) : _sectionItems(p)),
         ]);
@@ -707,7 +658,7 @@ class _SettingsBodyState extends State<SettingsBody> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
-      decoration: cardDeco(p, r: 16),
+      decoration: cardDeco(p, r: 20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         for (var i = 0; i < opts.length; i++) ...[
           if (i > 0) Divider(height: 14, color: p.bd),
@@ -736,81 +687,47 @@ class _SettingsBodyState extends State<SettingsBody> {
 
   Widget _notifCard(Pal p) {
     final nt = S.i.notifTypes;
-    Widget row(String k, String title, String sub) => Row(children: [
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: p.tx)),
-              Text(sub, style: TextStyle(color: p.mu, fontSize: 12)),
-            ]),
-          ),
-          Switch(
-            value: nt[k] != false,
-            activeColor: p.ac,
-            onChanged: (v) => S.i.setNotifType(k, v),
-          ),
-        ]);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: cardDeco(p, r: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Push-уведомления', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.tx)),
-              Text('Главный переключатель уведомлений на телефоне', style: TextStyle(color: p.mu, fontSize: 12.5)),
-            ]),
-          ),
-          Switch(
-            value: S.i.messageNotificationsEnabled,
-            activeColor: p.ac,
-            onChanged: (v) => S.i.setMessageNotificationsEnabled(v),
-          ),
-        ]),
-        Divider(height: 16, color: p.bd),
-        row('msg', 'Новые сообщения', 'Личные сообщения и предложения задач'),
-        row('reply', 'Отклики на объявления', 'Новые отклики и смена статуса'),
-        row('ss', 'Сохранённые поиски', 'Новые объявления по вашим фильтрам'),
-        row('rev', 'Новые отзывы', 'Оценки и ответы на отзывы'),
-        Divider(height: 16, color: p.bd),
-        Row(children: [
-          Icon(Icons.bedtime_outlined, color: S.i.dndOn ? p.ac : p.mu, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Не беспокоить (${S.i.dndFrom} – ${S.i.dndTo})', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: p.tx)),
-              Text('Без звуковых уведомлений в ночные часы', style: TextStyle(color: p.mu, fontSize: 12)),
-            ]),
-          ),
-          Switch(
-            value: S.i.dndOn,
-            activeColor: p.ac,
-            onChanged: (v) => S.i.setDnd(on: v),
-          ),
-        ]),
+    const blue = Color(0xFF4C8DFF), amber = Color(0xFFF5B301), grey = Color(0xFF8B8FA8);
+    Widget t(String k, IconData i, Color c, String title, String sub) =>
+        _swRow(p, i, c, title, sub, nt[k] != false, (v) => S.i.setNotifType(k, v));
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _rowsCard(p, [
+        _swRow(p, Icons.notifications_none_rounded, amber, 'Push-уведомления', 'Главный переключатель на телефоне',
+            S.i.messageNotificationsEnabled, (v) => S.i.setMessageNotificationsEnabled(v)),
       ]),
-    );
+      _group(p, 'Что присылать', [
+        t('msg', Icons.chat_bubble_outline_rounded, blue, 'Новые сообщения', 'Личные сообщения и предложения задач'),
+        t('reply', Icons.check_rounded, p.ac, 'Отклики на объявления', 'Новые отклики и смена статуса'),
+        t('ss', Icons.search_rounded, p.ok, 'Сохранённые поиски', 'Новые объявления по вашим фильтрам'),
+        t('rev', Icons.star_outline_rounded, amber, 'Новые отзывы', 'Оценки и ответы на отзывы'),
+      ]),
+      _group(p, 'Тихие часы', [
+        _swRow(p, Icons.bedtime_outlined, grey, 'Не беспокоить', '${S.i.dndFrom} – ${S.i.dndTo}, без звука', S.i.dndOn,
+            (v) => S.i.setDnd(on: v)),
+      ]),
+    ]);
   }
 
   Widget _innCard(Pal p) {
     final inn = (S.i.user?['inn'] ?? '').toString();
     final ok = S.i.user?['innOk'] == true && inn.length == 12;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: cardDeco(p, r: 16),
+    final k = ok ? p.ok : p.ac;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
+      decoration: cardDeco(p, r: 20),
       child: Row(children: [
         Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(color: (ok ? p.ok : p.ac).withOpacity(.14), borderRadius: BorderRadius.circular(12)),
-          child: Icon(Icons.verified_user_outlined, color: ok ? p.ok : p.ac, size: 21),
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(color: k.withOpacity(.16), borderRadius: BorderRadius.circular(11)),
+          child: Icon(Icons.verified_user_outlined, color: k, size: 20),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(ok ? 'Самозанятый · ИНН $inn' : 'Статус самозанятого (ИНН)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: p.tx)),
-            Text(ok ? 'Значок «Самозанятый» отображается в вашем профиле' : 'Подтвердите 12-значный ИНН для значка доверия в профиле', style: TextStyle(color: p.mu, fontSize: 12.5)),
+            Text(ok ? 'Самозанятый · ИНН $inn' : 'Статус самозанятого (ИНН)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, color: p.tx)),
+            Text(ok ? 'Значок «Самозанятый» отображается в вашем профиле' : 'Подтвердите 12-значный ИНН для значка доверия в профиле', style: TextStyle(color: p.mu, fontSize: 13, height: 1.3)),
           ]),
         ),
         TextButton(
@@ -831,7 +748,12 @@ class _SettingsBodyState extends State<SettingsBody> {
           child: Text(ok ? 'Изменить' : 'Подтвердить', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
         ),
       ]),
-    );
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(6, 10, 6, 0),
+        child: Text('Проверим контрольную сумму ФНС и статус плательщика НПД.', style: TextStyle(color: p.mu, fontSize: 13, height: 1.35)),
+      ),
+    ]);
   }
 
   // Чат поддержки живёт в «Сообщениях», как в Авито: отсюда просто открываем его
@@ -946,103 +868,94 @@ class _DevicesCardState extends State<_DevicesCard> {
   Widget build(BuildContext context) {
     final p = pal(context);
     final hasOthers = _list.any((d) => d['cur'] != true);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: cardDeco(p, r: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(
-          'Активные устройства, на которых выполнен вход в ваш аккаунт.',
-          style: TextStyle(color: p.mu, fontSize: 12.5, height: 1.35),
-        ),
-        const SizedBox(height: 10),
-        if (_loading)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: p.ac))),
-          )
-        else if (_list.isEmpty)
-          Text('Текущее устройство активно', style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 13.5))
-        else
-          for (var i = 0; i < _list.length; i++) ...[
-            if (i > 0) Divider(height: 14, color: p.bd),
-            Row(children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(11)),
-                child: Icon(
-                  (_list[i]['dev'] ?? '').toString().toLowerCase().contains('android') ||
-                          (_list[i]['dev'] ?? '').toString().toLowerCase().contains('iphone')
-                      ? Icons.smartphone_rounded
-                      : Icons.laptop_mac_rounded,
-                  color: _list[i]['cur'] == true ? p.ok : p.ac,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Flexible(
-                      child: Text(
-                        (_list[i]['dev'] ?? 'Устройство').toString(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 14),
-                      ),
-                    ),
-                    if (_list[i]['cur'] == true) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: p.ok.withOpacity(.14),
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                        child: Text('Это устройство', style: TextStyle(color: p.ok, fontWeight: FontWeight.w800, fontSize: 10.5)),
-                      ),
-                    ],
-                  ]),
-                  const SizedBox(height: 2),
-                  Builder(builder: (_) {
-                    final cur = _list[i]['cur'] == true;
-                    var ipT = (_list[i]['ip'] ?? '').toString();
-                    var geoT = (_list[i]['geo'] ?? '').toString();
-                    if (cur && ipT.isEmpty) ipT = Api.ip;
-                    if (cur && geoT.isEmpty) geoT = Api.geo;
-                    final line = [if (ipT.isNotEmpty) ipT, if (geoT.isNotEmpty) geoT].join(' · ');
-                    return Text(line.isEmpty ? 'IP и страна не определены' : line, style: TextStyle(color: p.mu, fontSize: 12));
-                  }),
-                  Text(
-                    _list[i]['cur'] == true
-                        ? 'В сети сейчас'
-                        : 'Активность: ${ago((_list[i]['ts'] as num?)?.toInt() ?? 0)}',
-                    style: TextStyle(color: p.mu, fontSize: 12),
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Container(
+        decoration: cardDeco(p, r: 20),
+        clipBehavior: Clip.antiAlias,
+        child: _loading
+            ? Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: p.ac))),
+              )
+            : Column(children: [
+                if (_list.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text('Текущее устройство активно', style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 14)),
                   ),
+                for (var i = 0; i < _list.length; i++) ...[
+                  if (i > 0) Divider(height: 1, thickness: 1, indent: 64, color: p.bd),
+                  _deviceRow(p, _list[i]),
+                ],
+              ]),
+      ),
+      if (hasOthers)
+        Padding(
+          padding: const EdgeInsets.only(top: 14),
+          child: Container(
+            decoration: cardDeco(p, r: 20),
+            clipBehavior: Clip.antiAlias,
+            child: Tap(
+              onTap: _busy ? null : () => _kill(allOther: true),
+              scale: .99,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(color: p.dng.withOpacity(.16), borderRadius: BorderRadius.circular(11)),
+                    child: Icon(Icons.logout_rounded, color: p.dng, size: 20),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(child: Text('Завершить все остальные сеансы', style: TextStyle(color: p.dng, fontWeight: FontWeight.w700, fontSize: 15.5))),
                 ]),
-              ),
-              if (_list[i]['cur'] != true)
-                TextButton(
-                  onPressed: _busy ? null : () => _kill(id: (_list[i]['id'] ?? '').toString()),
-                  child: Text('Завершить', style: TextStyle(color: p.dng, fontWeight: FontWeight.w800, fontSize: 13)),
-                ),
-            ]),
-          ],
-        if (hasOthers) ...[
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: _busy ? null : () => _kill(allOther: true),
-              icon: Icon(Icons.logout_rounded, size: 17, color: p.dng),
-              label: Text(
-                'Завершить все остальные сеансы',
-                style: TextStyle(color: p.dng, fontWeight: FontWeight.w800, fontSize: 13),
               ),
             ),
           ),
-        ],
+        ),
+    ]);
+  }
+
+  Widget _deviceRow(Pal p, Map<String, dynamic> d) {
+    final cur = d['cur'] == true;
+    final dev = (d['dev'] ?? 'Устройство').toString();
+    final mobile = dev.toLowerCase().contains('android') || dev.toLowerCase().contains('iphone');
+    final k = cur ? p.ok : p.ac;
+    var ipT = (d['ip'] ?? '').toString();
+    var geoT = (d['geo'] ?? '').toString();
+    if (cur && ipT.isEmpty) ipT = Api.ip;
+    if (cur && geoT.isEmpty) geoT = Api.geo;
+    final where = [if (ipT.isNotEmpty) ipT, if (geoT.isNotEmpty) geoT].join(' · ');
+    final when = cur ? 'В сети сейчас' : 'Активность: ${ago((d['ts'] as num?)?.toInt() ?? 0)}';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(color: k.withOpacity(.16), borderRadius: BorderRadius.circular(11)),
+          child: Icon(mobile ? Icons.smartphone_rounded : Icons.laptop_mac_rounded, color: k, size: 20),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(dev, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.tx, fontWeight: FontWeight.w700, fontSize: 15.5)),
+            Text(where.isEmpty ? 'IP и страна не определены' : where, style: TextStyle(color: p.mu, fontSize: 13)),
+            Text(when, style: TextStyle(color: p.mu, fontSize: 13)),
+          ]),
+        ),
+        if (cur)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(color: p.ok.withOpacity(.14), borderRadius: BorderRadius.circular(99)),
+            child: Text('Это устройство', style: TextStyle(color: p.ok, fontWeight: FontWeight.w800, fontSize: 12)),
+          )
+        else
+          TextButton(
+            onPressed: _busy ? null : () => _kill(id: (d['id'] ?? '').toString()),
+            child: Text('Завершить', style: TextStyle(color: p.dng, fontWeight: FontWeight.w800, fontSize: 14)),
+          ),
       ]),
     );
   }
@@ -1060,7 +973,7 @@ class ProfileEditPage extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(14),
-            decoration: cardDeco(p, r: 16),
+            decoration: cardDeco(p, r: 20),
             child: Row(children: [
               Icon(Icons.info_outline, color: p.ac),
               const SizedBox(width: 10),
@@ -1331,27 +1244,43 @@ class _RegionPageState extends State<RegionPage> {
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: EdgeInsets.fromLTRB(16, 8, 16, 110 + MediaQuery.of(context).viewInsets.bottom),
           children: [
-            Text('Лента будет открываться с этим городом. Изменить его можно и в фильтрах.', style: TextStyle(color: p.mu, fontSize: 13.5, height: 1.35)),
-            const SizedBox(height: 16),
-            CityField(
-              controller: _c,
-              decoration: deco(context, 'Город или регион', prefix: Icon(Icons.place_outlined, color: p.mu)),
-              onChanged: _city,
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: cardDeco(p, r: 20),
+              child: CityField(
+                controller: _c,
+                decoration: deco(context, 'Город или регион', prefix: Icon(Icons.place_outlined, color: p.mu)),
+                onChanged: _city,
+              ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Tap(
               onTap: _busy ? null : _locate,
               scale: .98,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-                decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: cardDeco(p, r: 20),
                 child: Row(children: [
-                  Icon(Icons.my_location_rounded, color: p.ac, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text('Определить автоматически', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: p.tx))),
-                  if (_busy) SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: p.ac)),
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(color: p.ac.withOpacity(.16), borderRadius: BorderRadius.circular(11)),
+                    child: Icon(Icons.my_location_rounded, color: p.ac, size: 20),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Определить автоматически', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: p.tx)),
+                      Text('Нужен доступ к геолокации', style: TextStyle(color: p.mu, fontSize: 13)),
+                    ]),
+                  ),
+                  if (_busy) SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: p.ac)) else Icon(Icons.chevron_right, color: p.mu),
                 ]),
               ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(6, 10, 6, 0),
+              child: Text('Лента будет открываться с этим городом. Изменить его можно и в фильтрах.', style: TextStyle(color: p.mu, fontSize: 13, height: 1.35)),
             ),
             const SizedBox(height: 14),
             if (hasCity)
