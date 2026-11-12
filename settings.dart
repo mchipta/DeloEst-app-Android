@@ -128,7 +128,8 @@ class _FieldsDialogState extends State<_FieldsDialog> {
 
 class SettingsBody extends StatefulWidget {
   final bool profileOnly;
-  const SettingsBody({super.key, this.profileOnly = false});
+  final String section; // '' — главный экран настроек, иначе раздел: appear, privacy, notif, security, tz
+  const SettingsBody({super.key, this.profileOnly = false, this.section = ''});
   @override
   State<SettingsBody> createState() => _SettingsBodyState();
 }
@@ -284,51 +285,125 @@ class _SettingsBodyState extends State<SettingsBody> {
         child: Text(t, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: p.tx)),
       );
 
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: S.i,
-      builder: (context, _) {
-        final p = pal(context);
-        final av = (S.i.user?['avatar'] ?? '').toString();
-        final tm = S.i.themeMode;
-        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          if (busy) LinearProgressIndicator(color: p.ac, backgroundColor: p.bd, minHeight: 3),
-          if (widget.profileOnly) GestureDetector(
-            onTap: busy ? null : () { haptic(); _avatar(); },
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: cardDeco(p),
-              child: Row(children: [
-                Stack(children: [
-                  Avatar(S.i.name, data: av, size: 64),
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: p.card, shape: BoxShape.circle, border: Border.all(color: p.bd)),
-                      child: Icon(Icons.photo_camera_outlined, size: 15, color: p.ac),
-                    ),
-                  ),
-                ]),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text('Нажмите, чтобы сменить фото профиля', style: TextStyle(color: p.ac, fontSize: 14, fontWeight: FontWeight.w700)),
-                ),
-              ]),
-            ),
+  // ---------- Главный экран настроек: короткий список разделов с иконками ----------
+  Widget _group(Pal p, String title, List<Widget> rows) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 20, 0, 8),
+          child: Text(title.toUpperCase(), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5, letterSpacing: .6, color: p.mu)),
+        ),
+        Container(
+          decoration: cardDeco(p, r: 20),
+          clipBehavior: Clip.antiAlias,
+          child: Column(children: [
+            for (var i = 0; i < rows.length; i++) ...[
+              if (i > 0) Divider(height: 1, thickness: 1, indent: 64, color: p.bd),
+              rows[i],
+            ],
+          ]),
+        ),
+      ]);
+
+  Widget _hubRow(Pal p, IconData icon, Color k, String title, String sub, VoidCallback f) {
+    return Tap(
+      onTap: busy ? null : () { haptic(); f(); },
+      scale: .99,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(color: k.withOpacity(.16), borderRadius: BorderRadius.circular(11)),
+            child: Icon(icon, color: k, size: 20),
           ),
-          if (widget.profileOnly) ...[
-            _label(p, 'Данные профиля'),
-            _tile(p, Icons.person_outline, 'Имя', S.i.name, _name),
-            _tile(p, Icons.mail_outline, 'Почта', S.i.login.contains('@') ? S.i.login : '—', _email),
-            _tile(p, Icons.call_outlined, 'Телефон', S.i.phone.isEmpty ? '—' : fmtPhone(S.i.phone), _phone),
-          ],
-          if (!widget.profileOnly) ...[
-          _label(p, 'Поиск'),
-          _tile(p, Icons.place_outlined, 'Регион для поиска', S.i.regionCity.isEmpty ? 'Все города' : S.i.regionCity,
-              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegionPage()))),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, color: k == p.dng ? p.dng : p.tx)),
+              if (sub.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13)),
+                ),
+            ]),
+          ),
+          Icon(Icons.chevron_right, color: p.mu),
+        ]),
+      ),
+    );
+  }
+
+  void _open(String sec, String title) =>
+      Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsSectionPage(section: sec, title: title)));
+
+  String _zoneName() {
+    for (final z in kSiteTimeZones) {
+      if (z[0] == S.i.timeZone) return z[1].toString();
+    }
+    return S.i.timeZone;
+  }
+
+  List<Widget> _hubItems(Pal p) {
+    const purple = Color(0xFFA678FF), blue = Color(0xFF4C8DFF), amber = Color(0xFFF5B301), cyan = Color(0xFF1FB6D4), grey = Color(0xFF8B8FA8);
+    final tm = S.i.themeMode;
+    final tn = tm == ThemeMode.dark ? 'Тёмная' : (tm == ThemeMode.light ? 'Светлая' : 'Авто');
+    final priv = {'all': 'Всем вошедшим', 'reply': 'По откликам', 'chat': 'Только чат'}[S.i.phonePrivacy] ?? 'Всем вошедшим';
+    final inn = (S.i.user?['inn'] ?? '').toString();
+    final innOk = S.i.user?['innOk'] == true && inn.length == 12;
+    final off = S.i.notifTypes.values.where((v) => v == false).length;
+    return [
+      _group(p, 'Поиск', [
+        _hubRow(p, Icons.place_outlined, p.ac, 'Регион для поиска', S.i.regionCity.isEmpty ? 'Все города' : S.i.regionCity,
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegionPage()))),
+      ]),
+      _group(p, 'Внешний вид', [
+        _hubRow(p, Icons.palette_outlined, purple, 'Тема и акцент', '$tn · ${Pal.accents[S.i.accentIdx][0]}', () => _open('appear', 'Внешний вид')),
+      ]),
+      _group(p, 'Приватность и безопасность', [
+        _hubRow(p, Icons.lock_outline_rounded, p.ok, 'Приватность номера', priv, () => _open('privacy', 'Приватность номера')),
+        if (S.i.logged)
+          _hubRow(p, Icons.verified_user_outlined, p.ac, 'Самозанятость и безопасность',
+              innOk ? 'ИНН подтверждён, активные устройства' : 'ИНН и активные устройства', () => _open('security', 'Безопасность')),
+      ]),
+      _group(p, 'Уведомления', [
+        _hubRow(p, Icons.notifications_none_rounded, amber, 'Уведомления и «Не беспокоить»',
+            S.i.dndOn ? 'Не беспокоить: ${S.i.dndFrom} – ${S.i.dndTo}' : (off == 0 ? 'Все типы включены' : 'Отключено типов: $off'),
+            () => _open('notif', 'Уведомления')),
+      ]),
+      _group(p, 'Время', [
+        _hubRow(p, Icons.schedule_rounded, cyan, 'Часовой пояс', S.i.timeZone.isEmpty ? 'Автоматически: ${deviceZoneLabel()}' : _zoneName(),
+            () => _open('tz', 'Часовой пояс')),
+      ]),
+      if (S.i.logged) _group(p, 'Мои данные', _dataRows(p)),
+      _group(p, 'Помощь и информация', [
+        if (S.i.logged) _hubRow(p, Icons.support_agent_rounded, p.ac, 'Чат с поддержкой', 'Ответим прямо в приложении', _openSupportSheet),
+        _hubRow(p, Icons.business_center_outlined, purple, 'Для бизнеса', 'Оставить заявку', () => showLeadForm(context)),
+        _hubRow(p, Icons.info_outline, blue, 'О сервисе', 'О нас, вопросы, контакты',
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage()))),
+        _hubRow(p, Icons.description_outlined, grey, 'Документы', 'Оферта, политика, согласие на данные', () => openLegal(context, 'offer')),
+        _hubRow(p, Icons.phone_android, p.ok, 'О приложении', 'Версия $kAppVersion, разработчик @mchipta',
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutAppPage()))),
+        if (S.i.logged && S.i.user?['admin'] == true)
+          _hubRow(p, Icons.admin_panel_settings_outlined, p.ac, 'Админ-панель', 'Модерация, жалобы, заявки',
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPage()))),
+      ]),
+      if (S.i.logged)
+        Padding(
+          padding: const EdgeInsets.only(top: 20),
+          child: Container(
+            decoration: cardDeco(p, r: 20),
+            clipBehavior: Clip.antiAlias,
+            child: _hubRow(p, Icons.logout, p.dng, 'Выйти из аккаунта', '', () => confirmLogout(context)),
+          ),
+        ),
+    ];
+  }
+
+  List<Widget> _sectionItems(Pal p) {
+    final sec = widget.section;
+    final tm = S.i.themeMode;
+    return [
+      if (sec == 'appear') ...[
           _label(p, 'Внешний вид и цвет акцента'),
           Container(
             margin: const EdgeInsets.only(bottom: 10),
@@ -436,37 +511,9 @@ class _SettingsBodyState extends State<SettingsBody> {
               ),
             ]),
           ),
-          _label(p, 'Приватность номера'),
-          _privacyCard(p),
-          _label(p, 'Уведомления и «Не беспокоить»'),
-          _notifCard(p),
-          if (S.i.mutedChats.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
-              decoration: cardDeco(p, r: 16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Уведомления отключены для диалогов', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 14)),
-                const SizedBox(height: 6),
-                for (final entry in S.i.mutedChats.entries)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 5),
-                    child: Row(children: [
-                      Expanded(child: Text(entry.value.isEmpty ? 'Пользователь' : entry.value, style: TextStyle(color: p.mu, fontSize: 13.5))),
-                      TextButton(
-                        onPressed: () { S.i.setChatMuted(entry.key, entry.value, false); },
-                        child: Text('Включить', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
-                      ),
-                    ]),
-                  ),
-              ]),
-            ),
-          if (S.i.logged) ...[
-            _label(p, 'Самозанятость и безопасность'),
-            _innCard(p),
-            const _DevicesCard(),
-            _securityActionsCard(p),
-          ],
+      ],
+      if (sec == 'privacy') ...[
+        _privacyCard(p),
           if (S.i.blockedUsers.isNotEmpty) ...[
             _label(p, 'Чёрный список'),
             Container(
@@ -493,7 +540,36 @@ class _SettingsBodyState extends State<SettingsBody> {
               ]),
             ),
           ],
-          _label(p, 'Часовой пояс'),
+      ],
+      if (sec == 'notif') ...[
+        _notifCard(p),
+          if (S.i.mutedChats.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: cardDeco(p, r: 16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Уведомления отключены для диалогов', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800, fontSize: 14)),
+                const SizedBox(height: 6),
+                for (final entry in S.i.mutedChats.entries)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: Row(children: [
+                      Expanded(child: Text(entry.value.isEmpty ? 'Пользователь' : entry.value, style: TextStyle(color: p.mu, fontSize: 13.5))),
+                      TextButton(
+                        onPressed: () { S.i.setChatMuted(entry.key, entry.value, false); },
+                        child: Text('Включить', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
+                      ),
+                    ]),
+                  ),
+              ]),
+            ),
+      ],
+      if (sec == 'security' && S.i.logged) ...[
+        _innCard(p),
+        const _DevicesCard(),
+      ],
+      if (sec == 'tz') ...[
           Container(
             padding: const EdgeInsets.all(14),
             margin: const EdgeInsets.only(bottom: 10),
@@ -528,7 +604,51 @@ class _SettingsBodyState extends State<SettingsBody> {
               ],
             ]),
           ),
+      ],
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: S.i,
+      builder: (context, _) {
+        final p = pal(context);
+        final av = (S.i.user?['avatar'] ?? '').toString();
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (busy) LinearProgressIndicator(color: p.ac, backgroundColor: p.bd, minHeight: 3),
+          if (widget.profileOnly) GestureDetector(
+            onTap: busy ? null : () { haptic(); _avatar(); },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: cardDeco(p),
+              child: Row(children: [
+                Stack(children: [
+                  Avatar(S.i.name, data: av, size: 64),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(color: p.card, shape: BoxShape.circle, border: Border.all(color: p.bd)),
+                      child: Icon(Icons.photo_camera_outlined, size: 15, color: p.ac),
+                    ),
+                  ),
+                ]),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text('Нажмите, чтобы сменить фото профиля', style: TextStyle(color: p.ac, fontSize: 14, fontWeight: FontWeight.w700)),
+                ),
+              ]),
+            ),
+          ),
+          if (widget.profileOnly) ...[
+            _label(p, 'Данные профиля'),
+            _tile(p, Icons.person_outline, 'Имя', S.i.name, _name),
+            _tile(p, Icons.mail_outline, 'Почта', S.i.login.contains('@') ? S.i.login : '—', _email),
+            _tile(p, Icons.call_outlined, 'Телефон', S.i.phone.isEmpty ? '—' : fmtPhone(S.i.phone), _phone),
           ],
+          if (!widget.profileOnly) ...(widget.section.isEmpty ? _hubItems(p) : _sectionItems(p)),
         ]);
       },
     );
@@ -723,11 +843,10 @@ class _SettingsBodyState extends State<SettingsBody> {
     });
   }
 
-  Widget _securityActionsCard(Pal p) {
+  List<Widget> _dataRows(Pal p) {
     final delAt = (S.i.user?['delAt'] as num?)?.toInt() ?? 0;
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        _tile(p, Icons.support_agent_rounded, 'Чат с поддержкой', 'Ответим прямо в приложении', _openSupportSheet),
-        _tile(p, Icons.download_outlined, 'Скачать мои данные', 'Файл JSON: профиль, объявления, отзывы', () async {
+    return [
+        _hubRow(p, Icons.download_outlined, p.ac, 'Скачать мои данные', 'Файл JSON: профиль, объявления, отзывы', () async {
           await _run(() async {
             final res = await Api.call('exportData');
             final jsonStr = const JsonEncoder.withIndent('  ').convert(res['data'] ?? res);
@@ -742,15 +861,15 @@ class _SettingsBodyState extends State<SettingsBody> {
           });
         }),
         if (delAt > 0)
-          _tile(p, Icons.restore_from_trash_rounded, 'Отменить удаление аккаунта', 'Удаление запланировано на 7 дней', () async {
+          _hubRow(p, Icons.restore_from_trash_rounded, p.ok, 'Отменить удаление аккаунта', 'Удаление запланировано на 7 дней', () async {
             await _run(() async {
               await Api.call('cancelDelete');
               await S.i.patchUser({'delAt': 0});
               if (mounted) toast(context, 'Удаление аккаунта отменено');
             });
-          }, color: p.ok)
+          })
         else
-          _tile(p, Icons.delete_forever_outlined, 'Удалить аккаунт', 'Отсрочка 7 дней, можно восстановить', () async {
+          _hubRow(p, Icons.delete_forever_outlined, p.dng, 'Удалить аккаунт', 'Отсрочка 7 дней, можно восстановить', () async {
             final r = await askFields(context, 'Удаление аккаунта', [
               const FieldSpec('Причина удаления (необязательно)'),
             ], ok: 'Запланировать удаление', hint: 'Аккаунт будет удалён через 7 дней. В течение этого срока удаление можно отменить.');
@@ -760,8 +879,8 @@ class _SettingsBodyState extends State<SettingsBody> {
               await S.i.patchUser({'delAt': res['delAt'] ?? DateTime.now().add(const Duration(days: 7)).millisecondsSinceEpoch});
               if (mounted) toast(context, 'Удаление аккаунта запланировано через 7 дней');
             });
-          }, color: p.dng),
-    ]);
+          }),
+    ];
   }
 }
 
@@ -960,7 +1079,19 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Настройки')),
-      body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: const [SettingsBody(), BottomLinks(business: true, title: 'Прочее')]),
+      body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: const [SettingsBody()]),
+    );
+  }
+}
+
+class SettingsSectionPage extends StatelessWidget {
+  final String section, title;
+  const SettingsSectionPage({super.key, required this.section, required this.title});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: [SettingsBody(section: section)]),
     );
   }
 }
