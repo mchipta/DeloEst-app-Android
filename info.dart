@@ -312,6 +312,41 @@ class _InfoPageState extends State<InfoPage> {
 }
 
 // ---------- О приложении ----------
+/// Проверка обновления APK: тост «Обновлений не найдено» или диалог «Скачать APK».
+/// Используется на экране «О приложении» и по нажатию на значок внизу настроек.
+Future<void> runUpdateCheck(BuildContext context) async {
+  final hasNew = await S.i.checkAppUpdate(silent: false);
+  if (!context.mounted) return;
+  if (!hasNew) {
+    toast(context, 'Обновлений не найдено');
+    return;
+  }
+  final dl = S.i.updateUrl ?? 'https://github.com/mchipta/DeloEst-app-Android/releases/latest/download/DeloEst.apk';
+  final p = pal(context);
+  final go = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      backgroundColor: p.card,
+      title: Text('Доступно обновление!', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
+      content: Text(
+        'Вышла новая версия приложения.\nСкачать и установить обновление поверх текущей?',
+        style: TextStyle(color: p.mu, height: 1.4),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c, false), child: Text('Закрыть', style: TextStyle(color: p.mu))),
+        TextButton(
+          onPressed: () => Navigator.pop(c, true),
+          child: Text('Скачать APK', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
+        ),
+      ],
+    ),
+  );
+  if (go == true && context.mounted) {
+    if (S.i.updateTag != null) S.i.prefs.setString('seen_release_tag', S.i.updateTag!);
+    openUrl(context, Uri.parse(dl));
+  }
+}
+
 class AboutAppPage extends StatefulWidget {
   const AboutAppPage({super.key});
   @override
@@ -342,37 +377,8 @@ class _AboutAppPageState extends State<AboutAppPage> {
 
   Future<void> _checkUpdate() async {
     setState(() => checkingUpdate = true);
-    final hasNew = await S.i.checkAppUpdate(silent: false);
-    if (!mounted) return;
-    setState(() => checkingUpdate = false);
-    if (!hasNew) {
-      toast(context, 'Обновлений не найдено');
-      return;
-    }
-    final dl = S.i.updateUrl ?? 'https://github.com/mchipta/DeloEst-app-Android/releases/latest/download/DeloEst.apk';
-    final p = pal(context);
-    final go = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        backgroundColor: p.card,
-        title: Text('Доступно обновление!', style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
-        content: Text(
-          'Вышла новая версия приложения.\nСкачать и установить обновление поверх текущей?',
-          style: TextStyle(color: p.mu, height: 1.4),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: Text('Закрыть', style: TextStyle(color: p.mu))),
-          TextButton(
-            onPressed: () => Navigator.pop(c, true),
-            child: Text('Скачать APK', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)),
-          ),
-        ],
-      ),
-    );
-    if (go == true && mounted) {
-      if (S.i.updateTag != null) S.i.prefs.setString('seen_release_tag', S.i.updateTag!);
-      openUrl(context, Uri.parse(dl));
-    }
+    await runUpdateCheck(context);
+    if (mounted) setState(() => checkingUpdate = false);
   }
 
   String _handle(String url) {

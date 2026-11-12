@@ -430,8 +430,8 @@ class _LandingPageState extends State<LandingPage> {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Container(width: 36, height: 36, decoration: BoxDecoration(color: p.bg2, borderRadius: BorderRadius.circular(11)),
-                        child: Icon(c.icon, color: p.ac, size: 21)),
+                    Container(width: 36, height: 36, decoration: BoxDecoration(color: catHue(c.name).withOpacity(.16), borderRadius: BorderRadius.circular(11)),
+                        child: Icon(c.icon, color: catHue(c.name), size: 21)),
                     const SizedBox(height: 9),
                     Text(c.name, maxLines: 2, overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 13.5, height: 1.15, fontWeight: FontWeight.w800, color: p.tx)),

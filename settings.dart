@@ -345,7 +345,6 @@ class _SettingsBodyState extends State<SettingsBody> {
   }
 
   List<Widget> _hubItems(Pal p) {
-    const purple = Color(0xFFA678FF), blue = Color(0xFF4C8DFF), amber = Color(0xFFF5B301), cyan = Color(0xFF1FB6D4), grey = Color(0xFF8B8FA8);
     final tm = S.i.themeMode;
     final tn = tm == ThemeMode.dark ? 'Тёмная' : (tm == ThemeMode.light ? 'Светлая' : 'Авто');
     final priv = {'all': 'Всем вошедшим', 'reply': 'По откликам', 'chat': 'Только чат'}[S.i.phonePrivacy] ?? 'Всем вошедшим';
@@ -354,40 +353,36 @@ class _SettingsBodyState extends State<SettingsBody> {
     final off = S.i.notifTypes.values.where((v) => v == false).length;
     return [
       _group(p, 'Поиск', [
-        _hubRow(p, Icons.place_outlined, p.ac, 'Регион для поиска', S.i.regionCity.isEmpty ? 'Все города' : S.i.regionCity,
+        _hubRow(p, Icons.place_outlined, _cRed, 'Регион для поиска', S.i.regionCity.isEmpty ? 'Все города' : S.i.regionCity,
             () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegionPage()))),
       ]),
       _group(p, 'Внешний вид', [
-        _hubRow(p, Icons.palette_outlined, purple, 'Тема и акцент', '$tn · ${Pal.accents[S.i.accentIdx][0]}', () => _open('appear', 'Внешний вид')),
+        _hubRow(p, Icons.palette_outlined, _cPurple, 'Тема и акцент', '$tn · ${Pal.accents[S.i.accentIdx][0]}', () => _open('appear', 'Внешний вид')),
       ]),
       _group(p, 'Приватность и безопасность', [
-        _hubRow(p, Icons.lock_outline_rounded, p.ok, 'Приватность номера', priv, () => _open('privacy', 'Приватность номера')),
+        _hubRow(p, Icons.phonelink_lock_outlined, _cGreen, 'Приватность номера', priv, () => _open('privacy', 'Приватность номера')),
         if (S.i.logged)
-          _hubRow(p, Icons.smartphone_rounded, blue, 'Активные устройства', 'Где выполнен вход в аккаунт', () => _open('devices', 'Активные устройства')),
+          _hubRow(p, Icons.devices_outlined, _cBlue, 'Активные устройства', 'Где выполнен вход в аккаунт', () => _open('devices', 'Активные устройства')),
       ]),
       _group(p, 'Уведомления', [
-        _hubRow(p, Icons.notifications_none_rounded, amber, 'Уведомления и «Не беспокоить»',
+        _hubRow(p, Icons.notifications_none_rounded, _cAmber, 'Уведомления и «Не беспокоить»',
             S.i.dndOn ? 'Не беспокоить: ${S.i.dndFrom} – ${S.i.dndTo}' : (off == 0 ? 'Все типы включены' : 'Отключено типов: $off'),
             () => _open('notif', 'Уведомления')),
       ]),
       _group(p, 'Время', [
-        _hubRow(p, Icons.schedule_rounded, cyan, 'Часовой пояс', S.i.timeZone.isEmpty ? 'Автоматически: ${deviceZoneLabel()}' : _zoneName(),
+        _hubRow(p, Icons.schedule_rounded, _cCyan, 'Часовой пояс', S.i.timeZone.isEmpty ? 'Автоматически: ${deviceZoneLabel()}' : _zoneName(),
             () => _open('tz', 'Часовой пояс')),
       ]),
       if (S.i.logged)
         _group(p, 'Мои данные', [
-          _hubRow(p, Icons.verified_user_outlined, innOk ? p.ok : p.ac, 'Статус самозанятого (ИНН)',
+          _hubRow(p, Icons.verified_outlined, _cGreen, 'Статус самозанятого (ИНН)',
               innOk ? 'ИНН подтверждён' : 'Подтвердить для значка доверия', () => _open('inn', 'Самозанятость (ИНН)')),
           ..._dataRows(p),
         ]),
       _group(p, 'Помощь и информация', [
-        if (S.i.logged) _hubRow(p, Icons.support_agent_rounded, p.ac, 'Чат с поддержкой', 'Ответим прямо в приложении', _openSupportSheet),
-        _hubRow(p, Icons.business_center_outlined, purple, 'Для бизнеса', 'Оставить заявку', () => showLeadForm(context)),
-        _hubRow(p, Icons.info_outline, blue, 'О сервисе', 'О нас, вопросы, контакты',
-            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage()))),
-        _hubRow(p, Icons.description_outlined, grey, 'Документы', 'Оферта, политика, согласие на данные', () => openLegal(context, 'offer')),
-        _hubRow(p, Icons.phone_android, p.ok, 'О приложении', 'Версия $kAppVersion, разработчик @mchipta',
-            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutAppPage()))),
+        if (S.i.logged) _hubRow(p, Icons.support_agent_rounded, _cOrange, 'Чат с поддержкой', 'Ответим прямо в приложении', _openSupportSheet),
+        _hubRow(p, Icons.description_outlined, _cBlue, 'Документы', 'Оферта, политика, согласие на данные', () => openLegal(context, 'offer')),
+        _hubRow(p, Icons.business_center_outlined, _cPurple, 'Для бизнеса', 'Оставить заявку', () => showLeadForm(context)),
         if (S.i.logged && S.i.user?['admin'] == true)
           _hubRow(p, Icons.admin_panel_settings_outlined, p.ac, 'Админ-панель', 'Модерация, жалобы, заявки',
               () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPage()))),
@@ -401,6 +396,7 @@ class _SettingsBodyState extends State<SettingsBody> {
             child: _hubRow(p, Icons.logout, p.dng, 'Выйти из аккаунта', '', () => confirmLogout(context)),
           ),
         ),
+      const AppStamp(),
     ];
   }
 
@@ -687,7 +683,7 @@ class _SettingsBodyState extends State<SettingsBody> {
 
   Widget _notifCard(Pal p) {
     final nt = S.i.notifTypes;
-    const blue = Color(0xFF4C8DFF), amber = Color(0xFFF5B301), grey = Color(0xFF8B8FA8);
+    const blue = Color(0xFF4C8DFF), amber = Color(0xFFF5B301), indigo = Color(0xFF6B6BFF);
     Widget t(String k, IconData i, Color c, String title, String sub) =>
         _swRow(p, i, c, title, sub, nt[k] != false, (v) => S.i.setNotifType(k, v));
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -702,7 +698,7 @@ class _SettingsBodyState extends State<SettingsBody> {
         t('rev', Icons.star_outline_rounded, amber, 'Новые отзывы', 'Оценки и ответы на отзывы'),
       ]),
       _group(p, 'Тихие часы', [
-        _swRow(p, Icons.bedtime_outlined, grey, 'Не беспокоить', '${S.i.dndFrom} – ${S.i.dndTo}, без звука', S.i.dndOn,
+        _swRow(p, Icons.bedtime_outlined, indigo, 'Не беспокоить', '${S.i.dndFrom} – ${S.i.dndTo}, без звука', S.i.dndOn,
             (v) => S.i.setDnd(on: v)),
       ]),
     ]);
@@ -711,7 +707,7 @@ class _SettingsBodyState extends State<SettingsBody> {
   Widget _innCard(Pal p) {
     final inn = (S.i.user?['inn'] ?? '').toString();
     final ok = S.i.user?['innOk'] == true && inn.length == 12;
-    final k = ok ? p.ok : p.ac;
+    const k = _cGreen;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
@@ -721,7 +717,7 @@ class _SettingsBodyState extends State<SettingsBody> {
           width: 36,
           height: 36,
           decoration: BoxDecoration(color: k.withOpacity(.16), borderRadius: BorderRadius.circular(11)),
-          child: Icon(Icons.verified_user_outlined, color: k, size: 20),
+          child: const Icon(Icons.verified_outlined, color: k, size: 20),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -770,7 +766,7 @@ class _SettingsBodyState extends State<SettingsBody> {
   List<Widget> _dataRows(Pal p) {
     final delAt = (S.i.user?['delAt'] as num?)?.toInt() ?? 0;
     return [
-        _hubRow(p, Icons.download_outlined, p.ac, 'Скачать мои данные', 'Файл JSON: профиль, объявления, отзывы', () async {
+        _hubRow(p, Icons.download_outlined, _cBlue, 'Скачать мои данные', 'Файл JSON: профиль, объявления, отзывы', () async {
           await _run(() async {
             final res = await Api.call('exportData');
             final jsonStr = const JsonEncoder.withIndent('  ').convert(res['data'] ?? res);
@@ -785,7 +781,7 @@ class _SettingsBodyState extends State<SettingsBody> {
           });
         }),
         if (delAt > 0)
-          _hubRow(p, Icons.restore_from_trash_rounded, p.ok, 'Отменить удаление аккаунта', 'Удаление запланировано на 7 дней', () async {
+          _hubRow(p, Icons.restore_from_trash_rounded, _cGreen, 'Отменить удаление аккаунта', 'Удаление запланировано на 7 дней', () async {
             await _run(() async {
               await Api.call('cancelDelete');
               await S.i.patchUser({'delAt': 0});
@@ -1057,53 +1053,43 @@ class _MenuRow {
   final String title;
   final String sub;
   final VoidCallback onTap;
-  final Color? color;
-  const _MenuRow(this.icon, this.title, this.sub, this.onTap, {this.color});
+  final Color color;
+  const _MenuRow(this.icon, this.title, this.sub, this.color, this.onTap);
 }
 
-// Одна аккуратная группа строк: Для бизнеса / Поддержка / О сервисе / О приложении / Админ / Выход
+// Нижний блок экрана входа: Поддержка, Документы, Для бизнеса и значок приложения
 class BottomLinks extends StatelessWidget {
   final bool support; // строка «Поддержка» (экран входа)
-  final bool business; // строка «Для бизнеса» (настройки)
-  final String? title;
-  const BottomLinks({super.key, this.support = false, this.business = false, this.title});
+  const BottomLinks({super.key, this.support = false});
 
-  Widget _row(Pal p, _MenuRow r, bool last) {
-    final col = r.color;
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      Tap(
-        onTap: r.onTap,
-        scale: .99,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: p.bg2,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: p.bd),
-              ),
-              child: Icon(r.icon, color: col ?? p.ac, size: 22),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(r.title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, color: col ?? p.tx)),
-                if (r.sub.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(r.sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13)),
-                  ),
-              ]),
-            ),
-            Icon(Icons.chevron_right, color: p.mu),
-          ]),
-        ),
+  Widget _row(Pal p, _MenuRow r) {
+    return Tap(
+      onTap: r.onTap,
+      scale: .99,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(color: r.color.withOpacity(.16), borderRadius: BorderRadius.circular(11)),
+            child: Icon(r.icon, color: r.color, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(r.title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, color: p.tx)),
+              if (r.sub.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: Text(r.sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13)),
+                ),
+            ]),
+          ),
+          Icon(Icons.chevron_right, color: p.mu),
+        ]),
       ),
-      if (!last) Divider(height: 1, thickness: 1, indent: 66, color: p.bd),
-    ]);
+    );
   }
 
   @override
@@ -1113,39 +1099,71 @@ class BottomLinks extends StatelessWidget {
       builder: (context, _) {
         final p = pal(context);
         final rows = <_MenuRow>[
-          if (business)
-            _MenuRow(Icons.business_center_outlined, 'Для бизнеса', 'Оставить заявку', () => showLeadForm(context)),
           if (support)
-            _MenuRow(Icons.support_agent, 'Поддержка', 'Напишите или позвоните нам',
+            _MenuRow(Icons.support_agent_rounded, 'Поддержка', 'Напишите или позвоните нам', _cOrange,
                 () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage(only: 3, title: 'Поддержка')))),
-          _MenuRow(Icons.info_outline, 'О сервисе', 'О нас, вопросы, контакты',
-              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage()))),
-          _MenuRow(Icons.description_outlined, 'Документы', 'Оферта, политика, согласие на данные',
-              () => openLegal(context, 'offer')),
-          _MenuRow(Icons.phone_android, 'О приложении', 'Версия $kAppVersion, разработчик @mchipta',
-              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutAppPage()))),
-          if (S.i.logged && S.i.user?['admin'] == true)
-            _MenuRow(Icons.admin_panel_settings_outlined, 'Админ-панель', 'Модерация, жалобы, заявки',
-                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPage()))),
-          if (S.i.logged)
-            _MenuRow(Icons.logout, 'Выйти из аккаунта', '', () => confirmLogout(context), color: p.dng),
+          _MenuRow(Icons.description_outlined, 'Документы', 'Оферта, политика, согласие на данные', _cBlue, () => openLegal(context, 'offer')),
+          _MenuRow(Icons.business_center_outlined, 'Для бизнеса', 'Оставить заявку', _cPurple, () => showLeadForm(context)),
         ];
         return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          if (title != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 14, bottom: 8),
-              child: Text(title!, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: p.mu)),
-            )
-          else
-            const SizedBox(height: 14),
+          const SizedBox(height: 14),
           Container(
-            decoration: cardDeco(p, r: 16),
+            decoration: cardDeco(p, r: 20),
+            clipBehavior: Clip.antiAlias,
             child: Column(children: [
-              for (var i = 0; i < rows.length; i++) _row(p, rows[i], i == rows.length - 1),
+              for (var i = 0; i < rows.length; i++) ...[
+                if (i > 0) Divider(height: 1, thickness: 1, indent: 64, color: p.bd),
+                _row(p, rows[i]),
+              ],
             ]),
           ),
+          const AppStamp(),
         ]);
       },
+    );
+  }
+}
+
+/// Значок приложения с версией. Нажатие на него проверяет обновление.
+class AppStamp extends StatefulWidget {
+  const AppStamp({super.key});
+  @override
+  State<AppStamp> createState() => _AppStampState();
+}
+
+class _AppStampState extends State<AppStamp> {
+  bool _busy = false;
+
+  Future<void> _check() async {
+    if (_busy) return;
+    haptic();
+    setState(() => _busy = true);
+    await runUpdateCheck(context);
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 28, bottom: 8),
+      child: Center(
+        child: Tap(
+          onTap: _check,
+          scale: .95,
+          child: AnimatedOpacity(
+            opacity: _busy ? .45 : 1,
+            duration: const Duration(milliseconds: 250),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Logo(size: 56),
+              const SizedBox(height: 10),
+              Text('ДелоЕсть', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: p.tx)),
+              const SizedBox(height: 2),
+              Text('Версия $kAppVersion', style: TextStyle(color: p.mu, fontSize: 13)),
+            ]),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1310,6 +1328,10 @@ class _RegionPageState extends State<RegionPage> {
     );
   }
 }
+
+// Смысловые цвета иконок: в одной категории оттенки не повторяются
+const _cRed = Color(0xFFFF5A4F), _cOrange = Color(0xFFFF6B3D), _cAmber = Color(0xFFF5B301), _cGreen = Color(0xFF2EC27E);
+const _cCyan = Color(0xFF1FB6D4), _cBlue = Color(0xFF4C8DFF), _cPurple = Color(0xFFA678FF);
 
 /// Шторка «Где вы ищете?» после первого входа (как на сайте): город, определение по геолокации, «Пропустить»
 Future<void> showRegionSheet(BuildContext context) {

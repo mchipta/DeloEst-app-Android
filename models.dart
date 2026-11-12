@@ -13,7 +13,7 @@ const kCats = <Cat>[
   Cat('Грузчики и переезд', Icons.local_shipping_outlined),
   Cat('Уборка', Icons.cleaning_services_outlined),
   Cat('Курьеры и доставка', Icons.inventory_2_outlined),
-  Cat('Сад и огород', Icons.yard_outlined),
+  Cat('Сад и огород', Icons.eco_outlined),
   Cat('Репетиторство', Icons.menu_book_outlined),
   Cat('Компьютеры и IT', Icons.laptop_mac),
   Cat('Ремонт техники', Icons.build_outlined),
@@ -28,14 +28,19 @@ IconData catIcon(String name) {
   return Icons.more_horiz;
 }
 
-// Цвет категории: те же шесть оттенков, что и на сайте (по порядку категорий)
+// Цвет категории (по порядку kCats), у каждой категории свой, те же оттенки, что и на сайте:
+// стройка, грузчики, уборка, курьеры, сад, репетиторство, IT, ремонт техники, мероприятия, прочее
 const kCatHues = <Color>[
   Color(0xFFF08A24),
   Color(0xFF2F9BFF),
-  Color(0xFFA26BFF),
-  Color(0xFF22B573),
-  Color(0xFFE8508F),
   Color(0xFF14B8C4),
+  Color(0xFF22B573),
+  Color(0xFF8BC34A),
+  Color(0xFFA26BFF),
+  Color(0xFF6B6BFF),
+  Color(0xFFF5B301),
+  Color(0xFFE8508F),
+  Color(0xFF8B8FA8),
 ];
 
 Color catHue(String name) {
