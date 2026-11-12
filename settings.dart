@@ -128,7 +128,7 @@ class _FieldsDialogState extends State<_FieldsDialog> {
 
 class SettingsBody extends StatefulWidget {
   final bool profileOnly;
-  final String section; // '' — главный экран настроек, иначе раздел: appear, privacy, notif, security, tz
+  final String section; // '' — главный экран настроек, иначе раздел: appear, privacy, notif, inn, devices, tz
   const SettingsBody({super.key, this.profileOnly = false, this.section = ''});
   @override
   State<SettingsBody> createState() => _SettingsBodyState();
@@ -362,8 +362,7 @@ class _SettingsBodyState extends State<SettingsBody> {
       _group(p, 'Приватность и безопасность', [
         _hubRow(p, Icons.lock_outline_rounded, p.ok, 'Приватность номера', priv, () => _open('privacy', 'Приватность номера')),
         if (S.i.logged)
-          _hubRow(p, Icons.verified_user_outlined, p.ac, 'Самозанятость и безопасность',
-              innOk ? 'ИНН подтверждён, активные устройства' : 'ИНН и активные устройства', () => _open('security', 'Безопасность')),
+          _hubRow(p, Icons.smartphone_rounded, blue, 'Активные устройства', 'Где выполнен вход в аккаунт', () => _open('devices', 'Активные устройства')),
       ]),
       _group(p, 'Уведомления', [
         _hubRow(p, Icons.notifications_none_rounded, amber, 'Уведомления и «Не беспокоить»',
@@ -374,7 +373,12 @@ class _SettingsBodyState extends State<SettingsBody> {
         _hubRow(p, Icons.schedule_rounded, cyan, 'Часовой пояс', S.i.timeZone.isEmpty ? 'Автоматически: ${deviceZoneLabel()}' : _zoneName(),
             () => _open('tz', 'Часовой пояс')),
       ]),
-      if (S.i.logged) _group(p, 'Мои данные', _dataRows(p)),
+      if (S.i.logged)
+        _group(p, 'Мои данные', [
+          _hubRow(p, Icons.verified_user_outlined, innOk ? p.ok : p.ac, 'Статус самозанятого (ИНН)',
+              innOk ? 'ИНН подтверждён' : 'Подтвердить для значка доверия', () => _open('inn', 'Самозанятость (ИНН)')),
+          ..._dataRows(p),
+        ]),
       _group(p, 'Помощь и информация', [
         if (S.i.logged) _hubRow(p, Icons.support_agent_rounded, p.ac, 'Чат с поддержкой', 'Ответим прямо в приложении', _openSupportSheet),
         _hubRow(p, Icons.business_center_outlined, purple, 'Для бизнеса', 'Оставить заявку', () => showLeadForm(context)),
@@ -565,10 +569,8 @@ class _SettingsBodyState extends State<SettingsBody> {
               ]),
             ),
       ],
-      if (sec == 'security' && S.i.logged) ...[
-        _innCard(p),
-        const _DevicesCard(),
-      ],
+      if (sec == 'inn' && S.i.logged) _innCard(p),
+      if (sec == 'devices' && S.i.logged) const _DevicesCard(),
       if (sec == 'tz') ...[
           Container(
             padding: const EdgeInsets.all(14),
