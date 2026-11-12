@@ -352,6 +352,24 @@ class _SettingsBodyState extends State<SettingsBody> {
     final innOk = S.i.user?['innOk'] == true && inn.length == 12;
     final off = S.i.notifTypes.values.where((v) => v == false).length;
     return [
+      if (!S.i.logged)
+        Container(
+          margin: const EdgeInsets.only(top: 6),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Color.alphaBlend(p.ac.withOpacity(.1), p.card),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: p.ac.withOpacity(.3)),
+          ),
+          child: Row(children: [
+            Icon(Icons.info_outline, color: p.ac, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text('Здесь только то, что не связано с аккаунтом. Остальное появится после входа.',
+                  style: TextStyle(color: p.mu, fontSize: 13.5, height: 1.35)),
+            ),
+          ]),
+        ),
       _group(p, 'Поиск', [
         _hubRow(p, Icons.place_outlined, _cRed, 'Регион для поиска', S.i.regionCity.isEmpty ? 'Все города' : S.i.regionCity,
             () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegionPage()))),
@@ -359,12 +377,13 @@ class _SettingsBodyState extends State<SettingsBody> {
       _group(p, 'Внешний вид', [
         _hubRow(p, Icons.palette_outlined, _cPurple, 'Тема и акцент', '$tn · ${Pal.accents[S.i.accentIdx][0]}', () => _open('appear', 'Внешний вид')),
       ]),
-      _group(p, 'Приватность и безопасность', [
+      if (S.i.logged)
+        _group(p, 'Приватность и безопасность', [
         _hubRow(p, Icons.phonelink_lock_outlined, _cGreen, 'Приватность номера', priv, () => _open('privacy', 'Приватность номера')),
-        if (S.i.logged)
-          _hubRow(p, Icons.devices_outlined, _cBlue, 'Активные устройства', 'Где выполнен вход в аккаунт', () => _open('devices', 'Активные устройства')),
+        _hubRow(p, Icons.devices_outlined, _cBlue, 'Активные устройства', 'Где выполнен вход в аккаунт', () => _open('devices', 'Активные устройства')),
       ]),
-      _group(p, 'Уведомления', [
+      if (S.i.logged)
+        _group(p, 'Уведомления', [
         _hubRow(p, Icons.notifications_none_rounded, _cAmber, 'Уведомления и «Не беспокоить»',
             S.i.dndOn ? 'Не беспокоить: ${S.i.dndFrom} – ${S.i.dndTo}' : (off == 0 ? 'Все типы включены' : 'Отключено типов: $off'),
             () => _open('notif', 'Уведомления')),
@@ -1048,82 +1067,6 @@ Future<void> showLeadForm(BuildContext context) async {
   }
 }
 
-class _MenuRow {
-  final IconData icon;
-  final String title;
-  final String sub;
-  final VoidCallback onTap;
-  final Color color;
-  const _MenuRow(this.icon, this.title, this.sub, this.color, this.onTap);
-}
-
-// Нижний блок экрана входа: Поддержка, Документы, Для бизнеса и значок приложения
-class BottomLinks extends StatelessWidget {
-  final bool support; // строка «Поддержка» (экран входа)
-  const BottomLinks({super.key, this.support = false});
-
-  Widget _row(Pal p, _MenuRow r) {
-    return Tap(
-      onTap: r.onTap,
-      scale: .99,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(color: r.color.withOpacity(.16), borderRadius: BorderRadius.circular(11)),
-            child: Icon(r.icon, color: r.color, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(r.title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, color: p.tx)),
-              if (r.sub.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 1),
-                  child: Text(r.sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.mu, fontSize: 13)),
-                ),
-            ]),
-          ),
-          Icon(Icons.chevron_right, color: p.mu),
-        ]),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: S.i,
-      builder: (context, _) {
-        final p = pal(context);
-        final rows = <_MenuRow>[
-          if (support)
-            _MenuRow(Icons.support_agent_rounded, 'Поддержка', 'Напишите или позвоните нам', _cOrange,
-                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InfoPage(only: 3, title: 'Поддержка')))),
-          _MenuRow(Icons.description_outlined, 'Документы', 'Оферта, политика, согласие на данные', _cBlue, () => openLegal(context, 'offer')),
-          _MenuRow(Icons.business_center_outlined, 'Для бизнеса', 'Оставить заявку', _cPurple, () => showLeadForm(context)),
-        ];
-        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const SizedBox(height: 14),
-          Container(
-            decoration: cardDeco(p, r: 20),
-            clipBehavior: Clip.antiAlias,
-            child: Column(children: [
-              for (var i = 0; i < rows.length; i++) ...[
-                if (i > 0) Divider(height: 1, thickness: 1, indent: 64, color: p.bd),
-                _row(p, rows[i]),
-              ],
-            ]),
-          ),
-          const AppStamp(),
-        ]);
-      },
-    );
-  }
-}
-
 /// Значок приложения с версией. Нажатие на него проверяет обновление.
 class AppStamp extends StatefulWidget {
   const AppStamp({super.key});
@@ -1154,12 +1097,14 @@ class _AppStampState extends State<AppStamp> {
           child: AnimatedOpacity(
             opacity: _busy ? .45 : 1,
             duration: const Duration(milliseconds: 250),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Logo(size: 56),
-              const SizedBox(height: 10),
-              Text('ДелоЕсть', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: p.tx)),
-              const SizedBox(height: 2),
-              Text('Версия $kAppVersion', style: TextStyle(color: p.mu, fontSize: 13)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Logo(size: 48),
+              const SizedBox(width: 14),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                Text('ДелоЕсть', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: p.tx)),
+                const SizedBox(height: 2),
+                Text('Версия $kAppVersion', style: TextStyle(color: p.mu, fontSize: 13)),
+              ]),
             ]),
           ),
         ),

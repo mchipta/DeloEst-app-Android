@@ -165,14 +165,14 @@ class _CabinetPageState extends State<CabinetPage> {
         if (_adsMode) return _buildAds(p);
         return Scaffold(
           appBar: AppBar(
-            title: Text(S.i.logged ? 'Профиль' : 'Войти'),
-            actions: S.i.logged ? [
+            title: const Text('Профиль'),
+            actions: [
               IconButton(
                 tooltip: 'Настройки приложения',
                 onPressed: () { haptic(); Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage())); },
                 icon: Icon(Icons.settings_outlined, color: pal(context).ac),
               ),
-            ] : null,
+            ],
           ),
           body: S.i.logged
               ? RefreshIndicator(
@@ -197,10 +197,7 @@ class _CabinetPageState extends State<CabinetPage> {
                     ],
                   ),
                 )
-              : ListView(padding: EdgeInsets.fromLTRB(16, 0, 16, 24 + navPad(context)), children: [
-                  SizedBox(height: 360, child: const NeedAuth(icon: Icons.person_outline, title: 'Ваш профиль', text: 'Войдите, чтобы видеть свои объявления, отклики и управлять ими.')),
-                  const BottomLinks(support: true),
-                ]),
+              : ListView(padding: EdgeInsets.fromLTRB(16, 0, 16, 24 + navPad(context)), children: const [ProfileGuest()]),
         );
       },
     );
@@ -971,4 +968,62 @@ class _CabinetPageState extends State<CabinetPage> {
         ),
         child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: c)),
       );
+}
+
+/// Профиль без входа: настройки по шестерёнке сверху, крупная кнопка входа
+class ProfileGuest extends StatelessWidget {
+  const ProfileGuest({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 64, 12, 0),
+      child: Column(children: [
+        Stack(clipBehavior: Clip.none, children: [
+          Container(
+            width: 112,
+            height: 112,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(center: const Alignment(0, -.3), colors: [Color.alphaBlend(p.ac.withOpacity(.22), p.card), p.card]),
+              border: Border.all(color: p.ac.withOpacity(.45), width: 2),
+              boxShadow: [
+                BoxShadow(color: p.ac.withOpacity(.07), spreadRadius: 10),
+                BoxShadow(color: p.ac.withOpacity(.04), spreadRadius: 22),
+                BoxShadow(color: p.ac.withOpacity(.22), blurRadius: 40, offset: const Offset(0, 18)),
+              ],
+            ),
+            child: Icon(Icons.person_outline_rounded, size: 54, color: p.ac),
+          ),
+          Positioned(
+            right: -2,
+            bottom: 2,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [p.ac, p.ac2]),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: p.bg, width: 3),
+              ),
+              child: const Icon(Icons.check_rounded, size: 20, color: Colors.white),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 34),
+        Text('Ваш профиль', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: p.tx)),
+        const SizedBox(height: 8),
+        Text('Войдите, чтобы видеть свои объявления, отклики и управлять ими.',
+            textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 15, height: 1.4)),
+        const SizedBox(height: 26),
+        SizedBox(
+          width: double.infinity,
+          child: GradBtn('Войти или создать аккаунт', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()))),
+        ),
+        const SizedBox(height: 12),
+        Text('Без комиссии, договаривайтесь напрямую. Регистрация: почта, пароль и телефон.',
+            textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 13, height: 1.35)),
+      ]),
+    );
+  }
 }
