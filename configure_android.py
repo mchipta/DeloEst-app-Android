@@ -2,8 +2,8 @@
 
 Что делает:
   1. добавляет разрешения INTERNET, ACCESS_COARSE/FINE_LOCATION (геолокация «рядом»), RECORD_AUDIO, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED, WAKE_LOCK, VIBRATE и запросы для звонков/ссылок;
-  2. ставит название приложения «ДелоЕсть»;
-  3. создаёт алиас значка (оранжевый) и векторную иконку уведомлений ic_stat_deloest (галочка ДелоЕсть + цветная крупная иконка приложения);
+  2. ставит название приложения «ЗадаЧО»;
+  3. создаёт алиас значка (оранжевый) и векторную иконку уведомлений ic_stat_deloest (галочка ЗадаЧО + цветная крупная иконка приложения);
   4. подключает Firebase Cloud Messaging (сервис DeloEstFcmService): пуши приходят от сервера даже когда приложение полностью закрыто;
   5. пишет MainActivity с MethodChannel 'ru.deloest.delo_est/launcher_icon', 'ru.deloest.delo_est/notify' (включая нативную лёгкую вибрацию 'haptic'), ярлыками значка и записью/воспроизведением голоса.
 Любая ошибка останавливает сборку с понятным сообщением.
@@ -51,7 +51,7 @@ if '<application' not in text:
 text = text.replace('<application', perm, 1)
 
 # 2. Название
-text = re.sub(r'android:label="[^"]*"', 'android:label="ДелоЕсть"', text, count=1)
+text = re.sub(r'android:label="[^"]*"', 'android:label="ЗадаЧО"', text, count=1)
 
 # 3. Снимаем LAUNCHER с MainActivity и вешаем его на алиасы
 pattern = r'(<activity\b[^>]*android:name="[^"]*MainActivity"[^>]*>)(.*?)(</activity>)'
@@ -68,7 +68,7 @@ text = text[:m.start()] + m.group(1) + body + m.group(3) + text[m.end():]
 
 alias = (
     '        <activity-alias android:name=".%(n)s" android:enabled="%(en)s" android:exported="true" '
-    'android:icon="@drawable/%(ic)s" android:label="ДелоЕсть" android:targetActivity=".MainActivity">\n'
+    'android:icon="@drawable/%(ic)s" android:label="ЗадаЧО" android:targetActivity=".MainActivity">\n'
     '            <intent-filter>\n'
     '                <action android:name="android.intent.action.MAIN"/>\n'
     '                <category android:name="android.intent.category.LAUNCHER"/>\n'
@@ -129,7 +129,7 @@ for name in ('icon_orange',):
         die('Нет файла %s' % src)
     shutil.copy(src, res / (name + '.png'))
 
-# Векторный силуэт логотипа «ДелоЕсть» (галочка в контуре) для статус-бара Android, чтобы не было белого квадрата
+# Векторный силуэт логотипа «ЗадаЧО» (галочка в контуре) для статус-бара Android, чтобы не было белого квадрата
 (res / 'ic_stat_deloest.xml').write_text(
     '<?xml version="1.0" encoding="utf-8"?>\n'
     '<vector xmlns:android="http://schemas.android.com/apk/res/android"\n'
@@ -212,10 +212,10 @@ object DeloEstNotif {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val ch = NotificationChannel(
                 CHANNEL_ID,
-                "Уведомления ДелоЕсть",
+                "Уведомления ЗадаЧО",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Сообщения, отклики и важные оповещения сервиса ДелоЕсть"
+                description = "Сообщения, отклики и важные оповещения сервиса ЗадаЧО"
                 enableVibration(true)
                 setSound(
                     Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.delo_notify),
@@ -419,7 +419,7 @@ class DeloEstFcmService : FirebaseMessagingService() {
         val p = getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
         if (!p.getBoolean("enabled", true)) return
         if (DeloEstNotif.appFg) return
-        val title = msg.data["title"] ?: "ДелоЕсть"
+        val title = msg.data["title"] ?: "ЗадаЧО"
         val body = msg.data["body"] ?: ""
         if (body.isEmpty()) return
         val kind = msg.data["kind"] ?: ""
@@ -686,7 +686,7 @@ class MainActivity : FlutterActivity() {
                     }
                     "show" -> {
                         val args = call.arguments as? Map<*, *>
-                        val title = (args?.get("title") as? String) ?: "ДелоЕсть"
+                        val title = (args?.get("title") as? String) ?: "ЗадаЧО"
                         val body = (args?.get("body") as? String) ?: ""
                         val sc = args?.get("shortcut") as? String
                         if (Build.VERSION.SDK_INT >= 33 &&

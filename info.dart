@@ -281,7 +281,7 @@ class _InfoPageState extends State<InfoPage> {
       Text(
           (c['copy'] ?? '').trim().isNotEmpty
               ? c['copy']!.trim()
-              : '© 2026 ДелоЕсть. Сервис публикует объявления пользователей и не является стороной сделки.',
+              : '© 2026 ЗадаЧО. Сервис публикует объявления пользователей и не является стороной сделки.',
           textAlign: TextAlign.center,
           style: TextStyle(color: p.mu, fontSize: 12.5)),
     ];
@@ -321,7 +321,7 @@ Future<void> runUpdateCheck(BuildContext context) async {
     toast(context, 'Обновлений не найдено');
     return;
   }
-  final dl = S.i.updateUrl ?? 'https://github.com/mchipta/DeloEst-app-Android/releases/latest/download/DeloEst.apk';
+  final dl = S.i.updateUrl ?? 'https://github.com/mchipta/DeloEst-app-Android/releases/latest/download/ZadaCho.apk';
   final p = pal(context);
   final go = await showDialog<bool>(
     context: context,
@@ -418,8 +418,8 @@ class _AboutAppPageState extends State<AboutAppPage> {
         const Center(child: Logo(size: 84)),
         const SizedBox(height: 14),
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Text('Дело', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: p.tx)),
-          const GradText('Есть', size: 28),
+          Text('Зада', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: p.tx)),
+          const GradText('ЧО', size: 28),
         ]),
         const SizedBox(height: 4),
         Center(child: Text('Версия $kAppVersion', style: TextStyle(color: p.mu, fontSize: 15))),
@@ -467,7 +467,7 @@ class _AboutAppPageState extends State<AboutAppPage> {
           _soc(p, 'vk', 'ВКонтакте', vkUrl),
         ]),
         const SizedBox(height: 18),
-        Text('Приложение сервиса ДелоЕсть. Объявления, аккаунты и сообщения общие с сайтом.',
+        Text('Приложение сервиса ЗадаЧО. Объявления, аккаунты и сообщения общие с сайтом.',
             textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 13.5)),
       ]),
     );

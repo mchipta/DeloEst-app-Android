@@ -760,7 +760,7 @@ class _SettingsBodyState extends State<SettingsBody> {
       final l = j['list'] is List ? j['list'] as List : const [];
       final d = l.firstWhere((e) => e is Map && e['sup'] == 1, orElse: () => null);
       if (d == null || !mounted) return;
-      await Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(pid: d['pid'].toString(), name: 'Поддержка ДелоЕсть', adId: 'support')));
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(pid: d['pid'].toString(), name: 'Поддержка ЗадаЧО', adId: 'support')));
     });
   }
 
@@ -773,8 +773,8 @@ class _SettingsBodyState extends State<SettingsBody> {
             final jsonStr = const JsonEncoder.withIndent('  ').convert(res['data'] ?? res);
             try {
               // отдаём файлом: через «Поделиться» его можно сохранить в «Файлы» или отправить себе
-              await Share.shareXFiles([XFile.fromData(Uint8List.fromList(utf8.encode(jsonStr)), mimeType: 'application/json', name: 'deloest-data.json')],
-                  fileNameOverrides: ['deloest-data.json'], subject: 'Мои данные ДелоЕсть');
+              await Share.shareXFiles([XFile.fromData(Uint8List.fromList(utf8.encode(jsonStr)), mimeType: 'application/json', name: 'zadacho-data.json')],
+                  fileNameOverrides: ['zadacho-data.json'], subject: 'Мои данные ЗадаЧО');
             } catch (_) {
               await Clipboard.setData(ClipboardData(text: jsonStr));
               if (mounted) toast(context, 'Не удалось создать файл, данные скопированы в буфер обмена');
@@ -1083,7 +1083,7 @@ class _AppStampState extends State<AppStamp> {
               const Logo(size: 48),
               const SizedBox(width: 14),
               Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                Text('ДелоЕсть', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: p.tx)),
+                Text('ЗадаЧО', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: p.tx)),
                 const SizedBox(height: 2),
                 Text('Версия $kAppVersion', style: TextStyle(color: p.mu, fontSize: 13)),
               ]),

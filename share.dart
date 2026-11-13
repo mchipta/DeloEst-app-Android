@@ -11,7 +11,7 @@ Future<void> showShare(BuildContext context, Ad ad) async {
   final text = [
     ad.title,
     [adPay(ad), ad.city].where((e) => e.isNotEmpty).join(' · '),
-    'Объявление на ДелоЕсть — подработка рядом с домом',
+    'Объявление на ЗадаЧО — подработка рядом с домом',
   ].join('\n');
   try {
     await Share.share('$text\n$url', subject: ad.title);

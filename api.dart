@@ -18,7 +18,7 @@ String sha256Hex(String s) => sha256.convert(utf8.encode(s)).toString();
 class Api {
   static const String url = apiUrl;
   static String? token;
-  static String deviceName = 'Android · Приложение ДелоЕсть';
+  static String deviceName = 'Android · Приложение ЗадаЧО';
   static String ip = '';
   static String geo = '';
 

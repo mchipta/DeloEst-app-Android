@@ -156,8 +156,8 @@ class _LandingPageState extends State<LandingPage> {
         child: Row(children: [
           const Logo(size: 34),
           const SizedBox(width: 8),
-          Text('Дело', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: p.tx)),
-          const GradText('Есть', size: 21),
+          Text('Зада', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: p.tx)),
+          const GradText('ЧО', size: 21),
           const Spacer(),
         ]),
       );
@@ -560,7 +560,7 @@ class _LandingPageState extends State<LandingPage> {
             _footerLink('Согласие на обработку данных', () => openLegal(context, 'consent'), p),
           ]),
           const SizedBox(height: 10),
-          Text('© ДелоЕсть', style: TextStyle(color: p.mu, fontSize: 12)),
+          Text('© ЗадаЧО', style: TextStyle(color: p.mu, fontSize: 12)),
         ]),
       );
 
@@ -586,8 +586,8 @@ class _LandingPageState extends State<LandingPage> {
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             const Logo(size: 29),
             const SizedBox(width: 7),
-            Text('Дело', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: p.tx)),
-            const GradText('Есть', size: 18),
+            Text('Зада', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: p.tx)),
+            const GradText('ЧО', size: 18),
           ]),
           const SizedBox(height: 8),
           Text(_site['foot'] ?? '', textAlign: TextAlign.center,
@@ -631,7 +631,7 @@ class _LandingPageState extends State<LandingPage> {
             _footerLink('Согласие на обработку данных', () => openLegal(context, 'consent'), p),
           ]),
           const SizedBox(height: 14),
-          Text(_site['copy'] ?? '© ДелоЕсть. Все права защищены.', textAlign: TextAlign.center,
+          Text(_site['copy'] ?? '© ЗадаЧО. Все права защищены.', textAlign: TextAlign.center,
               style: TextStyle(color: p.mu, fontSize: 11.5, height: 1.4)),
           if (_siteLoading) Padding(padding: const EdgeInsets.only(top: 8), child: Center(child: SizedBox(height: 2, width: 40, child: LinearProgressIndicator(color: p.ac, minHeight: 2)))),
         ]),

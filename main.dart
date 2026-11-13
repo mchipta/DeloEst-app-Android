@@ -27,7 +27,7 @@ class DeloApp extends StatelessWidget {
     return ListenableBuilder(
       listenable: S.i,
       builder: (context, _) => MaterialApp(
-        title: 'ДелоЕсть',
+        title: 'ЗадаЧО',
         debugShowCheckedModeBanner: false,
         scaffoldMessengerKey: S.msgKey,
         themeMode: S.i.themeMode,

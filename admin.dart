@@ -19,7 +19,7 @@ class _AdminPageState extends State<AdminPage> with SingleTickerProviderStateMix
   bool loading = true;
   String? err;
 
-  final _pushTitle = TextEditingController(text: 'ДелоЕсть');
+  final _pushTitle = TextEditingController(text: 'ЗадаЧО');
   final _pushBody = TextEditingController();
   final _pushTo = TextEditingController();
   bool _sendingPush = false;
@@ -81,7 +81,7 @@ class _AdminPageState extends State<AdminPage> with SingleTickerProviderStateMix
     setState(() => _sendingPush = true);
     try {
       await Api.call('sendPush', {
-        'title': _pushTitle.text.trim().isEmpty ? 'ДелоЕсть' : _pushTitle.text.trim(),
+        'title': _pushTitle.text.trim().isEmpty ? 'ЗадаЧО' : _pushTitle.text.trim(),
         'body': body,
         'target': _pushTo.text.trim().isEmpty ? 'all' : _pushTo.text.trim(),
         'to': _pushTo.text.trim(),
@@ -250,7 +250,7 @@ class _AdminPageState extends State<AdminPage> with SingleTickerProviderStateMix
                 contextMenuBuilder: appContextMenu,
                 controller: _pushTitle,
                 style: TextStyle(color: p.tx),
-                decoration: deco(context, 'Заголовок', hint: 'ДелоЕсть'),
+                decoration: deco(context, 'Заголовок', hint: 'ЗадаЧО'),
               ),
               const SizedBox(height: 10),
               TextField(
@@ -286,7 +286,7 @@ class _AdminPageState extends State<AdminPage> with SingleTickerProviderStateMix
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
                   Expanded(
-                    child: Text((item['title'] ?? 'ДелоЕсть').toString(), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.tx)),
+                    child: Text((item['title'] ?? 'ЗадаЧО').toString(), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: p.tx)),
                   ),
                   Text(ago(((item['ts'] as num?) ?? 0).toInt()), style: TextStyle(color: p.mu, fontSize: 12)),
                 ]),

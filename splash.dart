@@ -111,12 +111,12 @@ class _SplashState extends State<_Splash> with SingleTickerProviderStateMixin {
                   opacity: tv.clamp(0.0, 1.0),
                   child: Transform.translate(
                     offset: Offset(-26 * (1 - tv), 0),
-                    child: Text('Дело', style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: p.tx)),
+                    child: Text('Зада', style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: p.tx)),
                   ),
                 ),
                 Opacity(
                   opacity: tv.clamp(0.0, 1.0),
-                  child: Transform.translate(offset: Offset(26 * (1 - tv), 0), child: const GradText('Есть', size: 34)),
+                  child: Transform.translate(offset: Offset(26 * (1 - tv), 0), child: const GradText('ЧО', size: 34)),
                 ),
               ]),
               const SizedBox(height: 6),

@@ -464,7 +464,7 @@ class S extends ChangeNotifier {
         for (final raw in plist) {
           final m = Map<String, dynamic>.from(raw as Map);
           final ts = (m['ts'] as num?)?.toInt() ?? 0;
-          final title = (m['title'] ?? 'ДелоЕсть').toString();
+          final title = (m['title'] ?? 'ЗадаЧО').toString();
           final body = (m['body'] ?? '').toString();
           if (ts > maxTs) maxTs = ts;
           if (messageNotificationsEnabled && body.isNotEmpty) {
@@ -541,7 +541,7 @@ class S extends ChangeNotifier {
         }
       }
       if (_unreadInit && msgs > _msgs && messageNotificationsEnabled && !messagesOpen && chatOpen == 0) {
-        if (_resumed) await showSystemPush('Новое сообщение', 'Откройте ДелоЕсть, чтобы прочитать сообщение');
+        if (_resumed) await showSystemPush('Новое сообщение', 'Откройте ЗадаЧО, чтобы прочитать сообщение');
         TopToastHost.show(
           'Откройте чаты, чтобы прочитать сообщение',
           title: 'Новое сообщение',

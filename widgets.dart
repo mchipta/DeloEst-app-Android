@@ -45,7 +45,7 @@ class _ToastEntry {
   });
 }
 
-/// Верхнее всплывающее уведомление в фирменном дизайне ДелоЕсть (как на сайте)
+/// Верхнее всплывающее уведомление в фирменном дизайне ЗадаЧО (как на сайте)
 class TopToastHost extends StatefulWidget {
   final Widget child;
   const TopToastHost({super.key, required this.child});
@@ -1020,7 +1020,7 @@ void showVerifiedInfo(BuildContext context) {
         icon: Icon(Icons.verified, color: p.ok, size: 44),
         title: Text('Подтверждённый профиль', textAlign: TextAlign.center, style: TextStyle(color: p.tx, fontWeight: FontWeight.w800)),
         content: Text(
-            'Администрация ДелоЕсть проверила документы этого человека и подтвердила его личность. Это снижает риск мошенничества, но деньги заранее всё равно лучше не переводить.',
+            'Администрация ЗадаЧО проверила документы этого человека и подтвердила его личность. Это снижает риск мошенничества, но деньги заранее всё равно лучше не переводить.',
             style: TextStyle(color: p.mu, height: 1.4)),
         actions: [TextButton(onPressed: () { haptic(); Navigator.pop(c); }, child: Text('Понятно', style: TextStyle(color: p.ac, fontWeight: FontWeight.w800)))],
       );

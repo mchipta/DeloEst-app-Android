@@ -70,7 +70,7 @@ class Geo {
             'accept-language': 'ru',
           }),
           headers: {
-            'User-Agent': 'DeloEst/1.0 (https://mchipta.github.io/DeloEst-website/; michipta@ya.ru)',
+            'User-Agent': 'ZadaCho/1.0 (https://mchipta.github.io/DeloEst-website/; michipta@ya.ru)',
             'Referer': 'https://mchipta.github.io/DeloEst-website/',
           },
         ).timeout(const Duration(seconds: 8));
@@ -101,7 +101,7 @@ class Geo {
           'q': q,
         }),
         headers: {
-          'User-Agent': 'DeloEst/1.0 (https://mchipta.github.io/DeloEst-website/; michipta@ya.ru)',
+          'User-Agent': 'ZadaCho/1.0 (https://mchipta.github.io/DeloEst-website/; michipta@ya.ru)',
           'Referer': 'https://mchipta.github.io/DeloEst-website/',
         },
       ).timeout(const Duration(seconds: 8));
@@ -120,7 +120,7 @@ class Geo {
     try {
       final r = await http.get(
         Uri.https('photon.komoot.io', '/api/', {'q': q, 'limit': '$limit'}),
-        headers: {'User-Agent': 'DeloEst/1.0 (https://mchipta.github.io/DeloEst-website/)'},
+        headers: {'User-Agent': 'ZadaCho/1.0 (https://mchipta.github.io/DeloEst-website/)'},
       ).timeout(const Duration(seconds: 8));
       if (r.statusCode != 200) return null;
       final feats = (jsonDecode(utf8.decode(r.bodyBytes))['features'] as List?) ?? [];
