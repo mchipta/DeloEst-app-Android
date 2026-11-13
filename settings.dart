@@ -352,24 +352,6 @@ class _SettingsBodyState extends State<SettingsBody> {
     final innOk = S.i.user?['innOk'] == true && inn.length == 12;
     final off = S.i.notifTypes.values.where((v) => v == false).length;
     return [
-      if (!S.i.logged)
-        Container(
-          margin: const EdgeInsets.only(top: 6),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Color.alphaBlend(p.ac.withOpacity(.1), p.card),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: p.ac.withOpacity(.3)),
-          ),
-          child: Row(children: [
-            Icon(Icons.info_outline, color: p.ac, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text('Здесь только то, что не связано с аккаунтом. Остальное появится после входа.',
-                  style: TextStyle(color: p.mu, fontSize: 13.5, height: 1.35)),
-            ),
-          ]),
-        ),
       _group(p, 'Поиск', [
         _hubRow(p, Icons.place_outlined, _cRed, 'Регион для поиска', S.i.regionCity.isEmpty ? 'Все города' : S.i.regionCity,
             () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegionPage()))),

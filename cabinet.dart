@@ -1021,7 +1021,7 @@ class ProfileGuest extends StatelessWidget {
           child: GradBtn('Войти или создать аккаунт', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthPage()))),
         ),
         const SizedBox(height: 12),
-        Text('Без комиссии, договаривайтесь напрямую. Регистрация: почта, пароль и телефон.',
+        Text('Без комиссии, договаривайтесь напрямую.',
             textAlign: TextAlign.center, style: TextStyle(color: p.mu, fontSize: 13, height: 1.35)),
       ]),
     );
