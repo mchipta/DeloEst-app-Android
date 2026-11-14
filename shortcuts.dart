@@ -12,7 +12,7 @@ class ShortcutHost extends StatefulWidget {
 }
 
 class _ShortcutHostState extends State<ShortcutHost> with WidgetsBindingObserver {
-  static const _ch = MethodChannel('ru.deloest.delo_est/shortcut');
+  static const _ch = MethodChannel('ru.zadacho.app/shortcut');
 
   @override
   void initState() {

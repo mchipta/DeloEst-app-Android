@@ -28,7 +28,7 @@ jobs:
 
       - name: Каркас Android-проекта
         run: |
-          flutter create --org ru.deloest --project-name delo_est --platforms android --no-pub shell
+          flutter create --org ru.zadacho --project-name app --platforms android --no-pub shell
           rm -rf shell/lib shell/test shell/pubspec.yaml
           mkdir -p shell/lib shell/assets
           cp pubspec.yaml shell/

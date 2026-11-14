@@ -3,9 +3,9 @@
 Что делает:
   1. добавляет разрешения INTERNET, ACCESS_COARSE/FINE_LOCATION (геолокация «рядом»), RECORD_AUDIO, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED, WAKE_LOCK, VIBRATE и запросы для звонков/ссылок;
   2. ставит название приложения «ЗадаЧО»;
-  3. создаёт алиас значка (оранжевый) и векторную иконку уведомлений ic_stat_deloest (галочка ЗадаЧО + цветная крупная иконка приложения);
-  4. подключает Firebase Cloud Messaging (сервис DeloEstFcmService): пуши приходят от сервера даже когда приложение полностью закрыто;
-  5. пишет MainActivity с MethodChannel 'ru.deloest.delo_est/launcher_icon', 'ru.deloest.delo_est/notify' (включая нативную лёгкую вибрацию 'haptic'), ярлыками значка и записью/воспроизведением голоса.
+  3. создаёт алиас значка (оранжевый) и векторную иконку уведомлений ic_stat_zadacho (галочка ЗадаЧО + цветная крупная иконка приложения);
+  4. подключает Firebase Cloud Messaging (сервис ZadaChoFcmService): пуши приходят от сервера даже когда приложение полностью закрыто;
+  5. пишет MainActivity с MethodChannel 'ru.zadacho.app/launcher_icon', 'ru.zadacho.app/notify' (включая нативную лёгкую вибрацию 'haptic'), ярлыками значка и записью/воспроизведением голоса.
 Любая ошибка останавливает сборку с понятным сообщением.
 """
 import re
@@ -75,8 +75,8 @@ alias = (
     '            </intent-filter>\n'
     '            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts"/>\n'
     '        </activity-alias>\n'
-    '        <receiver android:name=".DeloEstReplyReceiver" android:exported="false"/>\n'
-    '        <service android:name=".DeloEstFcmService" android:exported="false">\n'
+    '        <receiver android:name=".ZadaChoReplyReceiver" android:exported="false"/>\n'
+    '        <service android:name=".ZadaChoFcmService" android:exported="false">\n'
     '            <intent-filter>\n'
     '                <action android:name="com.google.firebase.MESSAGING_EVENT"/>\n'
     '            </intent-filter>\n'
@@ -120,7 +120,7 @@ vals_dir.mkdir(parents=True, exist_ok=True)
 )
 
 
-# 4. Картинки значков + прозрачный векторный значок статус-бара ic_stat_deloest.xml
+# 4. Картинки значков + прозрачный векторный значок статус-бара ic_stat_zadacho.xml
 res = Path('android/app/src/main/res/drawable')
 res.mkdir(parents=True, exist_ok=True)
 for name in ('icon_orange',):
@@ -130,7 +130,7 @@ for name in ('icon_orange',):
     shutil.copy(src, res / (name + '.png'))
 
 # Векторный силуэт логотипа «ЗадаЧО» (галочка в контуре) для статус-бара Android, чтобы не было белого квадрата
-(res / 'ic_stat_deloest.xml').write_text(
+(res / 'ic_stat_zadacho.xml').write_text(
     '<?xml version="1.0" encoding="utf-8"?>\n'
     '<vector xmlns:android="http://schemas.android.com/apk/res/android"\n'
     '    android:width="24dp"\n'
@@ -144,7 +144,7 @@ for name in ('icon_orange',):
     encoding='utf-8'
 )
 
-# 5. MainActivity + DeloEstPushReceiver (фоновая проверка сообщений и пушей при закрытом приложении)
+# 5. MainActivity + ZadaChoPushReceiver (фоновая проверка сообщений и пушей при закрытом приложении)
 main_dir = Path('android/app/src/main')
 found = list(main_dir.rglob('MainActivity.kt')) + list(main_dir.rglob('MainActivity.java'))
 if not found:
@@ -197,9 +197,9 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
-object DeloEstNotif {
-    const val CHANNEL_ID = "deloest_push_v3"
-    const val PREFS = "deloest_bg_prefs"
+object ZadaChoNotif {
+    const val CHANNEL_ID = "zadacho_push_v3"
+    const val PREFS = "zadacho_bg_prefs"
     private var seq = 200
 
     // true только пока приложение открыто (живёт в памяти процесса, после закрытия сбрасывается само)
@@ -227,7 +227,7 @@ object DeloEstNotif {
             }
             val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             // старый канал со стандартным звуком больше не нужен
-            nm.deleteNotificationChannel("deloest_push_v2")
+            nm.deleteNotificationChannel("zadacho_push_v2")
             nm.createNotificationChannel(ch)
         }
     }
@@ -256,7 +256,7 @@ object DeloEstNotif {
         }
 
         val builder = NotificationCompat.Builder(ctx, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_deloest)
+            .setSmallIcon(R.drawable.ic_stat_zadacho)
             .setColor(0xFFFF5A36.toInt())
             .setContentTitle(title)
             .setContentText(body)
@@ -320,8 +320,8 @@ object DeloEstNotif {
         else PendingIntent.FLAG_UPDATE_CURRENT
         val openPi = PendingIntent.getActivity(ctx, nid, open, openFlags)
 
-        val replyIntent = Intent(ctx, DeloEstReplyReceiver::class.java).apply {
-            action = "ru.deloest.delo_est.REPLY"
+        val replyIntent = Intent(ctx, ZadaChoReplyReceiver::class.java).apply {
+            action = "ru.zadacho.app.REPLY"
             putExtra("from", from)
             putExtra("ad", ad)
             putExtra("sender", sender)
@@ -331,14 +331,14 @@ object DeloEstNotif {
         else PendingIntent.FLAG_UPDATE_CURRENT
         val replyPi = PendingIntent.getBroadcast(ctx, nid, replyIntent, replyFlags)
         val remote = RemoteInput.Builder(REPLY_KEY).setLabel("Ответить").build()
-        val replyAction = NotificationCompat.Action.Builder(R.drawable.ic_stat_deloest, "Ответить", replyPi)
+        val replyAction = NotificationCompat.Action.Builder(R.drawable.ic_stat_zadacho, "Ответить", replyPi)
             .addRemoteInput(remote)
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
             .setAllowGeneratedReplies(false)
             .build()
 
         val builder = NotificationCompat.Builder(ctx, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_deloest)
+            .setSmallIcon(R.drawable.ic_stat_zadacho)
             .setColor(0xFFFF5A36.toInt())
             .setStyle(style)
             .setSubText("Сообщение")
@@ -401,31 +401,31 @@ object DeloEstNotif {
 }
 
 // Пуши от сервера через Firebase Cloud Messaging (работают при закрытом приложении)
-class DeloEstFcmService : FirebaseMessagingService() {
+class ZadaChoFcmService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
-        getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE).edit().putString("fcmToken", token).apply()
+        getSharedPreferences(ZadaChoNotif.PREFS, Context.MODE_PRIVATE).edit().putString("fcmToken", token).apply()
     }
 
     override fun onMessageReceived(msg: RemoteMessage) {
-        DeloEstNotif.quiet = msg.data["silent"] == "1"
+        ZadaChoNotif.quiet = msg.data["silent"] == "1"
         try {
             handle(msg)
         } finally {
-            DeloEstNotif.quiet = false
+            ZadaChoNotif.quiet = false
         }
     }
 
     private fun handle(msg: RemoteMessage) {
-        val p = getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
+        val p = getSharedPreferences(ZadaChoNotif.PREFS, Context.MODE_PRIVATE)
         if (!p.getBoolean("enabled", true)) return
-        if (DeloEstNotif.appFg) return
+        if (ZadaChoNotif.appFg) return
         val title = msg.data["title"] ?: "ЗадаЧО"
         val body = msg.data["body"] ?: ""
         if (body.isEmpty()) return
         val kind = msg.data["kind"] ?: ""
         val from = msg.data["peer"] ?: ""
         if (kind == "msg" && from.isNotEmpty()) {
-            DeloEstNotif.postMessage(this, title, from, msg.data["ad"] ?: "", body, false, true)
+            ZadaChoNotif.postMessage(this, title, from, msg.data["ad"] ?: "", body, false, true)
             return
         }
         val sc = if (msg.data["link"] == "messages") "messages" else null
@@ -434,19 +434,19 @@ class DeloEstFcmService : FirebaseMessagingService() {
             "review" -> "Отзыв"
             else -> null
         }
-        DeloEstNotif.show(this, title, body, sc, label)
+        ZadaChoNotif.show(this, title, body, sc, label)
     }
 }
 
 // Ответ прямо из уведомления: отправляется на сервер тем же действием, что и в приложении
-class DeloEstReplyReceiver : BroadcastReceiver() {
+class ZadaChoReplyReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val text = (RemoteInput.getResultsFromIntent(intent)?.getCharSequence(DeloEstNotif.REPLY_KEY) ?: "").toString().trim()
+        val text = (RemoteInput.getResultsFromIntent(intent)?.getCharSequence(ZadaChoNotif.REPLY_KEY) ?: "").toString().trim()
         val from = intent.getStringExtra("from") ?: ""
         val ad = intent.getStringExtra("ad") ?: ""
         val sender = intent.getStringExtra("sender") ?: ""
         if (text.isEmpty() || from.isEmpty()) return
-        val p = context.getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
+        val p = context.getSharedPreferences(ZadaChoNotif.PREFS, Context.MODE_PRIVATE)
         val apiUrl = p.getString("apiUrl", "") ?: ""
         val token = p.getString("token", "") ?: ""
         val pending = goAsync()
@@ -455,11 +455,11 @@ class DeloEstReplyReceiver : BroadcastReceiver() {
             try {
                 if (apiUrl.isNotEmpty() && token.isNotEmpty()) {
                     val body = JSONObject().put("a", "send").put("t", token).put("with", from).put("adId", ad).put("text", text).toString()
-                    val res = DeloEstNotif.postJson(apiUrl, body)
+                    val res = ZadaChoNotif.postJson(apiUrl, body)
                     if (res != null) ok = JSONObject(res).optBoolean("ok", false)
                 }
             } catch (e: Exception) { }
-            DeloEstNotif.postMessage(context, sender, from, ad, if (ok) text else null, true, false)
+            ZadaChoNotif.postMessage(context, sender, from, ad, if (ok) text else null, true, false)
             if (!ok) {
                 Handler(Looper.getMainLooper()).post {
                     Toast.makeText(context, "Не удалось отправить ответ", Toast.LENGTH_LONG).show()
@@ -486,19 +486,19 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         pendingShortcut = intent?.getStringExtra("shortcut")
-        DeloEstNotif.ensureChannel(this)
+        ZadaChoNotif.ensureChannel(this)
     }
 
     override fun onResume() {
         super.onResume()
-        DeloEstNotif.appFg = true
+        ZadaChoNotif.appFg = true
         try {
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancelAll()
         } catch (e: Exception) { }
     }
 
     override fun onPause() {
-        DeloEstNotif.appFg = false
+        ZadaChoNotif.appFg = false
         super.onPause()
     }
 
@@ -510,7 +510,7 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
-        DeloEstNotif.appFg = false
+        ZadaChoNotif.appFg = false
         releaseRec()
         releasePlayer()
         super.onDestroy()
@@ -640,7 +640,7 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "ru.deloest.delo_est/notify")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "ru.zadacho.app/notify")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "haptic" -> {
@@ -669,7 +669,7 @@ class MainActivity : FlutterActivity() {
                     }
                     "syncBg" -> {
                         val args = call.arguments as? Map<*, *>
-                        val p = getSharedPreferences(DeloEstNotif.PREFS, Context.MODE_PRIVATE)
+                        val p = getSharedPreferences(ZadaChoNotif.PREFS, Context.MODE_PRIVATE)
                         val ed = p.edit()
                         if (args != null) {
                             if (args.containsKey("apiUrl")) ed.putString("apiUrl", args["apiUrl"] as? String ?: "")
@@ -693,14 +693,14 @@ class MainActivity : FlutterActivity() {
                             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), reqNotif)
                         } else {
-                            DeloEstNotif.show(this, title, body, sc)
+                            ZadaChoNotif.show(this, title, body, sc)
                         }
                         result.success(true)
                     }
                     else -> result.notImplemented()
                 }
             }
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "ru.deloest.delo_est/voice")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "ru.zadacho.app/voice")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "start" -> startRec(result)
@@ -734,7 +734,7 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "ru.deloest.delo_est/shortcut")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "ru.zadacho.app/shortcut")
             .setMethodCallHandler { call, result ->
                 if (call.method == "take") {
                     val s = pendingShortcut
@@ -744,7 +744,7 @@ class MainActivity : FlutterActivity() {
                     result.notImplemented()
                 }
             }
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "ru.deloest.delo_est/launcher_icon")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "ru.zadacho.app/launcher_icon")
             .setMethodCallHandler { call, result ->
                 if (call.method != "setLauncherIcon") {
                     result.notImplemented()

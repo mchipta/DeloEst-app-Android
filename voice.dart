@@ -11,7 +11,7 @@ import 'widgets.dart';
 
 // Мост к Android: запись голоса (MediaRecorder) и воспроизведение (MediaPlayer)
 class Voice {
-  static const _ch = MethodChannel('ru.deloest.delo_est/voice');
+  static const _ch = MethodChannel('ru.zadacho.app/voice');
 
   // 'ok' — запись пошла, 'denied' — нет доступа к микрофону, иначе ошибка
   static Future<String> start() async {

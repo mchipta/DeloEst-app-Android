@@ -349,6 +349,8 @@ class _ProfilePageState extends State<ProfilePage> {
               decoration: cardDeco(p, r: 16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
+                  Avatar((r['name'] ?? '').toString(), data: (r['avatar'] ?? '').toString(), size: 32),
+                  const SizedBox(width: 10),
                   Expanded(child: Text((r['name'] ?? '').toString(), style: TextStyle(fontWeight: FontWeight.w800, color: p.tx))),
                   Text(ago((r['ts'] as num?)?.toInt() ?? 0), style: TextStyle(color: p.mu, fontSize: 12)),
                 ]),
@@ -527,6 +529,8 @@ class _ReviewsPageState extends State<ReviewsPage> {
             decoration: cardDeco(p, r: 16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
+                Avatar((r['name'] ?? '').toString(), data: (r['avatar'] ?? '').toString(), size: 32),
+                const SizedBox(width: 10),
                 Expanded(child: Text((r['name'] ?? '').toString(), style: TextStyle(fontWeight: FontWeight.w800, color: p.tx))),
                 Text(ago((r['ts'] as num?)?.toInt() ?? 0), style: TextStyle(color: p.mu, fontSize: 12)),
               ]),

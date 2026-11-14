@@ -16,7 +16,7 @@ class S extends ChangeNotifier {
   static final S i = S._();
   S._();
 
-  static const MethodChannel _notifyCh = MethodChannel('ru.deloest.delo_est/notify');
+  static const MethodChannel _notifyCh = MethodChannel('ru.zadacho.app/notify');
   static int _lastVib = 0;
 
   /// Лёгкая тактильная вибрация при нажатиях и переключениях (и чуть выразительнее на сердечке)

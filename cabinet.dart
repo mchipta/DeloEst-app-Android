@@ -513,6 +513,8 @@ class _CabinetPageState extends State<CabinetPage> {
           decoration: BoxDecoration(color: p.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.bd)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
+              Avatar((r['name'] ?? '').toString(), data: (r['avatar'] ?? '').toString(), size: 32),
+              const SizedBox(width: 10),
               Expanded(child: Text((r['name'] ?? '').toString(), style: TextStyle(fontWeight: FontWeight.w800, color: p.tx))),
               Text(ago((r['ts'] as num?)?.toInt() ?? 0), style: TextStyle(color: p.mu, fontSize: 12)),
             ]),
@@ -750,7 +752,7 @@ class _CabinetPageState extends State<CabinetPage> {
         decoration: cardDeco(p).copyWith(border: Border.all(color: fresh ? p.ac : p.bd, width: fresh ? 1.6 : 1)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Avatar(name, size: 40),
+            Avatar(name, data: (r['avatar'] ?? '').toString(), size: 40),
             const SizedBox(width: 10),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -801,7 +803,7 @@ class _CabinetPageState extends State<CabinetPage> {
                 const SizedBox(width: 8),
                 _sq(p, 'x', () => _act('rej', {'rid': rid}, 'Отклик отклонён'), color: p.dng),
               ]),
-            ] else if (pid.isNotEmpty) ...[
+            ] else if (pid.isNotEmpty && r['rated'] != true) ...[
               const SizedBox(height: 8),
               _big(p, 'Оценить работу', 'star', () => showReviewSheet(context, pid: pid, name: name), accent: true),
             ],
@@ -868,7 +870,7 @@ class _CabinetPageState extends State<CabinetPage> {
                 if (canWrite) Expanded(child: _big(p, 'Написать', 'chat', () => _chat(pid, '', adId: adId))),
               ]),
             ],
-            if (st == 'done' && pid.isNotEmpty) ...[
+            if (st == 'done' && pid.isNotEmpty && r['rated'] != true) ...[
               const SizedBox(height: 8),
               _big(p, 'Оценить работу', 'star', () => showReviewSheet(context, pid: pid), accent: true),
             ],

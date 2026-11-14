@@ -12,7 +12,7 @@ Future<void> main() async {
   // Фиолетовой иконки больше нет: если она была выбрана раньше, возвращаем оранжевую
   try {
     if (S.i.prefs.getString('launcher_icon_style') == 'purple') {
-      await const MethodChannel('ru.deloest.delo_est/launcher_icon').invokeMethod('setLauncherIcon', 'orange');
+      await const MethodChannel('ru.zadacho.app/launcher_icon').invokeMethod('setLauncherIcon', 'orange');
       await S.i.prefs.setString('launcher_icon_style', 'orange');
     }
   } catch (_) {}

@@ -20,7 +20,7 @@ import 'widgets.dart';
 
 // плитки Esri World Street Map (на данных OpenStreetMap и др.) — без ключа
 const _tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
-const _pkg = 'ru.deloest.app';
+const _pkg = 'ru.zadacho.app';
 const _moscow = LatLng(55.7558, 37.6173);
 
 class GeoHit {
@@ -70,8 +70,8 @@ class Geo {
             'accept-language': 'ru',
           }),
           headers: {
-            'User-Agent': 'ZadaCho/1.0 (https://mchipta.github.io/DeloEst-website/; michipta@ya.ru)',
-            'Referer': 'https://mchipta.github.io/DeloEst-website/',
+            'User-Agent': 'ZadaCho/1.0 (https://zadacho.ru/; michipta@ya.ru)',
+            'Referer': 'https://zadacho.ru/',
           },
         ).timeout(const Duration(seconds: 8));
         if (r.statusCode == 200) {
@@ -101,8 +101,8 @@ class Geo {
           'q': q,
         }),
         headers: {
-          'User-Agent': 'ZadaCho/1.0 (https://mchipta.github.io/DeloEst-website/; michipta@ya.ru)',
-          'Referer': 'https://mchipta.github.io/DeloEst-website/',
+          'User-Agent': 'ZadaCho/1.0 (https://zadacho.ru/; michipta@ya.ru)',
+          'Referer': 'https://zadacho.ru/',
         },
       ).timeout(const Duration(seconds: 8));
       if (r.statusCode != 200) return null;
@@ -120,7 +120,7 @@ class Geo {
     try {
       final r = await http.get(
         Uri.https('photon.komoot.io', '/api/', {'q': q, 'limit': '$limit'}),
-        headers: {'User-Agent': 'ZadaCho/1.0 (https://mchipta.github.io/DeloEst-website/)'},
+        headers: {'User-Agent': 'ZadaCho/1.0 (https://zadacho.ru/)'},
       ).timeout(const Duration(seconds: 8));
       if (r.statusCode != 200) return null;
       final feats = (jsonDecode(utf8.decode(r.bodyBytes))['features'] as List?) ?? [];
