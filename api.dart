@@ -2,9 +2,8 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 
-// Тот же сервер (Google Apps Script), что и у сайта — данные общие.
-const apiUrl =
-    'https://script.google.com/macros/s/AKfycbwSe1I-p3TTpHsFWpC3RAg7ZhaI5t_hbOwOoghcOwf7O117Bzl7oy3E3nRIfWoydcBN/exec';
+// Тот же сервер (zadacho.ru), что и у сайта — данные общие.
+const apiUrl = 'https://zadacho.ru/api';
 
 class ApiError implements Exception {
   final String message;

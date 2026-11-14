@@ -3,7 +3,7 @@ import 'models.dart';
 export 'models.dart';
 
 const kAppVersion = '1.4';
-const kSiteUrl = 'https://mchipta.github.io/DeloEst-website/';
+const kSiteUrl = 'https://zadacho.ru/';
 
 String digitsOnly(String s) => s.replaceAll(RegExp(r'\D'), '');
 

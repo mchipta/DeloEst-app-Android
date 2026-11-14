@@ -13,7 +13,7 @@ import 'state.dart';
 import 'theme.dart';
 import 'util.dart';
 
-String imgUrl(String id, int w) => 'https://lh3.googleusercontent.com/d/$id=w$w';
+String imgUrl(String id, int w) => 'https://zadacho.ru/img/$id';
 
 /// Единый вызов лёгкой вибрации (для нажатий на кнопки, табы и сердечко)
 void haptic([bool strong = false]) => S.vibrate(strong);

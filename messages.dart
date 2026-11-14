@@ -44,7 +44,7 @@ String? chatRisk(String text) {
   if (t.contains('предоплат') || t.contains('перевед') || t.contains('переведи') || t.contains('на карту') || t.contains('залог')) {
     return 'Просят деньги вперёд? Не переводите предоплату незнакомым, платите после работы.';
   }
-  if (RegExp(r'https?://|t\.me/|bit\.ly').hasMatch(t) && !t.contains('mchipta.github.io')) {
+  if (RegExp(r'https?://|t\.me/|bit\.ly').hasMatch(t) && !t.contains('zadacho.ru')) {
     return 'Осторожно со ссылками: не вводите по ним данные карты и пароли.';
   }
   return null;
